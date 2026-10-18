@@ -49,10 +49,10 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. Meta Conversions API (CAPI) Integration
-    const pixelId =
-      process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
+    const pixelId = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
     const accessToken = process.env.FB_ACCESS_TOKEN;
-
+    const testEventCode = process.env.FB_TEST_EVENT_CODE;
+    
     if (pixelId && accessToken) {
       try {
         const clientIp = ip.split(",")[0].trim();
@@ -78,6 +78,8 @@ export async function POST(req: NextRequest) {
               },
             },
           ],
+          // Test code pass karvano yaha
+          ...(testEventCode ? { test_event_code: testEventCode } : {}),
         };
 
         await fetch(
