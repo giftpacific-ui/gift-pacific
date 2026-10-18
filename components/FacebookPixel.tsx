@@ -1,21 +1,16 @@
-'use client';
+"use client";
 
-import Script from 'next/script';
+import Script from "next/script";
 
 export default function FacebookPixel() {
-  const pixelId = process.env.FACEBOOK_PIXEL_ID;
-
-  if (!pixelId) {
-    return null;
-  }
-
+  const pixelId = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
+  
+  console.log(pixelId, "pixelId");
   return (
     <>
-      <Script
-        id="fb-pixel"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `
+      {pixelId && (
+        <Script id="meta-pixel-init" strategy="afterInteractive">
+          {`
             !function(f,b,e,v,n,t,s)
             {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
             n.callMethod.apply(n,arguments):n.queue.push(arguments)};
@@ -24,17 +19,18 @@ export default function FacebookPixel() {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
+            fbq.disablePushState = true;
             fbq('init', '${pixelId}');
             fbq('track', 'PageView');
-          `,
-        }}
-      />
+          `}
+        </Script>
+      )}
       <noscript>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           height="1"
           width="1"
-          style={{ display: 'none' }}
+          style={{ display: "none" }}
           src={`https://www.facebook.com/tr?id=${pixelId}&ev=PageView&noscript=1`}
           alt=""
         />
