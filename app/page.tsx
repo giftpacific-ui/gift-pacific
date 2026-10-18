@@ -1,16 +1,24 @@
-import Hero from '@/components/Hero';
-import FeaturedCombos from '@/components/FeaturedCombos';
-import ItemSlider from '@/components/ItemSlider';
-import OurBoxes from '@/components/OurBoxes';
-import { products, boxTypes } from '@/data/products';
-import Link from 'next/link';
-import { Sparkles, Gift } from 'lucide-react';
+import Hero from "@/components/Hero";
+import FeaturedCombos from "@/components/FeaturedCombos";
+import ItemSlider from "@/components/ItemSlider";
+import OurBoxes from "@/components/OurBoxes";
+import { products, boxTypes } from "@/data/products";
+import Link from "next/link";
+import { Sparkles, Gift } from "lucide-react";
+import TrackPageEvent from "@/components/TrackPageEvent";
 
 export default function HomePage() {
   return (
     <main>
+      <TrackPageEvent
+        eventName="ViewContent"
+        data={{
+          content_name: "Home Page",
+          content_category: "Landing Page",
+        }}
+      />
       <Hero />
-      
+
       {/* Featured Combos */}
       <FeaturedCombos products={products} />
 
@@ -31,7 +39,8 @@ export default function HomePage() {
             পছন্দের উপহার দিয়ে নিজেই তৈরি করুন সম্পূর্ণ কম্বো
           </h2>
           <p className="text-sm sm:text-base text-[#8a7a7a] max-w-2xl mx-auto leading-relaxed">
-            যেকোনো পছন্দসই বক্স সিলেক্ট করে সুগন্ধি ক্যান্ডেল, সিরামিক মগ, চকলেট বা পার্সোনাল কার্ড দিয়ে আপনার ভালোবাসার মানুষকে দিন অসাধারণ অনুভূতি।
+            যেকোনো পছন্দসই বক্স সিলেক্ট করে সুগন্ধি ক্যান্ডেল, সিরামিক মগ, চকলেট
+            বা পার্সোনাল কার্ড দিয়ে আপনার ভালোবাসার মানুষকে দিন অসাধারণ অনুভূতি।
           </p>
           <div className="pt-2">
             <Link

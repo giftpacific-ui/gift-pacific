@@ -7,6 +7,7 @@ import { formatPrice } from '@/lib/utils';
 import ProductDetailActions from './ProductDetailActions';
 import ProductCard from '@/components/ProductCard';
 import { CheckCircle2, ArrowLeft, Sparkles } from 'lucide-react';
+import TrackPageEvent from '@/components/TrackPageEvent';
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -53,6 +54,16 @@ export default async function ProductDetailPage({ params }: Props) {
 
   return (
     <main className="py-10">
+      <TrackPageEvent
+        eventName="ViewContent"
+        data={{
+          content_name: product.name,
+          content_ids: [product.id],
+          content_type: "product",
+          value: product.price,
+          currency: "BDT",
+        }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb Back Link */}
         <div className="mb-6">

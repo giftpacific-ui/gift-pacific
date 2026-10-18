@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Product, ProductCategory } from '@/types';
 import ProductCard from './ProductCard';
 import { ShoppingCart } from 'lucide-react';
+import TrackPageEvent from './TrackPageEvent';
 
 interface ShopSectionProps {
   products: Product[];
@@ -19,6 +20,15 @@ export default function ShopSection({ products }: ShopSectionProps) {
 
   return (
     <section className="py-12 sm:py-16">
+      <TrackPageEvent
+        eventName="ViewContent"
+        data={{
+          content_name: "Shop / All Products",
+          content_category: "Product Catalog",
+          content_type: "product_group",
+          content_ids: products.map((p) => p.id),
+        }}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-8">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f5ede8] text-[#0053a8] text-xs font-semibold mb-2">
