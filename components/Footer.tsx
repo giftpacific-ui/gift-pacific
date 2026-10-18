@@ -1,0 +1,139 @@
+"use client";
+
+import Link from "next/link";
+import { Package, Heart, Phone, Mail } from "lucide-react";
+import Image from "next/image";
+
+export default function Footer() {
+  return (
+    <footer className="bg-white border-t border-[#e8dad5] pt-14 pb-8 text-[#4a3b3b]">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-[#e8dad5]/70">
+          {/* Brand Info */}
+          <div className="md:col-span-5 space-y-4">
+            <Link
+              href="/"
+              className="flex items-center"
+            >
+              <Image
+                src="/img/logo/logo.png"
+                width={180}
+                height={36}
+                alt="Gift Pacific Logo"
+              />
+            </Link>
+            <p className="text-xs sm:text-sm text-[#8a7a7a] leading-relaxed max-w-sm">
+              বাংলাদেশের সেরা প্রিমিয়াম হ্যান্ডমেড ক্রাফট ও কাস্টমাইজড কম্বো
+              গিফট বক্স। ভালোবাসা প্রকাশের প্রতিটি মুহূর্তকে নিখুঁত ও
+              অবিস্মরণীয় করে তুলতে আমরা বদ্ধপরিকর।
+            </p>
+            <div className="pt-2 text-xs text-[#8a7a7a] flex items-center gap-1.5">
+              <span>Made with care</span>
+              <Heart className="w-3.5 h-3.5 text-[#0053a8] fill-current" />
+              <span>in Bangladesh</span>
+            </div>
+          </div>
+
+          {/* Quick Links */}
+          <div className="md:col-span-3 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#0053a8]">
+              দ্রুত লিঙ্কসমূহ
+            </h4>
+            <ul className="space-y-2 text-xs sm:text-sm text-[#8a7a7a]">
+              <li>
+                <Link
+                  href="/"
+                  className="hover:text-[#0053a8] transition-colors"
+                >
+                  হোম
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/boxes"
+                  className="hover:text-[#0053a8] transition-colors"
+                >
+                  আমাদের বক্স
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/shop"
+                  className="hover:text-[#0053a8] transition-colors"
+                >
+                  শপ কালেকশন
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/custom"
+                  className="hover:text-[#0053a8] transition-colors"
+                >
+                  নিজে বানান কম্বো
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/about"
+                  className="hover:text-[#0053a8] transition-colors"
+                >
+                  আমাদের সম্পর্কে
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/contact"
+                  className="hover:text-[#0053a8] transition-colors"
+                >
+                  যোগাযোগ
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Contact and Support */}
+          <div className="md:col-span-4 space-y-3">
+            <h4 className="text-xs font-bold uppercase tracking-wider text-[#0053a8]">
+              সহায়তা ও হটলাইন
+            </h4>
+            <div className="space-y-2.5 text-xs sm:text-sm text-[#8a7a7a]">
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-[#0053a8] shrink-0" />
+                <a href="tel:+8801971795775" className="hover:text-[#0053a8]">
+                  +880 1971 795775
+                </a>
+              </div>
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-[#0053a8] shrink-0" />
+                <a
+                  href="mailto:giftpacific@gmail.com।"
+                  className="hover:text-[#0053a8]"
+                >
+                  giftpacific@gmail.com
+                </a>
+              </div>
+              <div className="p-3 rounded-xl bg-[#fbf7f4] border border-[#e8dad5] text-xs text-[#4a3b3b] mt-3">
+                <span className="font-semibold block text-[#0053a8]">
+                  🚚 ক্যাশ অন ডেলিভারি সার্ভিস
+                </span>
+                ঢাকার ভেতরে ৮০ টাকা, ঢাকার বাইরে ১৩০ টাকা ডেলিভারি চার্জ।
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Bar */}
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-[#8a7a7a] gap-4">
+          <div>
+            © {new Date().getFullYear()} Gift Pacific — সর্বস্বত্ব সংরক্ষিত।
+          </div>
+          <div className="flex items-center gap-4">
+            <span>ক্যাশ অন ডেলিভারি</span>
+            <span>•</span>
+            <span>১০০% প্রিমিয়াম কোয়ালিটি</span>
+          </div>
+        </div>
+      </div>
+    </footer>
+  );
+}

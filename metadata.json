@@ -1,0 +1,6 @@
+{
+  "name": "Gift Pacific",
+  "description": "Premium Handmade Gift & Combo Boxes in Bangladesh - Cash on Delivery with custom combo builder.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

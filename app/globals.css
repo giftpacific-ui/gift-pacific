@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #fbf7f4;
+  --bg2: #f5ede8;
+  --surface: #ffffff;
+  --text: #4a3b3b;
+  --text2: #8a7a7a;
+  --line: #e8dad5;
+  --acc: #0053a8;
+  --acc2: #e34d01;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--acc);
+  color: #ffffff;
+}
+
+/* Custom scrollbar for horizontal tracks */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
