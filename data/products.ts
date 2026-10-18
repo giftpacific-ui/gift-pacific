@@ -1,7 +1,6 @@
 import { Product, BoxType, TeamMember } from "@/types";
 
-export const DEFAULT_GOOGLE_SHEET_URL =
-  "https://script.google.com/macros/s/AKfycbwngjcZqqnk9y9Vmrm-VO8BSTj-YM7109RXIDmCwT6DYiaw6Sa3eYAinkpIYLEEwbqt/exec";
+export const DEFAULT_GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL || "";
 
 export const DELIVERY_CHARGE_INSIDE = 80;
 export const DELIVERY_CHARGE_OUTSIDE = 130;

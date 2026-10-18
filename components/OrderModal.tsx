@@ -1,10 +1,19 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { formatPrice, getDeviceInfo } from '@/lib/utils';
-import { DELIVERY_CHARGE_INSIDE, DELIVERY_CHARGE_OUTSIDE } from '@/data/products';
-import { trackPixelEvent } from '@/lib/analytics';
-import { X, CheckCircle, AlertCircle, ShoppingBag, Loader2 } from 'lucide-react';
+import { useState } from "react";
+import { formatPrice, getDeviceInfo } from "@/lib/utils";
+import {
+  DELIVERY_CHARGE_INSIDE,
+  DELIVERY_CHARGE_OUTSIDE,
+} from "@/data/products";
+import { trackPixelEvent } from "@/lib/analytics";
+import {
+  X,
+  CheckCircle,
+  AlertCircle,
+  ShoppingBag,
+  Loader2,
+} from "lucide-react";
 
 interface OrderModalProps {
   isOpen: boolean;
@@ -23,75 +32,87 @@ export default function OrderModal({
   orderItem,
   onOrderSuccess,
 }: OrderModalProps) {
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [deliveryArea, setDeliveryArea] = useState<'inside' | 'outside'>('inside');
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [deliveryArea, setDeliveryArea] = useState<"inside" | "outside">(
+    "inside",
+  );
   const [isLoading, setIsLoading] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [errorMessage, setErrorMessage] = useState("");
 
   if (!isOpen || !orderItem) return null;
 
   const deliveryCharge =
-    deliveryArea === 'inside' ? DELIVERY_CHARGE_INSIDE : DELIVERY_CHARGE_OUTSIDE;
+    deliveryArea === "inside"
+      ? DELIVERY_CHARGE_INSIDE
+      : DELIVERY_CHARGE_OUTSIDE;
   const grandTotal = orderItem.basePrice + deliveryCharge;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setStatus('idle');
-    setErrorMessage('');
+    setStatus("idle");
+    setErrorMessage("");
+
+    // Generate unique Event ID for Deduplication
+    const eventId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     const orderPayload = {
-      type: 'order',
+      type: "order",
       name,
       phone,
       address,
       product: orderItem.name,
       basePrice: orderItem.basePrice,
       deliveryCharge,
-      deliveryArea: deliveryArea === 'inside' ? 'Inside Dhaka' : 'Outside Dhaka',
+      deliveryArea:
+        deliveryArea === "inside" ? "Inside Dhaka" : "Outside Dhaka",
       price: grandTotal,
       device: getDeviceInfo(),
-      location: 'Fetching...',
+      location: "Fetching...",
+      eventId, // Event ID passed for backend CAPI
     };
 
     try {
-      const res = await fetch('/api/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      // 1. Track Client-side Meta Pixel Purchase event with eventID
+      trackPixelEvent("Purchase", {
+        value: grandTotal,
+        currency: "BDT",
+        content_name: orderItem.name,
+        eventID: eventId,
+      });
+
+      // 2. Call Server API (Triggers Google Sheet + Server-side CAPI)
+      const res = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(orderPayload),
       });
 
       if (!res.ok) {
-        throw new Error('Server error');
+        throw new Error("Server error");
       }
 
-      // Track Facebook Pixel Purchase event
-      trackPixelEvent('Purchase', {
-        value: grandTotal,
-        currency: 'BDT',
-        content_name: orderItem.name,
-      });
-
-      setStatus('success');
+      setStatus("success");
       if (onOrderSuccess) onOrderSuccess();
     } catch (err) {
-      console.error('Order submission error:', err);
-      // Even if server warning, still provide friendly experience
-      setStatus('error');
-      setErrorMessage('অর্ডার সম্পন্ন করতে সমস্যা হয়েছে, অনুগ্রহ করে আবার চেষ্টা করুন বা সরাসরি আমাদের ফোনে যোগাযোগ করুন।');
+      console.error("Order submission error:", err);
+      setStatus("error");
+      setErrorMessage(
+        "অর্ডার সম্পন্ন করতে সমস্যা হয়েছে, অনুগ্রহ করে আবার চেষ্টা করুন বা সরাসরি আমাদের ফোনে যোগাযোগ করুন।",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleResetAndClose = () => {
-    setName('');
-    setPhone('');
-    setAddress('');
-    setStatus('idle');
+    setName("");
+    setPhone("");
+    setAddress("");
+    setStatus("idle");
     onClose();
   };
 
@@ -109,29 +130,38 @@ export default function OrderModal({
           <X className="w-5 h-5" />
         </button>
 
-        {status === 'success' ? (
+        {status === "success" ? (
           <div className="py-6 text-center space-y-4">
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8" />
             </div>
             <h3 className=" text-2xl font-bold text-[#4a3b3b]">
-              অর্ডার সফলভাবে জমা হয়েছে!
+              অর্ডার সফলভাবে জমা হয়েছে!
             </h3>
             <p className="text-sm text-[#8a7a7a] max-w-sm mx-auto leading-relaxed">
-              ধন্যবাদ <span className="font-semibold text-[#4a3b3b]">{name}</span>! আমাদের সাপোর্ট টিম খুব শীঘ্রই আপনার সাথে ফোনে যোগাযোগ করে অর্ডার কনফার্ম করবে।
+              ধন্যবাদ{" "}
+              <span className="font-semibold text-[#4a3b3b]">{name}</span>!
+              আমাদের সাপোর্ট টিম খুব শীঘ্রই আপনার সাথে ফোনে যোগাযোগ করে অর্ডার
+              কনফার্ম করবে।
             </p>
             <div className="p-4 bg-[#fbf7f4] rounded-2xl border border-[#e8dad5] text-left text-xs space-y-1.5 max-w-sm mx-auto">
               <div className="flex justify-between">
                 <span className="text-[#8a7a7a]">প্রোডাক্ট:</span>
-                <span className="font-semibold text-[#4a3b3b] line-clamp-1">{orderItem.name}</span>
+                <span className="font-semibold text-[#4a3b3b] line-clamp-1">
+                  {orderItem.name}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-[#8a7a7a]">পেমেন্ট মেথড:</span>
-                <span className="font-semibold text-emerald-700">ক্যাশ অন ডেলিভারি (COD)</span>
+                <span className="font-semibold text-emerald-700">
+                  ক্যাশ অন ডেলিভারি (COD)
+                </span>
               </div>
               <div className="flex justify-between text-sm font-bold pt-2 border-t border-[#e8dad5]">
                 <span>মোট প্রদেয়:</span>
-                <span className="text-[#0053a8]">{formatPrice(grandTotal)}</span>
+                <span className="text-[#0053a8]">
+                  {formatPrice(grandTotal)}
+                </span>
               </div>
             </div>
             <button
@@ -168,11 +198,13 @@ export default function OrderModal({
               </div>
               <div className="flex justify-between text-sm font-bold text-[#4a3b3b] pt-1">
                 <span>সর্বমোট:</span>
-                <span className="text-base text-[#0053a8]">{formatPrice(grandTotal)}</span>
+                <span className="text-base text-[#0053a8]">
+                  {formatPrice(grandTotal)}
+                </span>
               </div>
             </div>
 
-            {status === 'error' && (
+            {status === "error" && (
               <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 <span>{errorMessage}</span>
@@ -211,14 +243,15 @@ export default function OrderModal({
 
               <div>
                 <label className="block text-xs font-semibold text-[#4a3b3b] mb-1.5">
-                  সম্পূর্ণ ডেলিভারি ঠিকানা <span className="text-red-500">*</span>
+                  সম্পূর্ণ ডেলিভারি ঠিকানা{" "}
+                  <span className="text-red-500">*</span>
                 </label>
                 <textarea
                   required
                   rows={2}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="বাড়ি/রোড নং, থানা, জেলা"
+                  placeholder="বাড়ি/রোড নং, থানা, জেলা"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors resize-none"
                 />
               </div>
@@ -229,7 +262,9 @@ export default function OrderModal({
                 </label>
                 <select
                   value={deliveryArea}
-                  onChange={(e) => setDeliveryArea(e.target.value as 'inside' | 'outside')}
+                  onChange={(e) =>
+                    setDeliveryArea(e.target.value as "inside" | "outside")
+                  }
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] font-medium focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors"
                 >
                   <option value="inside">ঢাকার ভেতরে (৮০ টাকা)</option>
