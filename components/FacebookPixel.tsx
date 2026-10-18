@@ -3,24 +3,33 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 
-export default function FacebookPixel() {
-  const pixelId = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
+function PixelTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const pixelId = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
 
-  // Route change হলে অটোমেটিক PageView ট্র্যাক করার জন্য
   useEffect(() => {
     if (pixelId && typeof window !== "undefined" && window.fbq) {
       window.fbq("track", "PageView");
     }
   }, [pathname, searchParams, pixelId]);
 
+  return null;
+}
+
+export default function FacebookPixel() {
+  const pixelId = process.env.NEXT_PUBLIC_FACEBOOK_PIXEL_ID;
+
   if (!pixelId) return null;
 
   return (
     <>
+      <Suspense fallback={null}>
+        <PixelTracker />
+      </Suspense>
+
       <Script id="meta-pixel-init" strategy="afterInteractive">
         {`
           !function(f,b,e,v,n,t,s)
