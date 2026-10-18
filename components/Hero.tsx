@@ -20,13 +20,13 @@ export default function Hero() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
           {/* Left Content */}
-          <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+          <div className="lg:col-span-7 space-y-6 text-center lg:text-left lg:order-1 order-2">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#f5ede8] border border-[#e8dad5] text-xs font-semibold text-[#0053a8]">
               <Sparkles className="w-3.5 h-3.5" />
               <span>প্রিমিয়াম হ্যান্ডমেড ক্রাফট & গিফট বক্স</span>
             </div>
 
-            <h1 className=" text-3xl sm:text-4xl lg:text-[56px] font-extrabold tracking-tight text-[#4a3b3b] leading-[1.2]">
+            <h1 className=" text-3xl sm:text-4xl lg:text-[44px] xl:text-[56px] font-extrabold tracking-tight text-[#4a3b3b] leading-[1.2]">
               খুলে দিন আনন্দের{" "}
               <span className="text-[#0053a8] italic">Gift Pacific</span>,{" "}
               <br />
@@ -82,15 +82,15 @@ export default function Hero() {
           </div>
 
           {/* Right Visual Image */}
-          <div className="lg:col-span-5 flex justify-center">
+          <div className="lg:col-span-5 flex justify-center order-1 lg:order-2">
             <div className="relative w-full max-w-md">
               <div className="relative aspect-[4/4.5] rounded-3xl overflow-hidden shadow-2xl shadow-[#0053a8]/15 border-4 border-white">
                 <Image
                   src="https://images.unsplash.com/photo-1607344645866-009c320b63e0?q=80&w=800&auto=format&fit=crop"
                   alt="Gift Pacific Premium Gift Box"
-                  fill
-                  sizes="(max-width: 768px) 100vw, 450px"
-                  className="object-cover hover:scale-105 transition-transform duration-700"
+                  width={440}
+                  height={496}
+                  className="object-cover h-full hover:scale-105 transition-transform duration-700"
                   priority
                   referrerPolicy="no-referrer"
                 />

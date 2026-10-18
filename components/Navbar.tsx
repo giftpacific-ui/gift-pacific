@@ -55,7 +55,7 @@ export default function Navbar() {
                     className={`relative px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
                       isActive
                         ? "text-[#0053a8] bg-[#f5ede8] font-semibold"
-                        : "text-[#8a7a7a] hover:text-[#4a3b3b] hover:bg-[#f5ede8]/60"
+                        : "text-black hover:text-[#0053a8] hover:bg-[#f5ede8]/60"
                     }`}
                   >
                     <span>{link.label}</span>
