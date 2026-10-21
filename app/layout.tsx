@@ -69,7 +69,7 @@ export default function RootLayout({
       className={`${hindSiliguri.variable} ${playfairDisplay.variable} scroll-smooth`}
     >
       <body
-        className="font-[var(--font-sans)] bg-[#fbf7f4] text-[#4a3b3b] min-h-screen flex flex-col antialiased"
+        className="font-[var(--font-sans)]  text-[#3a3f2b] min-h-screen flex flex-col antialiased"
         suppressHydrationWarning
       >
         <FacebookPixel />

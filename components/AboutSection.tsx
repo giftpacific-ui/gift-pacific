@@ -28,20 +28,20 @@ export default function AboutSection() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Story Intro */}
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <span className="text-xs font-bold text-[#0053a8] uppercase tracking-widest">
+          <span className="text-xs font-bold text-[#3a3f2b] uppercase tracking-widest">
             Our Heritage & Passion
           </span>
-          <h2 className=" text-3xl sm:text-4xl font-extrabold text-[#4a3b3b] mt-2 mb-6">
+          <h2 className=" text-3xl sm:text-4xl font-extrabold text-[#3a3f2b] mt-2 mb-6">
             ক্রাফটিং মেমোরিজ,{" "}
-            <span className="text-[#0053a8] italic">অ্যাট Gift Pacific</span>
+            <span className="text-[#3a3f2b] italic">অ্যাট Gift Pacific</span>
           </h2>
-          <p className="text-base text-[#8a7a7a] leading-relaxed">
+          <p className="text-base text-black leading-relaxed">
             Gift Pacific শুধু একটি গিফট ব্র্যান্ড নয়; এটি নিখুঁত প্রিজেন্টেশন
             এবং স্মৃতি তৈরির প্রতিশ্রুতি। আমরা বিশ্বাস করি, সেরা উপহারগুলো কেবল
             বস্তু দিয়ে তৈরি হয় না, বরং যত্ন, নকশা এবং आबेगের निखुँत समन्वये
             गड़े ओठে।
           </p>
-          <p className="text-base text-[#8a7a7a] leading-relaxed mt-4">
+          <p className="text-base text-black leading-relaxed mt-4">
             চারজন পার্টনারের একটি যৌথ উদ্যোগে শুরু হওয়া এই যাত্রা, আজ প্রিমিয়াম
             হ্যান্ডমেড ক্রাফট এবং কাস্টমাইজড কম্বো বক্সের একটি বিশ্বস্ত ঠিকানা।
             প্রতিটি পার্সেল আমরা তৈরি করি সর্বোচ্চ মানের উপকরণ এবং নিঁখুত
@@ -57,15 +57,15 @@ export default function AboutSection() {
             return (
               <div
                 key={idx}
-                className="bg-gradient-to-b from-white to-[#f5ede8]/30 rounded-2xl border border-[#e8dad5] p-8 text-center hover:shadow-lg hover:shadow-[#0053a8]/10 transition-all duration-300 hover:-translate-y-1"
+                className="bg-gradient-to-b from-white to-[#f5ede8]/30 rounded-2xl border border-[#e8dad5] p-8 text-center hover:shadow-lg hover:shadow-[#3a3f2b]/10 transition-all duration-300 hover:-translate-y-1"
               >
-                <div className="w-14 h-14 rounded-2xl bg-white border border-[#e8dad5] shadow-xs text-[#0053a8] flex items-center justify-center mx-auto mb-5">
+                <div className="w-14 h-14 rounded-2xl bg-white border border-[#e8dad5] shadow-xs text-[#3a3f2b] flex items-center justify-center mx-auto mb-5">
                   <Icon className="w-7 h-7" />
                 </div>
-                <h3 className=" text-xl font-bold text-[#4a3b3b] mb-3">
+                <h3 className=" text-xl font-bold text-[#3a3f2b] mb-3">
                   {v.title}
                 </h3>
-                <p className="text-xs sm:text-sm text-[#8a7a7a] leading-relaxed">
+                <p className="text-xs sm:text-sm text-black leading-relaxed">
                   {v.desc}
                 </p>
               </div>
@@ -75,13 +75,13 @@ export default function AboutSection() {
 
         {/* Meet The Partners */}
         <div className="text-center max-w-xl mx-auto mb-10">
-          <span className="text-xs font-bold text-[#0053a8] uppercase tracking-widest">
+          <span className="text-xs font-bold text-[#3a3f2b] uppercase tracking-widest">
             Meet The Partners
           </span>
-          <h2 className=" text-2xl sm:text-3xl font-bold text-[#4a3b3b] mt-1">
-            আমাদের দূরদর্শী <span className="text-[#0053a8]">টিম</span>
+          <h2 className=" text-2xl sm:text-3xl font-bold text-[#3a3f2b] mt-1">
+            আমাদের দূরদর্শী <span className="text-[#3a3f2b]">টিম</span>
           </h2>
-          <p className="text-xs sm:text-sm text-[#8a7a7a] mt-2">
+          <p className="text-xs sm:text-sm text-black mt-2">
             প্রতিটি অর্ডার নিখুঁতভাবে আপনার দ্বারে পৌঁছে দিতে একসাথে কাজ করছে
             আমাদের টিম
           </p>
@@ -91,7 +91,7 @@ export default function AboutSection() {
           {teamMembers.map((member, idx) => (
             <div
               key={idx}
-              className="bg-white rounded-2xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-xl hover:shadow-[#0053a8]/10 hover:border-[#0053a8] transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
+              className="bg-white rounded-2xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-xl hover:shadow-[#3a3f2b]/10 hover:border-[#3a3f2b] transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between group"
             >
               <div>
                 <div className="relative aspect-square w-full bg-[#f5ede8] overflow-hidden">
@@ -108,7 +108,7 @@ export default function AboutSection() {
                       href={member.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/90 text-[#4a3b3b] hover:text-[#0053a8] shadow-xs transition-colors"
+                      className="absolute top-3 right-3 p-1.5 rounded-lg bg-white/90 text-[#3a3f2b] hover:text-[#3a3f2b] shadow-xs transition-colors"
                       aria-label={`${member.name} profile`}
                     >
                       <ExternalLink className="w-3.5 h-3.5" />
@@ -117,13 +117,13 @@ export default function AboutSection() {
                 </div>
 
                 <div className="p-5 text-center">
-                  <h3 className=" text-lg font-bold text-[#4a3b3b]">
+                  <h3 className=" text-lg font-bold text-[#3a3f2b]">
                     {member.name}
                   </h3>
-                  <div className="text-[11px] font-bold text-[#0053a8] uppercase tracking-wider mt-0.5 mb-2.5">
+                  <div className="text-[11px] font-bold text-[#3a3f2b] uppercase tracking-wider mt-0.5 mb-2.5">
                     {member.role}
                   </div>
-                  <p className="text-xs text-[#8a7a7a] leading-relaxed">
+                  <p className="text-xs text-black leading-relaxed">
                     {member.desc}
                   </p>
                 </div>

@@ -32,14 +32,14 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
     <section className="py-14">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f5ede8] text-[#0053a8] text-xs font-semibold mb-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f5ede8] text-[#3a3f2b] text-xs font-semibold mb-2">
             <Package className="w-3.5 h-3.5" />
             <span>প্রিমিয়াম প্যাকেজিং সলিউশন</span>
           </div>
-          <h2 className=" text-2xl sm:text-3xl font-bold text-[#4a3b3b]">
+          <h2 className=" text-2xl sm:text-3xl font-bold text-[#3a3f2b]">
             আমাদের প্রিমিয়াম গিফট বক্স
           </h2>
-          <p className="text-sm text-[#8a7a7a] mt-2.5 leading-relaxed">
+          <p className="text-sm text-black mt-2.5 leading-relaxed">
             প্রিমিয়াম কোয়ালিটির ডিজাইন করা মজবুত ও দৃষ্টিনন্দন বক্স। আপনি চাইলে শুধু বক্স অর্ডার করতে পারেন, অথবা আমাদের &quot;নিজে বানান&quot; বিল্ডার দিয়ে এই বক্সে পছন্দের আইটেম সাজিয়ে সম্পূর্ণ কাস্টমাইজড কম্বো উপহার পাঠাতে পারেন।
           </p>
         </div>
@@ -48,7 +48,7 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
           {boxTypes.map((box) => (
             <div
               key={box.id}
-              className="bg-white rounded-2xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-xl hover:shadow-[#0053a8]/10 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between"
+              className="bg-white rounded-2xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-xl hover:shadow-[#3a3f2b]/10 transition-all duration-300 hover:-translate-y-1 flex flex-col justify-between"
             >
               <div>
                 <div className="relative aspect-square w-full bg-[#f5ede8]/50 overflow-hidden">
@@ -60,16 +60,16 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
                     className="object-cover hover:scale-105 transition-transform duration-500"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-white/90 backdrop-blur-xs text-[11px] font-bold text-[#0053a8] shadow-xs">
+                  <div className="absolute top-3 right-3 px-2 py-1 rounded-md bg-white/90 backdrop-blur-xs text-[11px] font-bold text-[#3a3f2b] shadow-xs">
                     {formatPrice(box.price)}
                   </div>
                 </div>
 
                 <div className="p-4">
-                  <h3 className=" text-base font-bold text-[#4a3b3b] mb-1">
+                  <h3 className=" text-base font-bold text-[#3a3f2b] mb-1">
                     {box.name}
                   </h3>
-                  <p className="text-xs text-[#8a7a7a] line-clamp-2 leading-relaxed mb-4">
+                  <p className="text-xs text-black line-clamp-2 leading-relaxed mb-4">
                     {box.desc}
                   </p>
                 </div>
@@ -78,14 +78,14 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
               <div className="p-4 pt-0 space-y-2">
                 <button
                   onClick={() => handleOrderBox(box)}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#0053a8] text-white text-xs font-semibold hover:bg-[#e34d01] transition-colors shadow-2xs cursor-pointer"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-[#3a3f2b] text-white text-xs font-semibold hover:bg-[#000] transition-colors shadow-2xs cursor-pointer"
                 >
                   <ShoppingBag className="w-3.5 h-3.5" />
                   <span>শুধু বক্সটি অর্ডার করুন</span>
                 </button>
                 <button
                   onClick={() => handleSelectForCustom(box)}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-[#0053a8] text-[#0053a8] text-xs font-semibold hover:bg-[#f5ede8] transition-colors cursor-pointer"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-[#3a3f2b] text-[#3a3f2b] text-xs font-semibold hover:bg-[#f5ede8] transition-colors cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>এই বক্সে উপহার সাজান</span>

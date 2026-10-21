@@ -69,7 +69,7 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="mb-6">
           <Link
             href="/shop"
-            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#8a7a7a] hover:text-[#0053a8] transition-colors"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-black hover:text-[#3a3f2b] transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>শপ কালেকশনে ফিরে যান</span>
@@ -92,7 +92,7 @@ export default async function ProductDetailPage({ params }: Props) {
                   referrerPolicy="no-referrer"
                 />
                 {product.tag && (
-                  <span className="absolute top-4 left-4 px-3 py-1.5 text-xs font-bold rounded-lg bg-[#0053a8] text-white shadow-sm">
+                  <span className="absolute top-4 left-4 px-3 py-1.5 text-xs font-bold rounded-lg bg-[#3a3f2b] text-white shadow-sm">
                     {product.tag}
                   </span>
                 )}
@@ -102,21 +102,21 @@ export default async function ProductDetailPage({ params }: Props) {
             {/* Info Column */}
             <div className="lg:col-span-6 flex flex-col justify-between space-y-6">
               <div>
-                <span className="inline-block px-3 py-1 rounded-full bg-[#f5ede8] text-[#0053a8] text-xs font-semibold uppercase tracking-wider mb-2">
+                <span className="inline-block px-3 py-1 rounded-full bg-[#f5ede8] text-[#3a3f2b] text-xs font-semibold uppercase tracking-wider mb-2">
                   {product.cat === 'combo' ? 'কম্বো গিফট বক্স' : 'একক উপহার উপাদান'}
                 </span>
 
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-[#4a3b3b] tracking-tight">
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-[#3a3f2b] tracking-tight">
                   {product.name}
                 </h1>
 
                 {/* Price Display */}
                 <div className="flex items-baseline gap-3 my-4">
-                  <span className="text-3xl font-extrabold text-[#0053a8]">
+                  <span className="text-3xl font-extrabold text-[#3a3f2b]">
                     {formatPrice(product.price)}
                   </span>
                   {product.oldPrice && (
-                    <span className="text-base line-through text-[#8a7a7a]">
+                    <span className="text-base line-through text-black">
                       {formatPrice(product.oldPrice)}
                     </span>
                   )}
@@ -124,22 +124,22 @@ export default async function ProductDetailPage({ params }: Props) {
 
                 <div className="h-px bg-[#e8dad5] my-4" />
 
-                <p className="text-sm sm:text-base text-[#8a7a7a] leading-relaxed mb-6">
+                <p className="text-sm sm:text-base text-black leading-relaxed mb-6">
                   {product.details || product.desc}
                 </p>
 
                 {/* Quality Guarantees */}
-                <div className="space-y-3 bg-[#fbf7f4] p-4 rounded-2xl border border-[#e8dad5] text-xs text-[#4a3b3b]">
+                <div className="space-y-3 bg-[#fbf7f4] p-4 rounded-2xl border border-[#e8dad5] text-xs text-[#3a3f2b]">
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#0053a8] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#3a3f2b] shrink-0" />
                     <span>ক্যাশ অন ডেলিভারিতে সম্পূর্ণ সারা বাংলাদেশে ডেলিভারি</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#0053a8] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#3a3f2b] shrink-0" />
                     <span>১০০% প্রিমিয়াম ফিনিশিং, নিখুঁত হ্যান্ডমেড প্যাকেজিং</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <CheckCircle2 className="w-4 h-4 text-[#0053a8] shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-[#3a3f2b] shrink-0" />
                     <span>হাতে লেখা ব্যক্তিগত শুভেচ্ছা কার্ড যোগ করার সুবিধা</span>
                   </div>
                 </div>
@@ -156,17 +156,17 @@ export default async function ProductDetailPage({ params }: Props) {
           <div className="pt-6">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <span className="text-xs font-bold text-[#0053a8] uppercase tracking-wider">
+                <span className="text-xs font-bold text-[#3a3f2b] uppercase tracking-wider">
                   You Might Also Like
                 </span>
-                <h2 className=" text-2xl font-bold text-[#4a3b3b] mt-1 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-[#0053a8]" />
+                <h2 className=" text-2xl font-bold text-[#3a3f2b] mt-1 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-[#3a3f2b]" />
                   <span>আরও পছন্দসই উপহার</span>
                 </h2>
               </div>
               <Link
                 href="/shop"
-                className="text-xs sm:text-sm font-semibold text-[#0053a8] hover:underline"
+                className="text-xs sm:text-sm font-semibold text-[#3a3f2b] hover:underline"
               >
                 সব দেখুন →
               </Link>

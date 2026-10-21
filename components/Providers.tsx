@@ -18,8 +18,8 @@ function GlobalModalAndToast() {
     <>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-[#4a3b3b] text-white text-xs sm:text-sm font-semibold shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-5">
-          <Sparkles className="w-4 h-4 text-[#0053a8]" />
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl bg-[#3a3f2b] text-white text-xs sm:text-sm font-semibold shadow-2xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-5">
+          <Sparkles className="w-4 h-4 text-[#3a3f2b]" />
           <span>{toastMessage}</span>
         </div>
       )}

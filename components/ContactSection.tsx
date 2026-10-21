@@ -68,13 +68,13 @@ export default function ContactSection() {
           {/* Left Info */}
           <div className="lg:col-span-5 space-y-6">
             <div>
-              <span className="text-xs font-bold text-[#0053a8] uppercase tracking-widest">
+              <span className="text-xs font-bold text-[#3a3f2b] uppercase tracking-widest">
                 Get In Touch
               </span>
-              <h2 className=" text-3xl font-bold text-[#4a3b3b] mt-1 mb-3">
+              <h2 className=" text-3xl font-bold text-[#3a3f2b] mt-1 mb-3">
                 যোগাযোগ করুন
               </h2>
-              <p className="text-sm text-[#8a7a7a] leading-relaxed">
+              <p className="text-sm text-black leading-relaxed">
                 আপনার কোনো বিশেষ কাস্টম অর্ডারের চাহিদা বা যেকোনো তথ্য জানার
                 থাকলে নির্দ্বিধায় আমাদের মেসেজ পাঠান। আমাদের টিম ২৪ ঘণ্টার
                 মধ্যে আপনার সাথে যোগাযোগ করবে।
@@ -84,14 +84,14 @@ export default function ContactSection() {
             <div className="space-y-4">
               <a
                 href="tel:+8801308050850"
-                className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#0053a8] transition-all group shadow-xs"
+                className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#3a3f2b] transition-all group shadow-xs"
               >
-                <div className="w-12 h-12 rounded-xl bg-[#f5ede8] text-[#0053a8] flex items-center justify-center shrink-0 group-hover:bg-[#0053a8] group-hover:text-white transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center shrink-0 group-hover:bg-[#3a3f2b] group-hover:text-white transition-colors">
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs text-[#8a7a7a]">হটলাইন কল</div>
-                  <div className="text-sm font-bold text-[#4a3b3b] group-hover:text-[#0053a8] transition-colors">
+                  <div className="text-xs text-black">হটলাইন কল</div>
+                  <div className="text-sm font-bold text-[#3a3f2b] group-hover:text-[#3a3f2b] transition-colors">
                     +880 1308050850
                   </div>
                 </div>
@@ -99,14 +99,14 @@ export default function ContactSection() {
 
               <a
                 href="mailto:giftpacific@gmail.com"
-                className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#0053a8] transition-all group shadow-xs"
+                className="flex items-center gap-4 p-4 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#3a3f2b] transition-all group shadow-xs"
               >
-                <div className="w-12 h-12 rounded-xl bg-[#f5ede8] text-[#0053a8] flex items-center justify-center shrink-0 group-hover:bg-[#0053a8] group-hover:text-white transition-colors">
+                <div className="w-12 h-12 rounded-xl bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center shrink-0 group-hover:bg-[#3a3f2b] group-hover:text-white transition-colors">
                   <Mail className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-xs text-[#8a7a7a]">ইমেইল সাপোর্ট</div>
-                  <div className="text-sm font-bold text-[#4a3b3b] group-hover:text-[#0053a8] transition-colors">
+                  <div className="text-xs text-black">ইমেইল সাপোর্ট</div>
+                  <div className="text-sm font-bold text-[#3a3f2b] group-hover:text-[#3a3f2b] transition-colors">
                     giftpacific@gmail.com
                   </div>
                 </div>
@@ -118,12 +118,12 @@ export default function ContactSection() {
                   href="https://facebook.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#0053a8] transition-all group shadow-xs"
+                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#3a3f2b] transition-all group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#f5ede8] text-[#0053a8] flex items-center justify-center group-hover:bg-[#0053a8] group-hover:text-white transition-colors">
+                  <div className="w-10 h-10 rounded-xl bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center group-hover:bg-[#3a3f2b] group-hover:text-white transition-colors">
                     <Facebook className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-semibold text-[#4a3b3b] group-hover:text-[#0053a8]">
+                  <span className="text-xs font-semibold text-[#3a3f2b] group-hover:text-[#3a3f2b]">
                     Facebook
                   </span>
                 </a>
@@ -132,12 +132,12 @@ export default function ContactSection() {
                   href="https://instagram.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#0053a8] transition-all group shadow-xs"
+                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#3a3f2b] transition-all group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#f5ede8] text-[#0053a8] flex items-center justify-center group-hover:bg-[#0053a8] group-hover:text-white transition-colors">
+                  <div className="w-10 h-10 rounded-xl bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center group-hover:bg-[#3a3f2b] group-hover:text-white transition-colors">
                     <Instagram className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-semibold text-[#4a3b3b] group-hover:text-[#0053a8]">
+                  <span className="text-xs font-semibold text-[#3a3f2b] group-hover:text-[#3a3f2b]">
                     Instagram
                   </span>
                 </a>
@@ -146,12 +146,12 @@ export default function ContactSection() {
                   href="https://tiktok.com"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#0053a8] transition-all group shadow-xs"
+                  className="flex flex-col items-center justify-center gap-2 p-3 rounded-2xl bg-white border border-[#e8dad5] hover:border-[#3a3f2b] transition-all group shadow-xs"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-[#f5ede8] text-[#0053a8] flex items-center justify-center group-hover:bg-[#0053a8] group-hover:text-white transition-colors">
+                  <div className="w-10 h-10 rounded-xl bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center group-hover:bg-[#3a3f2b] group-hover:text-white transition-colors">
                     <FaTiktok className="w-4 h-4" />
                   </div>
-                  <span className="text-xs font-semibold text-[#4a3b3b] group-hover:text-[#0053a8]">
+                  <span className="text-xs font-semibold text-[#3a3f2b] group-hover:text-[#3a3f2b]">
                     TikTok
                   </span>
                 </a>
@@ -161,10 +161,10 @@ export default function ContactSection() {
 
           {/* Right Form */}
           <div className="lg:col-span-7 bg-white rounded-3xl border border-[#e8dad5] p-6 sm:p-8 shadow-sm">
-            <h3 className=" text-xl font-bold text-[#4a3b3b] mb-1">
+            <h3 className=" text-xl font-bold text-[#3a3f2b] mb-1">
               আমাদের একটি বার্তা পাঠান
             </h3>
-            <p className="text-xs text-[#8a7a7a] mb-6">
+            <p className="text-xs text-black mb-6">
               নিচের ফর্মটি পূরণ করে পাঠান, দ্রুততম সময়ে আমরা উত্তর দেব।
             </p>
 
@@ -190,7 +190,7 @@ export default function ContactSection() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#4a3b3b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
                   আপনার নাম <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -199,12 +199,12 @@ export default function ContactSection() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="আপনার নাম লিখুন"
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors"
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#4a3b3b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
                   মোবাইল নম্বর <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -213,12 +213,12 @@ export default function ContactSection() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="01XXXXXXXXX"
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors"
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#4a3b3b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
                   আপনার বার্তা <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -227,14 +227,14 @@ export default function ContactSection() {
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="আপনার কাঙ্ক্ষিত উপহার, বিশেষ চাহিদা বা কোনো প্রশ্ন থাকলে লিখুন..."
-                  className="w-full px-4 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors resize-none"
+                  className="w-full px-4 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-3.5 px-4 rounded-xl bg-[#0053a8] text-white font-semibold text-sm hover:bg-[#e34d01] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#0053a8]/20 disabled:opacity-60"
+                className="w-full py-3.5 px-4 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#3a3f2b]/20 disabled:opacity-60"
               >
                 {isLoading ? (
                   <>

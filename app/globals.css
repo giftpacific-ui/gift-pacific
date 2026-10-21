@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --bg: #fbf7f4;
-  --bg2: #f5ede8;
+  --bg: #faf4ec;
+  --bg2: #faf4ec;
   --surface: #ffffff;
-  --text: #4a3b3b;
+  --text: #3a3f2b;
   --text2: #8a7a7a;
   --line: #e8dad5;
-  --acc: #0053a8;
-  --acc2: #e34d01;
+  --acc: #3a3f2b;
+  --acc2: #000;
 }
 
 html {
@@ -16,7 +16,7 @@ html {
 }
 
 body {
-  background-color: var(--bg);
+  background-color: #fff;
   color: var(--text);
   line-height: 1.6;
   overflow-x: hidden;

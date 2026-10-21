@@ -61,14 +61,14 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
     <section className="py-12 sm:py-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f5ede8] text-[#0053a8] text-xs font-semibold mb-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f5ede8] text-[#3a3f2b] text-xs font-semibold mb-2">
             <Sparkles className="w-3.5 h-3.5" />
             <span>কাস্টম কম্বো বিল্ডার</span>
           </div>
-          <h2 className=" text-2xl sm:text-3xl font-bold text-[#4a3b3b]">
+          <h2 className=" text-2xl sm:text-3xl font-bold text-[#3a3f2b]">
             নিজে বানান মনের মতো কম্বো
           </h2>
-          <p className="text-sm text-[#8a7a7a] mt-2">
+          <p className="text-sm text-black mt-2">
             প্রথমে একটি আকর্ষণীয় গিফট বক্স বাছাই করুন, এরপর আপনার পছন্দের উপকরণগুলো যোগ করে তৈরি করুন সম্পূর্ণ অনন্য উপহার।
           </p>
         </div>
@@ -80,17 +80,17 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
             <div className="bg-white p-6 rounded-2xl border border-[#e8dad5] shadow-xs">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-[#f5ede8] text-[#0053a8] flex items-center justify-center font-bold text-sm">
+                  <div className="w-8 h-8 rounded-lg bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center font-bold text-sm">
                     ১
                   </div>
-                  <h3 className=" text-lg font-bold text-[#4a3b3b]">
+                  <h3 className=" text-lg font-bold text-[#3a3f2b]">
                     বক্স সিলেক্ট করুন
                   </h3>
                 </div>
                 {selectedBox && (
                   <button
                     onClick={() => selectBox(null)}
-                    className="text-xs text-[#8a7a7a] hover:text-[#0053a8] underline cursor-pointer"
+                    className="text-xs text-black hover:text-[#3a3f2b] underline cursor-pointer"
                   >
                     বক্স বাতিল করুন
                   </button>
@@ -106,8 +106,8 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                       onClick={() => selectBox(box)}
                       className={`relative p-3 rounded-xl border text-center cursor-pointer transition-all ${
                         isSelected
-                          ? 'border-[#0053a8] bg-[#f5ede8]/40 ring-2 ring-[#0053a8]/30 shadow-xs'
-                          : 'border-[#e8dad5] bg-[#fbf7f4]/40 hover:border-[#0053a8]/60'
+                          ? 'border-[#3a3f2b] bg-[#f5ede8]/40 ring-2 ring-[#3a3f2b]/30 shadow-xs'
+                          : 'border-[#e8dad5] bg-[#fbf7f4]/40 hover:border-[#3a3f2b]/60'
                       }`}
                     >
                       <div className="relative aspect-square w-full rounded-lg overflow-hidden mb-2 bg-white">
@@ -120,14 +120,14 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                           referrerPolicy="no-referrer"
                         />
                       </div>
-                      <div className="text-xs font-semibold text-[#4a3b3b] truncate">
+                      <div className="text-xs font-semibold text-[#3a3f2b] truncate">
                         {box.name}
                       </div>
-                      <div className="text-xs font-bold text-[#0053a8] mt-0.5">
+                      <div className="text-xs font-bold text-[#3a3f2b] mt-0.5">
                         {formatPrice(box.price)}
                       </div>
                       {isSelected && (
-                        <div className="mt-2 py-0.5 text-[10px] font-bold rounded-md bg-[#0053a8] text-white">
+                        <div className="mt-2 py-0.5 text-[10px] font-bold rounded-md bg-[#3a3f2b] text-white">
                           সিলেক্টেড
                         </div>
                       )}
@@ -140,14 +140,14 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
             {/* 2. Items Selector */}
             <div className="bg-white p-6 rounded-2xl border border-[#e8dad5] shadow-xs">
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-[#f5ede8] text-[#0053a8] flex items-center justify-center font-bold text-sm">
+                <div className="w-8 h-8 rounded-lg bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center font-bold text-sm">
                   ২
                 </div>
                 <div>
-                  <h3 className=" text-lg font-bold text-[#4a3b3b]">
+                  <h3 className=" text-lg font-bold text-[#3a3f2b]">
                     উপকরণ বেছে নিন
                   </h3>
-                  <p className="text-xs text-[#8a7a7a]">
+                  <p className="text-xs text-black">
                     বক্সে যোগ করতে &quot;+ যোগ করুন&quot; বাটনে ক্লিক করুন
                   </p>
                 </div>
@@ -159,7 +159,7 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                   return (
                     <div
                       key={item.id}
-                      className="bg-[#fbf7f4]/50 border border-[#e8dad5] rounded-xl p-3 flex flex-col justify-between hover:border-[#0053a8]/40 transition-colors"
+                      className="bg-[#fbf7f4]/50 border border-[#e8dad5] rounded-xl p-3 flex flex-col justify-between hover:border-[#3a3f2b]/40 transition-colors"
                     >
                       <div className="relative aspect-square w-full rounded-lg overflow-hidden mb-2 bg-white">
                         <Image
@@ -172,28 +172,28 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                         />
                       </div>
                       <div>
-                        <h4 className="text-xs sm:text-sm font-semibold text-[#4a3b3b] truncate">
+                        <h4 className="text-xs sm:text-sm font-semibold text-[#3a3f2b] truncate">
                           {item.name}
                         </h4>
-                        <div className="text-xs font-bold text-[#0053a8] mt-0.5 mb-2.5">
+                        <div className="text-xs font-bold text-[#3a3f2b] mt-0.5 mb-2.5">
                           {formatPrice(item.price)}
                         </div>
                       </div>
 
                       {inCart ? (
-                        <div className="flex items-center justify-between bg-white border border-[#0053a8]/40 rounded-lg p-1">
+                        <div className="flex items-center justify-between bg-white border border-[#3a3f2b]/40 rounded-lg p-1">
                           <button
                             onClick={() => updateCustomCartQty(item.id, -1)}
-                            className="w-6 h-6 rounded-md bg-[#f5ede8] text-[#0053a8] flex items-center justify-center hover:bg-[#0053a8] hover:text-white transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-md bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center hover:bg-[#3a3f2b] hover:text-white transition-colors cursor-pointer"
                           >
                             <Minus className="w-3 h-3" />
                           </button>
-                          <span className="text-xs font-bold text-[#4a3b3b]">
+                          <span className="text-xs font-bold text-[#3a3f2b]">
                             {toBengaliNum(inCart.qty)}
                           </span>
                           <button
                             onClick={() => updateCustomCartQty(item.id, 1)}
-                            className="w-6 h-6 rounded-md bg-[#0053a8] text-white flex items-center justify-center hover:bg-[#e34d01] transition-colors cursor-pointer"
+                            className="w-6 h-6 rounded-md bg-[#3a3f2b] text-white flex items-center justify-center hover:bg-[#000] transition-colors cursor-pointer"
                           >
                             <Plus className="w-3 h-3" />
                           </button>
@@ -201,7 +201,7 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                       ) : (
                         <button
                           onClick={() => addToCustomCart(item)}
-                          className="w-full py-1.5 px-2 rounded-lg bg-white border border-[#e8dad5] text-xs font-semibold text-[#0053a8] hover:bg-[#0053a8] hover:text-white transition-colors flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
+                          className="w-full py-1.5 px-2 rounded-lg bg-white border border-[#e8dad5] text-xs font-semibold text-[#3a3f2b] hover:bg-[#3a3f2b] hover:text-white transition-colors flex items-center justify-center gap-1 shadow-2xs cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>যোগ করুন</span>
@@ -218,15 +218,15 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
           <div className="lg:col-span-4 sticky top-24">
             <div className="bg-white rounded-2xl border border-[#e8dad5] p-6 shadow-xs">
               <div className="flex items-center gap-2 pb-4 border-b border-[#e8dad5]">
-                <Package className="w-5 h-5 text-[#0053a8]" />
-                <h3 className=" text-lg font-bold text-[#4a3b3b]">
+                <Package className="w-5 h-5 text-[#3a3f2b]" />
+                <h3 className=" text-lg font-bold text-[#3a3f2b]">
                   আপনার কাস্টম বক্স
                 </h3>
               </div>
 
               {/* Selected Box Display */}
               <div className="py-4 border-b border-dashed border-[#e8dad5]">
-                <div className="text-xs font-medium text-[#8a7a7a] mb-2">
+                <div className="text-xs font-medium text-black mb-2">
                   প্যাকেজিং বক্স:
                 </div>
                 {selectedBox ? (
@@ -242,17 +242,17 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                         />
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-[#4a3b3b]">
+                        <div className="text-xs font-bold text-[#3a3f2b]">
                           {selectedBox.name}
                         </div>
-                        <div className="text-[11px] font-semibold text-[#0053a8]">
+                        <div className="text-[11px] font-semibold text-[#3a3f2b]">
                           {formatPrice(selectedBox.price)}
                         </div>
                       </div>
                     </div>
                     <button
                       onClick={() => selectBox(null)}
-                      className="text-xs text-[#8a7a7a] hover:text-red-500 p-1 cursor-pointer"
+                      className="text-xs text-black hover:text-red-500 p-1 cursor-pointer"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -266,12 +266,12 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
 
               {/* Selected Items List */}
               <div className="py-4 border-b border-[#e8dad5]">
-                <div className="flex items-center justify-between text-xs font-medium text-[#8a7a7a] mb-2">
+                <div className="flex items-center justify-between text-xs font-medium text-black mb-2">
                   <span>বক্সের ভেতরের উপকরণ ({toBengaliNum(totalItemsCount)}টি):</span>
                 </div>
 
                 {customCart.length === 0 ? (
-                  <p className="text-xs text-[#8a7a7a] text-center py-4 bg-[#fbf7f4] rounded-xl border border-dashed border-[#e8dad5]">
+                  <p className="text-xs text-black text-center py-4 bg-[#fbf7f4] rounded-xl border border-dashed border-[#e8dad5]">
                     এখনো কোনো উপাদান যোগ করেননি।
                   </p>
                 ) : (
@@ -284,18 +284,18 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => removeFromCustomCart(item.id)}
-                            className="text-[#8a7a7a] hover:text-red-500 cursor-pointer"
+                            className="text-black hover:text-red-500 cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
-                          <span className="font-medium text-[#4a3b3b] line-clamp-1 max-w-[130px]">
+                          <span className="font-medium text-[#3a3f2b] line-clamp-1 max-w-[130px]">
                             {item.name}
                           </span>
-                          <span className="text-[11px] text-[#8a7a7a]">
+                          <span className="text-[11px] text-black">
                             x{toBengaliNum(item.qty)}
                           </span>
                         </div>
-                        <span className="font-bold text-[#0053a8]">
+                        <span className="font-bold text-[#3a3f2b]">
                           {formatPrice(item.price * item.qty)}
                         </span>
                       </div>
@@ -306,19 +306,19 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
 
               {/* Total Calculation */}
               <div className="pt-4 space-y-2">
-                <div className="flex items-center justify-between text-xs text-[#8a7a7a]">
+                <div className="flex items-center justify-between text-xs text-black">
                   <span>বক্সের মূল্য:</span>
                   <span>{formatPrice(boxTotal)}</span>
                 </div>
-                <div className="flex items-center justify-between text-xs text-[#8a7a7a]">
+                <div className="flex items-center justify-between text-xs text-black">
                   <span>উপকরণের মূল্য:</span>
                   <span>{formatPrice(itemsTotal)}</span>
                 </div>
-                <div className="flex items-center justify-between text-base font-bold text-[#4a3b3b] pt-2 border-t border-[#e8dad5]">
+                <div className="flex items-center justify-between text-base font-bold text-[#3a3f2b] pt-2 border-t border-[#e8dad5]">
                   <span>সাব-টোটাল:</span>
-                  <span className="text-lg text-[#0053a8]">{formatPrice(subTotal)}</span>
+                  <span className="text-lg text-[#3a3f2b]">{formatPrice(subTotal)}</span>
                 </div>
-                <div className="text-[11px] text-[#8a7a7a] italic">
+                <div className="text-[11px] text-black italic">
                   * ডেলিভারি চার্জ অর্ডার কনফার্ম করার সময় যুক্ত হবে।
                 </div>
               </div>
@@ -327,7 +327,7 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
               <button
                 onClick={handleOrderCustom}
                 disabled={!selectedBox && customCart.length === 0}
-                className="mt-5 w-full py-3.5 px-4 rounded-xl bg-[#0053a8] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#e34d01] transition-all shadow-md shadow-[#0053a8]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                className="mt-5 w-full py-3.5 px-4 rounded-xl bg-[#3a3f2b] text-white font-semibold flex items-center justify-center gap-2 hover:bg-[#000] transition-all shadow-md shadow-[#3a3f2b]/20 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
                 <ShoppingCart className="w-4 h-4" />
                 <span>অর্ডার করুন (COD)</span>

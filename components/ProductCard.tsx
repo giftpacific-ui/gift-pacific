@@ -31,10 +31,10 @@ export default function ProductCard({
   };
 
   return (
-    <div className="group relative bg-white rounded-2xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-xl hover:shadow-[#0053a8]/10 transition-all duration-300 hover:-translate-y-1 flex flex-col">
+    <div className="group relative bg-white rounded-2xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-xl hover:shadow-[#3a3f2b]/10 transition-all duration-300 hover:-translate-y-1 flex flex-col">
       {/* Tag Badge */}
       {product.tag && (
-        <span className="absolute top-3 left-3 z-10 px-2.5 py-1 text-[11px] font-bold rounded-md bg-[#0053a8] text-white shadow-xs">
+        <span className="absolute top-3 left-3 z-10 px-2.5 py-1 text-[11px] font-bold rounded-md bg-[#3a3f2b] text-white shadow-xs">
           {product.tag}
         </span>
       )}
@@ -61,11 +61,11 @@ export default function ProductCard({
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div>
           <Link href={`/product/${product.id}`}>
-            <h3 className=" text-base font-bold text-[#4a3b3b] hover:text-[#0053a8] cursor-pointer transition-colors line-clamp-1 mb-1">
+            <h3 className=" text-base font-bold text-[#3a3f2b] hover:text-[#3a3f2b] cursor-pointer transition-colors line-clamp-1 mb-1">
               {product.name}
             </h3>
           </Link>
-          <p className="text-xs text-[#8a7a7a] line-clamp-2 min-h-[32px] mb-3 leading-relaxed">
+          <p className="text-xs text-black line-clamp-2 min-h-[32px] mb-3 leading-relaxed">
             {product.desc}
           </p>
         </div>
@@ -74,11 +74,11 @@ export default function ProductCard({
         <div className="pt-2 border-t border-[#e8dad5]/60 flex items-center justify-between gap-2">
           <div className="flex flex-col">
             {product.oldPrice && (
-              <span className="text-[11px] line-through text-[#8a7a7a]">
+              <span className="text-[11px] line-through text-black">
                 {formatPrice(product.oldPrice)}
               </span>
             )}
-            <span className="text-base font-bold text-[#0053a8]">
+            <span className="text-base font-bold text-[#3a3f2b]">
               {formatPrice(product.price)}
             </span>
           </div>
@@ -87,13 +87,13 @@ export default function ProductCard({
             <Link
               href={`/product/${product.id}`}
               title="বিস্তারিত"
-              className="p-2 rounded-lg text-[#8a7a7a] hover:text-[#0053a8] hover:bg-[#f5ede8] transition-colors"
+              className="p-2 rounded-lg text-black hover:text-[#3a3f2b] hover:bg-[#f5ede8] transition-colors"
             >
               <Eye className="w-4 h-4" />
             </Link>
             <button
               onClick={handleOrder}
-              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold bg-[#0053a8] text-white hover:bg-[#e34d01] transition-colors shadow-2xs cursor-pointer"
+              className="inline-flex items-center gap-1 px-3 py-2 rounded-lg text-xs font-semibold bg-[#3a3f2b] text-white hover:bg-[#000] transition-colors shadow-2xs cursor-pointer"
             >
               <ShoppingBag className="w-3.5 h-3.5" />
               <span>অর্ডার</span>

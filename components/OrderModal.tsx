@@ -117,7 +117,7 @@ export default function OrderModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#4a3b3b]/60 backdrop-blur-xs overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#3a3f2b]/60 backdrop-blur-xs overflow-y-auto">
       <div
         className="relative w-full max-w-lg bg-white rounded-3xl border border-[#e8dad5] shadow-2xl p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
@@ -125,7 +125,7 @@ export default function OrderModal({
         <button
           onClick={handleResetAndClose}
           aria-label="Close modal"
-          className="absolute top-5 right-5 p-2 rounded-full text-[#8a7a7a] hover:bg-[#f5ede8] hover:text-[#4a3b3b] transition-colors"
+          className="absolute top-5 right-5 p-2 rounded-full text-black hover:bg-[#f5ede8] hover:text-[#3a3f2b] transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
@@ -135,38 +135,38 @@ export default function OrderModal({
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8" />
             </div>
-            <h3 className=" text-2xl font-bold text-[#4a3b3b]">
+            <h3 className=" text-2xl font-bold text-[#3a3f2b]">
               অর্ডার সফলভাবে জমা হয়েছে!
             </h3>
-            <p className="text-sm text-[#8a7a7a] max-w-sm mx-auto leading-relaxed">
+            <p className="text-sm text-black max-w-sm mx-auto leading-relaxed">
               ধন্যবাদ{" "}
-              <span className="font-semibold text-[#4a3b3b]">{name}</span>!
+              <span className="font-semibold text-[#3a3f2b]">{name}</span>!
               আমাদের সাপোর্ট টিম খুব শীঘ্রই আপনার সাথে ফোনে যোগাযোগ করে অর্ডার
               কনফার্ম করবে।
             </p>
             <div className="p-4 bg-[#fbf7f4] rounded-2xl border border-[#e8dad5] text-left text-xs space-y-1.5 max-w-sm mx-auto">
               <div className="flex justify-between">
-                <span className="text-[#8a7a7a]">প্রোডাক্ট:</span>
-                <span className="font-semibold text-[#4a3b3b] line-clamp-1">
+                <span className="text-black">প্রোডাক্ট:</span>
+                <span className="font-semibold text-[#3a3f2b] line-clamp-1">
                   {orderItem.name}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#8a7a7a]">পেমেন্ট মেথড:</span>
+                <span className="text-black">পেমেন্ট মেথড:</span>
                 <span className="font-semibold text-emerald-700">
                   ক্যাশ অন ডেলিভারি (COD)
                 </span>
               </div>
               <div className="flex justify-between text-sm font-bold pt-2 border-t border-[#e8dad5]">
                 <span>মোট প্রদেয়:</span>
-                <span className="text-[#0053a8]">
+                <span className="text-[#3a3f2b]">
                   {formatPrice(grandTotal)}
                 </span>
               </div>
             </div>
             <button
               onClick={handleResetAndClose}
-              className="mt-4 px-6 py-2.5 rounded-xl bg-[#0053a8] text-white font-semibold text-sm hover:bg-[#e34d01] transition-colors"
+              className="mt-4 px-6 py-2.5 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-colors"
             >
               ঠিক আছে
             </button>
@@ -174,10 +174,10 @@ export default function OrderModal({
         ) : (
           <div>
             <div className="mb-6">
-              <span className="text-xs font-bold text-[#0053a8] uppercase tracking-wider">
+              <span className="text-xs font-bold text-[#3a3f2b] uppercase tracking-wider">
                 ক্যাশ অন ডেলিভারি চেকআউট
               </span>
-              <h3 className=" text-2xl font-bold text-[#4a3b3b] mt-1">
+              <h3 className=" text-2xl font-bold text-[#3a3f2b] mt-1">
                 অর্ডার নিশ্চিত করুন
               </h3>
             </div>
@@ -185,20 +185,20 @@ export default function OrderModal({
             {/* Product & Price Summary Card */}
             <div className="bg-[#f5ede8]/70 p-4 rounded-2xl border border-[#e8dad5] mb-6 space-y-2">
               <div className="flex justify-between items-start gap-4">
-                <span className="text-xs font-semibold text-[#4a3b3b] line-clamp-2">
+                <span className="text-xs font-semibold text-[#3a3f2b] line-clamp-2">
                   {orderItem.name}
                 </span>
-                <span className="text-xs font-bold text-[#0053a8] shrink-0">
+                <span className="text-xs font-bold text-[#3a3f2b] shrink-0">
                   {formatPrice(orderItem.basePrice)}
                 </span>
               </div>
-              <div className="flex justify-between text-xs text-[#8a7a7a] pt-1.5 border-t border-[#e8dad5]">
+              <div className="flex justify-between text-xs text-black pt-1.5 border-t border-[#e8dad5]">
                 <span>ডেলিভারি চার্জ:</span>
                 <span>{formatPrice(deliveryCharge)}</span>
               </div>
-              <div className="flex justify-between text-sm font-bold text-[#4a3b3b] pt-1">
+              <div className="flex justify-between text-sm font-bold text-[#3a3f2b] pt-1">
                 <span>সর্বমোট:</span>
-                <span className="text-base text-[#0053a8]">
+                <span className="text-base text-[#3a3f2b]">
                   {formatPrice(grandTotal)}
                 </span>
               </div>
@@ -214,7 +214,7 @@ export default function OrderModal({
             {/* Order Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-[#4a3b3b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
                   আপনার পুরো নাম <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -223,12 +223,12 @@ export default function OrderModal({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="যেমন: রাহাত মাহমুদ"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#4a3b3b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
                   মোবাইল নম্বর <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -237,12 +237,12 @@ export default function OrderModal({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="017XXXXXXXX"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#4a3b3b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
                   সম্পূর্ণ ডেলিভারি ঠিকানা{" "}
                   <span className="text-red-500">*</span>
                 </label>
@@ -252,12 +252,12 @@ export default function OrderModal({
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="বাড়ি/রোড নং, থানা, জেলা"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors resize-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#4a3b3b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
                   ডেলিভারি এরিয়া <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -265,7 +265,7 @@ export default function OrderModal({
                   onChange={(e) =>
                     setDeliveryArea(e.target.value as "inside" | "outside")
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#4a3b3b] font-medium focus:bg-white focus:border-[#0053a8] focus:outline-none transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] font-medium focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
                 >
                   <option value="inside">ঢাকার ভেতরে (৮০ টাকা)</option>
                   <option value="outside">ঢাকার বাইরে (১৩০ টাকা)</option>
@@ -276,7 +276,7 @@ export default function OrderModal({
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 px-4 rounded-xl bg-[#0053a8] text-white font-semibold text-sm hover:bg-[#e34d01] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#0053a8]/20 disabled:opacity-60"
+                  className="w-full py-3.5 px-4 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#3a3f2b]/20 disabled:opacity-60"
                 >
                   {isLoading ? (
                     <>

@@ -29,13 +29,13 @@ export default function ItemSlider({ products }: ItemSliderProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
           <div>
-            <span className="text-xs font-semibold uppercase tracking-wider text-[#0053a8]">
+            <span className="text-xs font-semibold uppercase tracking-wider text-[#3a3f2b]">
               কাস্টমাইজেবল ইলিমেন্টস
             </span>
-            <h2 className=" text-2xl sm:text-3xl font-bold text-[#4a3b3b] mt-1">
+            <h2 className=" text-2xl sm:text-3xl font-bold text-[#3a3f2b] mt-1">
               আমাদের কম্বো উপকরণ
             </h2>
-            <p className="text-xs sm:text-sm text-[#8a7a7a] mt-1">
+            <p className="text-xs sm:text-sm text-black mt-1">
               আপনি চাইলে যেকোনো উপাদান আলাদা কিনতে পারেন অথবা নিজে কম্বো বক্সে যুক্ত করতে পারেন
             </p>
           </div>
@@ -45,14 +45,14 @@ export default function ItemSlider({ products }: ItemSliderProps) {
             <button
               onClick={() => scroll('left')}
               aria-label="Previous items"
-              className="w-10 h-10 rounded-full bg-white border border-[#e8dad5] flex items-center justify-center text-[#4a3b3b] hover:bg-[#0053a8] hover:text-white hover:border-[#0053a8] shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="w-10 h-10 rounded-full bg-white border border-[#e8dad5] flex items-center justify-center text-[#3a3f2b] hover:bg-[#3a3f2b] hover:text-white hover:border-[#3a3f2b] shadow-xs transition-all active:scale-95 cursor-pointer"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
               onClick={() => scroll('right')}
               aria-label="Next items"
-              className="w-10 h-10 rounded-full bg-white border border-[#e8dad5] flex items-center justify-center text-[#4a3b3b] hover:bg-[#0053a8] hover:text-white hover:border-[#0053a8] shadow-xs transition-all active:scale-95 cursor-pointer"
+              className="w-10 h-10 rounded-full bg-white border border-[#e8dad5] flex items-center justify-center text-[#3a3f2b] hover:bg-[#3a3f2b] hover:text-white hover:border-[#3a3f2b] shadow-xs transition-all active:scale-95 cursor-pointer"
             >
               <ChevronRight className="w-5 h-5" />
             </button>
@@ -67,7 +67,7 @@ export default function ItemSlider({ products }: ItemSliderProps) {
           {individualItems.map((item) => (
             <div
               key={item.id}
-              className="shrink-0 w-52 bg-white rounded-xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-md hover:border-[#0053a8]/50 transition-all group flex flex-col justify-between"
+              className="shrink-0 w-52 bg-white rounded-xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-md hover:border-[#3a3f2b]/50 transition-all group flex flex-col justify-between"
             >
               <Link
                 href={`/product/${item.id}`}
@@ -88,11 +88,11 @@ export default function ItemSlider({ products }: ItemSliderProps) {
               <div className="p-3.5 flex-1 flex flex-col justify-between">
                 <div>
                   <Link href={`/product/${item.id}`}>
-                    <h4 className="text-xs sm:text-sm font-semibold text-[#4a3b3b] hover:text-[#0053a8] cursor-pointer truncate mb-1">
+                    <h4 className="text-xs sm:text-sm font-semibold text-[#3a3f2b] hover:text-[#3a3f2b] cursor-pointer truncate mb-1">
                       {item.name}
                     </h4>
                   </Link>
-                  <div className="text-xs font-bold text-[#0053a8] mb-3">
+                  <div className="text-xs font-bold text-[#3a3f2b] mb-3">
                     {formatPrice(item.price)}
                   </div>
                 </div>
@@ -100,7 +100,7 @@ export default function ItemSlider({ products }: ItemSliderProps) {
                 <div className="flex items-center gap-1.5 pt-2 border-t border-[#e8dad5]/50">
                   <Link
                     href={`/product/${item.id}`}
-                    className="flex-1 py-1.5 px-2 rounded-md bg-[#fbf7f4] border border-[#e8dad5] text-[11px] font-medium text-[#4a3b3b] hover:bg-[#f5ede8] hover:text-[#0053a8] flex items-center justify-center gap-1 transition-colors"
+                    className="flex-1 py-1.5 px-2 rounded-md bg-[#fbf7f4] border border-[#e8dad5] text-[11px] font-medium text-[#3a3f2b] hover:bg-[#f5ede8] hover:text-[#3a3f2b] flex items-center justify-center gap-1 transition-colors"
                   >
                     <Eye className="w-3 h-3" />
                     <span>দেখুন</span>
@@ -108,7 +108,7 @@ export default function ItemSlider({ products }: ItemSliderProps) {
                   <button
                     onClick={() => addToCustomCart(item)}
                     title="কম্বোতে যোগ করুন"
-                    className="p-1.5 rounded-md bg-[#0053a8] text-white hover:bg-[#e34d01] transition-colors cursor-pointer"
+                    className="p-1.5 rounded-md bg-[#3a3f2b] text-white hover:bg-[#000] transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>

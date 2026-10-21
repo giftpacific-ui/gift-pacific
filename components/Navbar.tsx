@@ -54,18 +54,18 @@ export default function Navbar() {
                     href={link.href}
                     className={`relative px-3.5 py-2 rounded-lg text-sm font-medium transition-all ${
                       isActive
-                        ? "text-[#0053a8] bg-[#f5ede8] font-semibold"
-                        : "text-black hover:text-[#0053a8] hover:bg-[#f5ede8]/60"
+                        ? "text-[#3a3f2b] bg-[#f5ede8] font-semibold"
+                        : "text-black hover:text-[#3a3f2b] hover:bg-[#f5ede8]/60"
                     }`}
                   >
                     <span>{link.label}</span>
                     {link.badge !== null && link.badge !== undefined && (
-                      <span className="ml-1.5 px-1.5 py-0.5 text-[11px] font-bold rounded-full bg-[#0053a8] text-white">
+                      <span className="ml-1.5 px-1.5 py-0.5 text-[11px] font-bold rounded-full bg-[#3a3f2b] text-white">
                         {link.badge}
                       </span>
                     )}
                     {isActive && (
-                      <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#0053a8] rounded-full" />
+                      <span className="absolute bottom-0 left-3 right-3 h-0.5 bg-[#3a3f2b] rounded-full" />
                     )}
                   </Link>
                 );
@@ -76,7 +76,7 @@ export default function Navbar() {
             <div className="flex items-center gap-3">
               <Link
                 href="/custom"
-                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#0053a8] text-white shadow-sm hover:bg-[#e34d01] transition-all hover:shadow-md hover:shadow-[#0053a8]/20"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold bg-[#3a3f2b] text-white shadow-sm hover:bg-[#000] transition-all hover:shadow-md hover:shadow-[#3a3f2b]/20"
               >
                 <Sparkles className="w-3.5 h-3.5" />
                 <span>কম্বো তৈরি করুন</span>
@@ -85,7 +85,7 @@ export default function Navbar() {
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
                 aria-label="Toggle navigation menu"
-                className="md:hidden p-2 rounded-lg text-[#0053a8] hover:bg-[#f5ede8] transition-colors"
+                className="md:hidden p-2 rounded-lg text-[#3a3f2b] hover:bg-[#f5ede8] transition-colors"
               >
                 {mobileOpen ? (
                   <X className="w-6 h-6" />
@@ -101,7 +101,7 @@ export default function Navbar() {
       {/* Mobile Drawer Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-[#4a3b3b]/40 backdrop-blur-xs z-50 md:hidden"
+          className="fixed inset-0 bg-[#3a3f2b]/40 backdrop-blur-xs z-50 md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -114,17 +114,17 @@ export default function Navbar() {
       >
         <div className="p-5 flex items-center justify-between border-b border-[#e8dad5]">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#0053a8] flex items-center justify-center text-white">
+            <div className="w-8 h-8 rounded-lg bg-[#3a3f2b] flex items-center justify-center text-white">
               <Package className="w-4 h-4" />
             </div>
-            <span className=" font-bold text-lg text-[#4a3b3b]">
+            <span className=" font-bold text-lg text-[#3a3f2b]">
               Gift Pacific
             </span>
           </div>
           <button
             onClick={() => setMobileOpen(false)}
             aria-label="Close menu"
-            className="p-1.5 rounded-lg text-[#8a7a7a] hover:bg-[#f5ede8]"
+            className="p-1.5 rounded-lg text-black hover:bg-[#f5ede8]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -144,13 +144,13 @@ export default function Navbar() {
                 onClick={() => setMobileOpen(false)}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-left font-medium transition-all ${
                   isActive
-                    ? "bg-[#f5ede8] text-[#0053a8] font-bold"
-                    : "text-[#4a3b3b] hover:bg-[#f5ede8]/50"
+                    ? "bg-[#f5ede8] text-[#3a3f2b] font-bold"
+                    : "text-[#3a3f2b] hover:bg-[#f5ede8]/50"
                 }`}
               >
                 <span>{link.label}</span>
                 {link.badge !== null && link.badge !== undefined && (
-                  <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[#0053a8] text-white">
+                  <span className="px-2 py-0.5 text-xs font-bold rounded-full bg-[#3a3f2b] text-white">
                     {link.badge}
                   </span>
                 )}
@@ -163,12 +163,12 @@ export default function Navbar() {
           <Link
             href="/custom"
             onClick={() => setMobileOpen(false)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#0053a8] text-white font-medium shadow-sm hover:bg-[#e34d01] transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#3a3f2b] text-white font-medium shadow-sm hover:bg-[#000] transition-colors"
           >
             <Sparkles className="w-4 h-4" />
             <span>নিজে কম্বো বানান</span>
           </Link>
-          <div className="mt-3 text-center text-xs text-[#8a7a7a]">
+          <div className="mt-3 text-center text-xs text-black">
             ক্যাশ অন ডেলিভারিতে সারা বাংলাদেশে
           </div>
         </div>
