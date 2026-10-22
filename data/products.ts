@@ -2,8 +2,8 @@ import { Product, BoxType, TeamMember } from "@/types";
 
 export const DEFAULT_GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL || "";
 
-export const DELIVERY_CHARGE_INSIDE = 100;
-export const DELIVERY_CHARGE_OUTSIDE = 150;
+export const DELIVERY_CHARGE_INSIDE = 60;
+export const DELIVERY_CHARGE_OUTSIDE = 120;
 
 export const products: Product[] = [
   {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatPrice, getDeviceInfo } from "@/lib/utils";
 import {
   DELIVERY_CHARGE_INSIDE,
@@ -41,6 +41,18 @@ export default function OrderModal({
   const [isLoading, setIsLoading] = useState(false);
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+
+  // মডাল ওপেন হলে বডি স্ক্রল অফ এবং বন্ধ হলে রিস্টোর করার ইফেক্ট
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isOpen]);
 
   if (!isOpen || !orderItem) return null;
 
@@ -125,7 +137,7 @@ export default function OrderModal({
         <button
           onClick={handleResetAndClose}
           aria-label="Close modal"
-          className="absolute top-5 right-5 p-2 rounded-full text-black hover:bg-[#f5ede8] hover:text-[#3a3f2b] transition-colors"
+          className="absolute top-5 right-5 p-2 rounded-full text-black hover:bg-[#f5ede8] hover:text-[#3a3f2b] transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -135,7 +147,7 @@ export default function OrderModal({
             <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8" />
             </div>
-            <h3 className=" text-2xl font-bold text-[#3a3f2b]">
+            <h3 className="text-2xl font-bold text-[#3a3f2b]">
               অর্ডার সফলভাবে জমা হয়েছে!
             </h3>
             <p className="text-sm text-black max-w-sm mx-auto leading-relaxed">
@@ -166,7 +178,7 @@ export default function OrderModal({
             </div>
             <button
               onClick={handleResetAndClose}
-              className="mt-4 px-6 py-2.5 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-colors"
+              className="mt-4 px-6 py-2.5 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-colors cursor-pointer"
             >
               ঠিক আছে
             </button>
@@ -177,7 +189,7 @@ export default function OrderModal({
               <span className="text-xs font-bold text-[#3a3f2b] uppercase tracking-wider">
                 ক্যাশ অন ডেলিভারি চেকআউট
               </span>
-              <h3 className=" text-2xl font-bold text-[#3a3f2b] mt-1">
+              <h3 className="text-2xl font-bold text-[#3a3f2b] mt-1">
                 অর্ডার নিশ্চিত করুন
               </h3>
             </div>
@@ -265,10 +277,14 @@ export default function OrderModal({
                   onChange={(e) =>
                     setDeliveryArea(e.target.value as "inside" | "outside")
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] font-medium focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] font-medium focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors cursor-pointer"
                 >
-                  <option value="inside">ঢাকার ভেতরে ({formatPrice(DELIVERY_CHARGE_INSIDE)})</option>
-                  <option value="outside">ঢাকার বাইরে ({formatPrice(DELIVERY_CHARGE_OUTSIDE)})</option>
+                  <option value="inside">
+                    ঢাকার ভেতরে ({formatPrice(DELIVERY_CHARGE_INSIDE)})
+                  </option>
+                  <option value="outside">
+                    ঢাকার বাইরে ({formatPrice(DELIVERY_CHARGE_OUTSIDE)})
+                  </option>
                 </select>
               </div>
 
@@ -276,7 +292,7 @@ export default function OrderModal({
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 px-4 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#3a3f2b]/20 disabled:opacity-60"
+                  className="w-full py-3.5 px-4 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#3a3f2b]/20 disabled:opacity-60 cursor-pointer"
                 >
                   {isLoading ? (
                     <>
