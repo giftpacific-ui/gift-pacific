@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { useRef } from 'react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { Product } from '@/types';
-import { formatPrice } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Plus, Eye } from 'lucide-react';
-import { useCart } from '@/context/CartContext';
+import { useRef } from "react";
+import Image from "next/image";
+import Link from "next/link";
+import { Product } from "@/types";
+import { formatPrice } from "@/lib/utils";
+import { ChevronLeft, ChevronRight, Plus, Eye } from "lucide-react";
+import { useCart } from "@/context/CartContext";
 
 interface ItemSliderProps {
   products: Product[];
@@ -14,13 +14,13 @@ interface ItemSliderProps {
 
 export default function ItemSlider({ products }: ItemSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
-  const individualItems = products.filter((p) => p.cat === 'individual');
+  const individualItems = products.filter((p) => p.cat === "individual");
   const { addToCustomCart } = useCart();
 
-  const scroll = (direction: 'left' | 'right') => {
+  const scroll = (direction: "left" | "right") => {
     if (trackRef.current) {
-      const offset = direction === 'left' ? -280 : 280;
-      trackRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+      const offset = direction === "left" ? -280 : 280;
+      trackRef.current.scrollBy({ left: offset, behavior: "smooth" });
     }
   };
 
@@ -36,21 +36,22 @@ export default function ItemSlider({ products }: ItemSliderProps) {
               আমাদের কম্বো উপকরণ
             </h2>
             <p className="text-xs sm:text-sm text-black mt-1">
-              আপনি চাইলে যেকোনো উপাদান আলাদা কিনতে পারেন অথবা নিজে কম্বো বক্সে যুক্ত করতে পারেন
+              আপনি চাইলে যেকোনো উপাদান আলাদা কিনতে পারেন অথবা নিজে কম্বো বক্সে
+              যুক্ত করতে পারেন
             </p>
           </div>
 
           {/* Slider controls */}
           <div className="flex items-center gap-2 self-end sm:self-auto">
             <button
-              onClick={() => scroll('left')}
+              onClick={() => scroll("left")}
               aria-label="Previous items"
               className="w-10 h-10 rounded-full bg-white border border-[#e8dad5] flex items-center justify-center text-[#3a3f2b] hover:bg-[#3a3f2b] hover:text-white hover:border-[#3a3f2b] shadow-xs transition-all active:scale-95 cursor-pointer"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <button
-              onClick={() => scroll('right')}
+              onClick={() => scroll("right")}
               aria-label="Next items"
               className="w-10 h-10 rounded-full bg-white border border-[#e8dad5] flex items-center justify-center text-[#3a3f2b] hover:bg-[#3a3f2b] hover:text-white hover:border-[#3a3f2b] shadow-xs transition-all active:scale-95 cursor-pointer"
             >
@@ -70,7 +71,7 @@ export default function ItemSlider({ products }: ItemSliderProps) {
               className="shrink-0 w-52 bg-white rounded-xl border border-[#e8dad5] overflow-hidden shadow-xs hover:shadow-md hover:border-[#3a3f2b]/50 transition-all group flex flex-col justify-between"
             >
               <Link
-                href={`/product/${item.id}`}
+                href={`/product/${item.slug}`}
                 className="relative aspect-square w-full bg-[#fbf7f4] cursor-pointer overflow-hidden p-3 block"
               >
                 <div className="relative w-full h-full rounded-lg overflow-hidden">
@@ -87,19 +88,26 @@ export default function ItemSlider({ products }: ItemSliderProps) {
 
               <div className="p-3.5 flex-1 flex flex-col justify-between">
                 <div>
-                  <Link href={`/product/${item.id}`}>
+                  <Link href={`/product/${item.slug}`}>
                     <h4 className="text-xs sm:text-sm font-semibold text-[#3a3f2b] hover:text-[#3a3f2b] cursor-pointer truncate mb-1">
                       {item.name}
                     </h4>
                   </Link>
-                  <div className="text-xs font-bold text-[#3a3f2b] mb-3">
-                    {formatPrice(item.price)}
+                  <div className="flex gap-2 items-center">
+                    <span className="text-sm font-bold text-[#3a3f2b]">
+                      {formatPrice(item.price)}
+                    </span>{" "}
+                    {item.oldPrice && (
+                      <span className="text-[12px] line-through text-red-600">
+                        {formatPrice(item.oldPrice)}
+                      </span>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1.5 pt-2 border-t border-[#e8dad5]/50">
                   <Link
-                    href={`/product/${item.id}`}
+                    href={`/product/${item.slug}`}
                     className="flex-1 py-1.5 px-2 rounded-md bg-[#fbf7f4] border border-[#e8dad5] text-[11px] font-medium text-[#3a3f2b] hover:bg-[#f5ede8] hover:text-[#3a3f2b] flex items-center justify-center gap-1 transition-colors"
                   >
                     <Eye className="w-3 h-3" />

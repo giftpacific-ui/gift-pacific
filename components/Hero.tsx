@@ -26,7 +26,7 @@ export default function Hero() {
               <span>প্রিমিয়াম হ্যান্ডমেড ক্রাফট & গিফট বক্স</span>
             </div>
 
-            <h1 className=" text-3xl sm:text-4xl lg:text-[44px] xl:text-[56px] font-extrabold tracking-tight text-[#3a3f2b] leading-[1.2]">
+            <h1 className=" text-3xl sm:text-4xl lg:text-[42px] xl:text-[52px] font-extrabold tracking-tight text-[#3a3f2b] leading-[1.2]">
               খুলে দিন আনন্দের{" "}
               <span className="text-[#3a3f2b] italic">Gift Pacific</span>,{" "}
               <br />

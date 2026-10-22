@@ -267,8 +267,8 @@ export default function OrderModal({
                   }
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] font-medium focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
                 >
-                  <option value="inside">ঢাকার ভেতরে (৮০ টাকা)</option>
-                  <option value="outside">ঢাকার বাইরে (১৩০ টাকা)</option>
+                  <option value="inside">ঢাকার ভেতরে ({formatPrice(DELIVERY_CHARGE_INSIDE)})</option>
+                  <option value="outside">ঢাকার বাইরে ({formatPrice(DELIVERY_CHARGE_OUTSIDE)})</option>
                 </select>
               </div>
 

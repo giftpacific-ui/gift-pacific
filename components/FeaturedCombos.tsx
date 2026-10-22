@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Product } from '@/types';
-import ProductCard from './ProductCard';
-import { Gift } from 'lucide-react';
+import Link from "next/link";
+import { Product } from "@/types";
+import ProductCard from "./ProductCard";
+import { Gift } from "lucide-react";
 
 interface FeaturedCombosProps {
   products: Product[];
 }
 
 export default function FeaturedCombos({ products }: FeaturedCombosProps) {
-  const combos = products.filter((p) => p.cat === 'combo');
+  const combos = products.filter((p) => p.cat === "combo");
 
   return (
     <section className="py-12 bg-transparent">
@@ -24,7 +24,8 @@ export default function FeaturedCombos({ products }: FeaturedCombosProps) {
             আমাদের কিউরেটেড কম্বো প্যাক
           </h2>
           <p className="text-sm text-black mt-2">
-            ভালোবাসার প্রতিটি অনুভূতি প্রকাশের জন্য বিশেষভাবে তৈরি সম্পূর্ণ রেডিমেড কম্বো গিফট বক্স
+            ভালোবাসার প্রতিটি অনুভূতি প্রকাশের জন্য বিশেষভাবে তৈরি সম্পূর্ণ
+            রেডিমেড কম্বো গিফট বক্স
           </p>
         </div>
 
@@ -32,16 +33,6 @@ export default function FeaturedCombos({ products }: FeaturedCombosProps) {
           {combos.map((combo) => (
             <ProductCard key={combo.id} product={combo} />
           ))}
-        </div>
-
-        <div className="mt-8 text-center">
-          <Link
-            href="/shop"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-[#3a3f2b] hover:text-[#000] transition-colors"
-          >
-            <span>সবগুলো কম্বো এবং আইটেম শপে দেখুন</span>
-            <span>→</span>
-          </Link>
         </div>
       </div>
     </section>

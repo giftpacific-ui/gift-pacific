@@ -1,15 +1,20 @@
-export type ProductCategory = 'combo' | 'individual';
+export type ProductCategory = "combo" | "individual";
 
 export interface Product {
   id: number;
+  slug: string;
   name: string;
+  nameEnglish: string;
   price: number;
   oldPrice?: number;
   tag?: string;
   cat: ProductCategory;
   img: string;
   desc: string;
+  descEnglish: string;
   details: string;
+  detailsEnglish: string;
+  inStock: boolean;
 }
 
 export interface BoxType {
@@ -20,6 +25,7 @@ export interface BoxType {
   desc: string;
   details: string;
   tag?: string;
+  inStock?: boolean;
 }
 
 export interface CustomCartItem extends Product {
@@ -36,7 +42,7 @@ export interface TeamMember {
 }
 
 export interface OrderSubmission {
-  type: 'order';
+  type: "order";
   name: string;
   phone: string;
   address: string;
@@ -50,7 +56,7 @@ export interface OrderSubmission {
 }
 
 export interface ContactSubmission {
-  type: 'contact';
+  type: "contact";
   name: string;
   phone: string;
   message: string;

@@ -2,161 +2,104 @@ import { Product, BoxType, TeamMember } from "@/types";
 
 export const DEFAULT_GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL || "";
 
-export const DELIVERY_CHARGE_INSIDE = 80;
-export const DELIVERY_CHARGE_OUTSIDE = 130;
+export const DELIVERY_CHARGE_INSIDE = 100;
+export const DELIVERY_CHARGE_OUTSIDE = 150;
 
 export const products: Product[] = [
   {
     id: 1,
-    name: "The Love Box",
+    slug: "the-love-box",
+    inStock: false,
+    name: "দ্যা লাভ বক্স",
+    nameEnglish: "The Love Box",
     price: 1500,
     oldPrice: 1800,
     tag: "Bestseller",
     cat: "combo",
     img: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=800&auto=format&fit=crop",
     desc: "সুগন্ধি ক্যান্ডেল, কাস্টম মাগ ও ব্যক্তিগত চিঠি।",
-    details:
-      "এই কম্বোতে রয়েছে হ্যান্ডমেড সুগন্ধি ক্যান্ডেল, একটি কাস্টমাইজড সিরামিক মগ এবং একটি হাতে লেখা ব্যক্তিগত চিঠি। উপহারের জন্য সেরা বিকল্প। নিখুঁত প্যাকেজিং ও ফিনিশিং সহ।",
+    descEnglish:
+      "Scented candle, custom mug, and a personal handwritten letter.",
+    details: `এই কম্বোতে রয়েছে হ্যান্ডমেড সুগন্ধি ক্যান্ডেল, একটি কাস্টমাইজড সিরামিক মগ এবং একটি হাতে লেখা ব্যক্তিগত চিঠি।
+
+উপহারের জন্য সেরা বিকল্প। নিখুঁত প্যাকেজিং ও ফিনিশিং সহ।`,
+    detailsEnglish: `This combo includes a handmade scented candle, a customized ceramic mug, and a personalized handwritten letter.
+
+The best choice for gifting, featuring perfect packaging and finishing.`,
   },
   {
     id: 2,
-    name: "Crafty Surprise",
-    price: 2200,
-    tag: "New",
-    cat: "combo",
-    img: "https://images.unsplash.com/photo-1513885535751-8b9238bd3dda?q=80&w=800&auto=format&fit=crop",
-    desc: "প্রিমিয়াম লেদার ওয়ালেট, চাবির রিং ও চকলেট।",
-    details:
-      "প্রিমিয়াম কোয়ালিটির লেদার ওয়ালেট, স্টাইলিশ চাবির রিং এবং বেলজিয়ান ডার্ক চকলেটের সমাহার। প্রিয়জনকে সারপ্রাইজ দেওয়ার সেরা প্যাকেজ।",
-  },
-  {
-    id: 3,
-    name: "Memory Lane",
-    price: 1800,
-    cat: "combo",
-    img: "https://images.unsplash.com/photo-1607344645866-009c320b63e0?q=80&w=800&auto=format&fit=crop",
-    desc: "কাস্টমাইজড ফটো ফ্রেম, হ্যান্ডমেড সাবান ও ড্রাই ফ্রুটস।",
-    details:
-      "কাঠের তৈরি কাস্টম ফটো ফ্রেম, হ্যান্ডমেড সুগন্ধি সাবান এবং প্রিমিয়াম ড্রাই ফ্রুটসের আকর্ষণীয় বক্স। স্মৃতি ধরে রাখার নিখুঁত উপহার।",
-  },
-  {
-    id: 4,
-    name: "Hair Clipper Set",
-    price: 600,
-    cat: "individual",
-    img: "https://images.unsplash.com/photo-1522338242992-e1a54906a8da?q=80&w=800&auto=format&fit=crop",
-    desc: "প্রিমিয়াম চুল কাটার ক্লিপার সেট।",
-    details:
-      "চুল ও দাড়ি ট্রিম করার জন্য প্রিমিয়াম কোয়ালিটির ক্লিপার সেট। সাথে রাখা হয়েছে আফটারশেভ লোশন ও প্রটেকশন কিট।",
-  },
-  {
-    id: 5,
-    name: "Lip Balm Trio",
-    price: 450,
-    cat: "individual",
-    img: "https://images.unsplash.com/photo-1599733589046-8a35aae4f4f1?q=80&w=800&auto=format&fit=crop",
-    desc: "হ্যান্ডমেড ন্যাচারাল লিপবাম।",
-    details:
-      "সম্পূর্ণ ন্যাচারাল ও অর্গানিক উপাদানে তৈরি ৩টি ভ্যারাইটির লিপবাম সেট। ঠোঁটের সুরক্ষা ও শীতের জন্য সেরা উপহার।",
-  },
-  {
-    id: 6,
-    name: "সুগন্ধি ক্যান্ডেল",
-    price: 300,
-    cat: "individual",
-    img: "https://images.unsplash.com/photo-1602874801006-e26c4e6c4ab2?q=80&w=800&auto=format&fit=crop",
-    desc: "হ্যান্ডমেড সুগন্ধি সয় ক্যান্ডেল।",
-    details:
-      "প্রিমিয়াম কোয়ালিটির হ্যান্ডমেড সুগন্ধি সয় ক্যান্ডেল। শান্ত ও মোহনীয় সুবাস ছড়িয়ে দেয় ঘরের প্রতিটি কোণে।",
-  },
-  {
-    id: 7,
-    name: "কাস্টম সিরামিক মগ",
+    slug: "rose-gold-ad-stone-tie-bracelet",
+    inStock: true,
+    name: "টাই ব্রেসলেট — রোজ গোল্ড এডি স্টোন",
+    nameEnglish: "Rose Gold AD Stone Tie Bracelet",
     price: 350,
+    oldPrice: 400,
     cat: "individual",
-    img: "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?q=80&w=800&auto=format&fit=crop",
-    desc: "কাস্টমাইজড সিরামিক মগ।",
-    details:
-      "নিজের পছন্দমতো ডিজাইন বা নাম প্রিন্ট করার উপযোগী প্রিমিয়াম গ্রেড সিরামিক মগ। মাইক্রোওয়েভ ফ্রেন্ডলি।",
-  },
-  {
-    id: 8,
-    name: "ডার্ক চকলেট বক্স",
-    price: 500,
-    cat: "individual",
-    img: "https://images.unsplash.com/photo-1546484959-f9a381d1330d?q=80&w=800&auto=format&fit=crop",
-    desc: "প্রিমিয়াম ডার্ক চকলেট বক্স।",
-    details:
-      "আর্টিস্যানাল বেলজিয়ান ডার্ক চকলেটের আকর্ষণীয় বক্স। মিষ্টি ভালোবাসার অনন্য অনুভূতি তৈরি করতে অতুলনীয়।",
-  },
-  {
-    id: 9,
-    name: "হ্যান্ডমেড সাবান",
-    price: 250,
-    cat: "individual",
-    img: "https://images.unsplash.com/photo-1607006344380-b6775f8f10a2?q=80&w=800&auto=format&fit=crop",
-    desc: "ন্যাচারাল কোল্ড-প্রেসড সাবান।",
-    details:
-      "সম্পূর্ণ ন্যাচারাল উদ্ভিজ্জ তেল ও এসেনশিয়াল অয়েল দিয়ে তৈরি কেমিক্যাল-মুক্ত হ্যান্ডমেড স্কিন কেয়ার সাবান।",
-  },
-  {
-    id: 10,
-    name: "কাঠের ফটো ফ্রেম",
-    price: 450,
-    cat: "individual",
-    img: "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?q=80&w=800&auto=format&fit=crop",
-    desc: "কাস্টম কাঠের ফটো ফ্রেম।",
-    details:
-      "প্রাকৃতিক টেক্সচারযুক্ত কাঠের তৈরি প্রিমিয়াম ফটো ফ্রেম। টেবিলটপ ও ওয়াল হ্যাংগিং উভয় ব্যবস্থার সুবিধা রয়েছে।",
-  },
-  {
-    id: 11,
-    name: "হাতে লেখা কার্ড",
-    price: 100,
-    cat: "individual",
-    img: "https://images.unsplash.com/photo-1456406644174-8ddd5cd354ce?q=80&w=800&auto=format&fit=crop",
-    desc: "ব্যক্তিগত হাতে লেখা কার্ড।",
-    details:
-      "আপনার প্রিয় মানুষের জন্য বিশেষ বার্তা হাতে লিখে সিলমোহর করা খামে সাজিয়ে দেওয়ার জন্য স্পেশাল কার্ড।",
+    img: "/img/products/ad-bracelate.jpg",
+    desc: "ছোট্ট একটি জিনিস, আপনার সাজে যোগ করুক নান্দনিকতার ছোঁয়া।",
+    descEnglish: "A touch of elegance for every occasion.",
+    details: `GIFT PACIFIC-এর এই এলিগ্যান্ট টাই ব্রেসলেটটিতে রয়েছে আকর্ষণীয় রোজ গোল্ড বডি কালার, ঝলমলে হোয়াইট এডি স্টোন এবং স্টাইলিশ ডায়মন্ড কাট লক। এর মিনিমাল ও এস্থেটিক ডিজাইন ক্যাজুয়াল আউটফিট থেকে শুরু করে পার্টি কিংবা বিশেষ অনুষ্ঠানের সাজেও মানিয়ে যায়।
+
+নিজের প্রতিদিনের লুককে আরও আকর্ষণীয় করতে কিংবা প্রিয় কাউকে ছোট্ট একটি উপহার দিতে এই ব্রেসলেট হতে পারে সুন্দর একটি পছন্দ।
+
+✨ পণ্যের বিশেষত্ব
+প্রোডাক্ট: টাই ব্রেসলেট
+বডি কালার: রোজ গোল্ড
+স্টোন: হোয়াইট এডি স্টোন
+লক ডিজাইন: ডায়মন্ড কাট লক
+সাইজ: ফ্রি সাইজ
+ব্যবহার: ক্যাজুয়াল আউটফিট, পার্টি ও বিভিন্ন অনুষ্ঠানে
+প্যাকেজিং: গিফট প্যাকেজিং সুবিধা রয়েছে
+কালার: যত্ন সহকারে ব্যাবহারে ১২ মাসের কালার গ্যারান্টি
+
+🎁 কেন বেছে নেবেন?
+একটি ব্রেসলেট, নানা ধরনের সাজের সঙ্গে মানিয়ে নেওয়ার মতো ডিজাইন। নিজের জন্য হোক কিংবা প্রিয়জনকে সারপ্রাইজ দেওয়ার জন্য GIFT PACIFIC এর এই ব্রেসলেট হতে পারে আপনার পছন্দের অ্যাকসেসরিজ।
+
+মূল্য: মাত্র ৳৩৫০
+
+💌 অর্ডার করতে GIFT PACIFIC-এর ইনবক্সে মেসেজ করুন।
+GIFT PACIFIC - উপহারে থাকুক অনুভূতির ছোঁয়া।
+
+যত্নসহকারে ব্যবহার ও সংরক্ষণ করলে ১২ মাসের বেশি ব্যবহার করা যেতে পারে। প্রকৃত স্থায়িত্ব ব্যবহার ও যত্নের ওপর নির্ভরশীল।`,
+    detailsEnglish: `Complete your look with the Rose Gold AD Stone Tie Bracelet from GIFT PACIFIC. Featuring a rose gold-tone body, sparkling white AD stones, and a stylish diamond-cut clasp, this bracelet brings a delicate, aesthetic finish to your accessory collection.
+
+Its versatile design pairs beautifully with casual outfits, party wear, and special-occasion looks. Whether you're adding a little sparkle to your own style or choosing a thoughtful gift for someone special, this bracelet is an elegant choice.
+
+✨ Product Highlights
+Product type: Tie bracelet
+Body colour: Rose gold
+Stone details: White AD stones
+Clasp: Diamond-cut design
+Size: Free size
+Style: Minimal, elegant, and aesthetic
+Occasions: Everyday wear, parties, celebrations, and special events
+Packaging: Gift packaging available
+Colour assurance: Colour guarantee as stated by the seller
+
+🎁 A Beautiful Addition to Your Accessory Collection
+Easy to style with a variety of outfits, this bracelet is a thoughtful choice for personal wear or gifting.
+
+Price: BDT 350
+
+Gift it to someone special, or treat yourself.
+💌 Message GIFT PACIFIC to place your order.
+GIFT PACIFIC - Make Every Gift Meaningful.
+
+Care note: The bracelet may last over 12 months with careful use. Actual lifespan depends on wear, storage, and care.`,
   },
 ];
 
 export const boxTypes: BoxType[] = [
   {
     id: "b1",
-    name: "Heart Shape Box",
+    inStock: false,
+    name: "Square Premium Box",
     price: 200,
     img: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=800&auto=format&fit=crop",
-    desc: "সুন্দর ডিজাইনের হার্ট শেপ বক্স, প্রিয়জনকে ভালোবাসা জানানোর জন্য সেরা।",
+    desc: "সুন্দর ডিজাইনের স্কয়ার শেপ বক্স, প্রিয়জনকে ভালোবাসা জানানোর জন্য সেরা।",
     details:
-      "প্রিমিয়াম রিজিড কার্ডবোর্ডের তৈরি হার্ট শেপ বক্স। ভেতরে ভেলভেট ফিনিশ এবং সুরক্ষিত প্যাডিং রয়েছে।",
-  },
-  {
-    id: "b2",
-    name: "Square Premium Box",
-    price: 250,
-    img: "https://images.unsplash.com/photo-1513885535751-8b9238bd3dda?q=80&w=800&auto=format&fit=crop",
-    desc: "স্কয়ার শেপের প্রিমিয়াম গিফট বক্স।",
-    details:
-      "যেকোনো উৎসব, জন্মদিন বা বিশেষ দিনের উপহারের জন্য মানানসই ক্লাসিক স্কয়ার ডিজাইনের শক্ত ও দৃষ্টিনন্দন বক্স।",
-  },
-  {
-    id: "b3",
-    name: "Circle Drawer Box",
-    price: 300,
-    img: "https://images.unsplash.com/photo-1607344645866-009c320b63e0?q=80&w=800&auto=format&fit=crop",
-    desc: "গোলাকার ড্রয়ার স্টাইলের বক্স।",
-    details:
-      "স্লাইডিং ড্রয়ার স্টাইলের আধুনিক গোলাকার বক্স। উপহার খোলার মুহূর্তটিকে করে তোলে অত্যন্ত আকর্ষণীয় ও স্মরণীয়।",
-  },
-  {
-    id: "b4",
-    name: "Wooden Crate Box",
-    price: 400,
-    img: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=800&auto=format&fit=crop",
-    desc: "কাঠের তৈরি প্রিমিয়াম ক্রেট বক্স।",
-    details:
-      "অরিজিনাল হস্তশিল্পের ছোঁয়াযুক্ত কাঠের তৈরি রাস্টিক ক্রেট বক্স। পরিবেশবান্ধব এবং উপহারের পরেও স্টোরেজ হিসেবে দীর্ঘস্থায়ী।",
+      "প্রিমিয়াম রিজিড কার্ডবোর্ডের তৈরি স্কয়ার শেপ বক্স। ভেতরে ভেলভেট ফিনিশ এবং সুরক্ষিত প্যাডিং রয়েছে।",
   },
 ];
 

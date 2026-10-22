@@ -1,17 +1,28 @@
-'use client';
+"use client";
 
-import Image from 'next/image';
-import { Product, BoxType } from '@/types';
-import { formatPrice, toBengaliNum } from '@/lib/utils';
-import { Sparkles, Trash2, Plus, Minus, Package, ShoppingCart } from 'lucide-react';
-import { useCart } from '@/context/CartContext';
+import Image from "next/image";
+import { Product, BoxType } from "@/types";
+import { formatPrice, toBengaliNum } from "@/lib/utils";
+import {
+  Sparkles,
+  Trash2,
+  Plus,
+  Minus,
+  Package,
+  ShoppingCart,
+  XCircle,
+} from "lucide-react";
+import { useCart } from "@/context/CartContext";
 
 interface CustomBuilderProps {
   products: Product[];
   boxTypes: BoxType[];
 }
 
-export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps) {
+export default function CustomBuilder({
+  products,
+  boxTypes,
+}: CustomBuilderProps) {
   const {
     selectedBox,
     customCart,
@@ -23,16 +34,19 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
     showToast,
   } = useCart();
 
-  const individualItems = products.filter((p) => p.cat === 'individual');
+  const individualItems = products.filter((p) => p.cat === "individual");
 
   const boxTotal = selectedBox ? selectedBox.price : 0;
-  const itemsTotal = customCart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const itemsTotal = customCart.reduce(
+    (sum, item) => sum + item.price * item.qty,
+    0,
+  );
   const subTotal = boxTotal + itemsTotal;
   const totalItemsCount = customCart.reduce((sum, item) => sum + item.qty, 0);
 
   const handleOrderCustom = () => {
     if (!selectedBox && customCart.length === 0) {
-      showToast('⚠️ অনুগ্রহ করে অন্তত একটি বক্স বা উপকরণ যোগ করুন!');
+      showToast("⚠️ অনুগ্রহ করে অন্তত একটি বক্স বা উপকরণ যোগ করুন!");
       return;
     }
 
@@ -46,12 +60,14 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
 
     if (customCart.length > 0) {
       basePrice += itemsTotal;
-      const itemsList = customCart.map((it) => `${it.name} (x${it.qty})`).join(', ');
+      const itemsList = customCart
+        .map((it) => `${it.name} (x${it.qty})`)
+        .join(", ");
       parts.push(`উপকরণ: ${itemsList}`);
     }
 
     openOrderModal({
-      name: parts.join(' | '),
+      name: parts.join(" | "),
       basePrice,
       isCustom: true,
     });
@@ -65,11 +81,12 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
             <Sparkles className="w-3.5 h-3.5" />
             <span>কাস্টম কম্বো বিল্ডার</span>
           </div>
-          <h2 className=" text-2xl sm:text-3xl font-bold text-[#3a3f2b]">
+          <h2 className="text-2xl sm:text-3xl font-bold text-[#3a3f2b]">
             নিজে বানান মনের মতো কম্বো
           </h2>
           <p className="text-sm text-black mt-2">
-            প্রথমে একটি আকর্ষণীয় গিফট বক্স বাছাই করুন, এরপর আপনার পছন্দের উপকরণগুলো যোগ করে তৈরি করুন সম্পূর্ণ অনন্য উপহার।
+            প্রথমে একটি আকর্ষণীয় গিফট বক্স বাছাই করুন, এরপর আপনার পছন্দের
+            উপকরণগুলো যোগ করে তৈরি করুন সম্পূর্ণ অনন্য উপহার।
           </p>
         </div>
 
@@ -83,7 +100,7 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                   <div className="w-8 h-8 rounded-lg bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center font-bold text-sm">
                     ১
                   </div>
-                  <h3 className=" text-lg font-bold text-[#3a3f2b]">
+                  <h3 className="text-lg font-bold text-[#3a3f2b]">
                     বক্স সিলেক্ট করুন
                   </h3>
                 </div>
@@ -100,14 +117,24 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
                 {boxTypes.map((box) => {
                   const isSelected = selectedBox?.id === box.id;
+                  const isBoxAvailable = box.inStock !== false;
+
                   return (
                     <div
                       key={box.id}
-                      onClick={() => selectBox(box)}
-                      className={`relative p-3 rounded-xl border text-center cursor-pointer transition-all ${
-                        isSelected
-                          ? 'border-[#3a3f2b] bg-[#f5ede8]/40 ring-2 ring-[#3a3f2b]/30 shadow-xs'
-                          : 'border-[#e8dad5] bg-[#fbf7f4]/40 hover:border-[#3a3f2b]/60'
+                      onClick={() => {
+                        if (!isBoxAvailable) {
+                          showToast("⚠️ দুঃখিত, এই বক্সটি বর্তমানে স্টক আউট!");
+                          return;
+                        }
+                        selectBox(box);
+                      }}
+                      className={`relative p-3 rounded-xl border text-center transition-all ${
+                        !isBoxAvailable
+                          ? "border-gray-200 bg-gray-50 opacity-75 cursor-not-allowed"
+                          : isSelected
+                            ? "border-[#3a3f2b] bg-[#f5ede8]/40 ring-2 ring-[#3a3f2b]/30 shadow-xs cursor-pointer"
+                            : "border-[#e8dad5] bg-[#fbf7f4]/40 hover:border-[#3a3f2b]/60 cursor-pointer"
                       }`}
                     >
                       <div className="relative aspect-square w-full rounded-lg overflow-hidden mb-2 bg-white">
@@ -116,9 +143,14 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                           alt={box.name}
                           fill
                           sizes="150px"
-                          className="object-cover"
+                          className={`object-cover ${!isBoxAvailable ? "grayscale opacity-75" : ""}`}
                           referrerPolicy="no-referrer"
                         />
+                        {!isBoxAvailable && (
+                          <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-red-600 text-white shadow-xs">
+                            স্টক আউট
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs font-semibold text-[#3a3f2b] truncate">
                         {box.name}
@@ -144,7 +176,7 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                   ২
                 </div>
                 <div>
-                  <h3 className=" text-lg font-bold text-[#3a3f2b]">
+                  <h3 className="text-lg font-bold text-[#3a3f2b]">
                     উপকরণ বেছে নিন
                   </h3>
                   <p className="text-xs text-black">
@@ -156,10 +188,16 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {individualItems.map((item) => {
                   const inCart = customCart.find((c) => c.id === item.id);
+                  const isItemAvailable = item.inStock !== false;
+
                   return (
                     <div
                       key={item.id}
-                      className="bg-[#fbf7f4]/50 border border-[#e8dad5] rounded-xl p-3 flex flex-col justify-between hover:border-[#3a3f2b]/40 transition-colors"
+                      className={`bg-[#fbf7f4]/50 border rounded-xl p-3 flex flex-col justify-between transition-colors ${
+                        !isItemAvailable
+                          ? "border-gray-200 opacity-80"
+                          : "border-[#e8dad5] hover:border-[#3a3f2b]/40"
+                      }`}
                     >
                       <div className="relative aspect-square w-full rounded-lg overflow-hidden mb-2 bg-white">
                         <Image
@@ -167,9 +205,14 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                           alt={item.name}
                           fill
                           sizes="180px"
-                          className="object-cover"
+                          className={`object-cover ${!isItemAvailable ? "grayscale opacity-75" : ""}`}
                           referrerPolicy="no-referrer"
                         />
+                        {!isItemAvailable && (
+                          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 text-[10px] font-bold rounded-md bg-red-600 text-white shadow-xs">
+                            স্টক আউট
+                          </span>
+                        )}
                       </div>
                       <div>
                         <h4 className="text-xs sm:text-sm font-semibold text-[#3a3f2b] truncate">
@@ -180,7 +223,15 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                         </div>
                       </div>
 
-                      {inCart ? (
+                      {!isItemAvailable ? (
+                        <button
+                          disabled
+                          className="w-full py-1.5 px-2 rounded-lg bg-gray-200 border border-gray-300 text-xs font-semibold text-gray-500 flex items-center justify-center gap-1 cursor-not-allowed"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          <span>স্টক আউট</span>
+                        </button>
+                      ) : inCart ? (
                         <div className="flex items-center justify-between bg-white border border-[#3a3f2b]/40 rounded-lg p-1">
                           <button
                             onClick={() => updateCustomCartQty(item.id, -1)}
@@ -219,7 +270,7 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
             <div className="bg-white rounded-2xl border border-[#e8dad5] p-6 shadow-xs">
               <div className="flex items-center gap-2 pb-4 border-b border-[#e8dad5]">
                 <Package className="w-5 h-5 text-[#3a3f2b]" />
-                <h3 className=" text-lg font-bold text-[#3a3f2b]">
+                <h3 className="text-lg font-bold text-[#3a3f2b]">
                   আপনার কাস্টম বক্স
                 </h3>
               </div>
@@ -259,7 +310,8 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                   </div>
                 ) : (
                   <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200/60 p-2.5 rounded-xl">
-                    ⚠️ এখনো বক্স সিলেক্ট করেননি। বাম পাশ থেকে একটি বক্স বেছে নিন।
+                    ⚠️ এখনো বক্স সিলেক্ট করেননি। বাম পাশ থেকে একটি বক্স বেছে
+                    নিন।
                   </div>
                 )}
               </div>
@@ -267,7 +319,9 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
               {/* Selected Items List */}
               <div className="py-4 border-b border-[#e8dad5]">
                 <div className="flex items-center justify-between text-xs font-medium text-black mb-2">
-                  <span>বক্সের ভেতরের উপকরণ ({toBengaliNum(totalItemsCount)}টি):</span>
+                  <span>
+                    বক্সের ভেতরের উপকরণ ({toBengaliNum(totalItemsCount)}টি):
+                  </span>
                 </div>
 
                 {customCart.length === 0 ? (
@@ -282,12 +336,6 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                         className="flex items-center justify-between text-xs bg-[#fbf7f4] p-2 rounded-lg"
                       >
                         <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => removeFromCustomCart(item.id)}
-                            className="text-black hover:text-red-500 cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
                           <span className="font-medium text-[#3a3f2b] line-clamp-1 max-w-[130px]">
                             {item.name}
                           </span>
@@ -298,6 +346,12 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                         <span className="font-bold text-[#3a3f2b]">
                           {formatPrice(item.price * item.qty)}
                         </span>
+                        <button
+                          onClick={() => removeFromCustomCart(item.id)}
+                          className="text-red-600 hover:text-red-500 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -316,10 +370,12 @@ export default function CustomBuilder({ products, boxTypes }: CustomBuilderProps
                 </div>
                 <div className="flex items-center justify-between text-base font-bold text-[#3a3f2b] pt-2 border-t border-[#e8dad5]">
                   <span>সাব-টোটাল:</span>
-                  <span className="text-lg text-[#3a3f2b]">{formatPrice(subTotal)}</span>
+                  <span className="text-lg text-[#3a3f2b]">
+                    {formatPrice(subTotal)}
+                  </span>
                 </div>
                 <div className="text-[11px] text-black italic">
-                  * ডেলিভারি চার্জ অর্ডার কনফার্ম করার সময় যুক্ত হবে।
+                  * ডেলিভারি চার্জ অর্ডার কনফার্ম করার সময় যুক্ত হবে।
                 </div>
               </div>
 
