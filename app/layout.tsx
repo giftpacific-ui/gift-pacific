@@ -5,6 +5,7 @@ import Providers from "@/components/Providers";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import "./globals.css";
+import TiktokPixel from "@/components/TiktokPixel";
 
 const notoSansBengali = Noto_Sans_Bengali({
   subsets: ["bengali"],
@@ -78,6 +79,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <FacebookPixel />
+        <TiktokPixel />
         <Providers>
           <Navbar />
           <div className="flex-1">{children}</div>
