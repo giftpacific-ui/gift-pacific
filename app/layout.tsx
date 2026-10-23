@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Bengali, Playfair_Display } from "next/font/google";
+import Script from "next/script"; // <-- Next.js Script imported
 import FacebookPixel from "@/components/FacebookPixel";
 import Providers from "@/components/Providers";
 import Navbar from "@/components/Navbar";
@@ -24,11 +25,13 @@ const playfairDisplay = Playfair_Display({
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://giftpacific.com";
 
 export const metadata: Metadata = {
-  // আপনার রিয়েল প্রোডাকশন ডোমেইন এখানে দিন (কমিট বা আনকমেন্ট করুন)
   metadataBase: new URL(siteUrl),
   title: "Gift Pacific — Premium Handmade Gift & Combo Boxes in Bangladesh",
   description:
     "Gift Pacific - বাংলাদেশের সেরা প্রিমিয়াম হ্যান্ডমেড গিফট, কাস্টম কম্বো বক্স এবং আর্টিস্যানাল ক্রাফট। ক্যাশ অন ডেলিভারিতে সারা দেশে আপনার ভালোবাসার নিখুঁত উপহার পৌঁছে দিন।",
+  verification: {
+    google: "YOUR_VERIFICATION_TOKEN_HERE", 
+  },
   keywords: [
     "gift box bangladesh",
     "premium gift combo",
@@ -48,7 +51,6 @@ export const metadata: Metadata = {
     siteName: "Gift Pacific",
     images: [
       {
-        // এখানে আপনার পাবলিক ফোল্ডারে থাকা আসল ব্র্যান্ড ব্যানার বা লোগো ইমেজ দিন (যেমন: /images/og-cover.jpg)
         url: "/img/logo/og-cover.png",
         width: 1200,
         height: 630,
@@ -74,6 +76,13 @@ export default function RootLayout({
       lang="bn"
       className={`${notoSansBengali.variable} ${playfairDisplay.variable} scroll-smooth`}
     >
+      <head>
+        {/* Google Preferred Source Script */}
+        <Script
+          src="https://news.google.com/swg/js/v1/publisher.js"
+          strategy="afterInteractive"
+        />
+      </head>
       <body
         className="font-[var(--font-sans)] text-[#3a3f2b] min-h-screen flex flex-col antialiased"
         suppressHydrationWarning

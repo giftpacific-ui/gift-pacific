@@ -11,10 +11,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-12 border-b border-[#e8dad5]/70">
           {/* Brand Info */}
           <div className="md:col-span-5 space-y-4">
-            <Link
-              href="/"
-              className="flex items-center"
-            >
+            <Link href="/" className="inline-flex items-center">
               <Image
                 src="/img/logo/logo.png"
                 width={180}
@@ -27,6 +24,12 @@ export default function Footer() {
               গিফট বক্স। ভালোবাসা প্রকাশের প্রতিটি মুহূর্তকে নিখুঁত ও
               অবিস্মরণীয় করে তুলতে আমরা বদ্ধপরিকর।
             </p>
+
+            {/* Google Preferred Source Button Container */}
+            <div className="py-2">
+              <div google-add-preferred-source-btn="true"></div>
+            </div>
+
             <div className="pt-2 text-xs text-black flex items-center gap-1.5">
               <span>Made with care</span>
               <Heart className="w-3.5 h-3.5 text-[#3a3f2b] fill-current" />
@@ -94,7 +97,7 @@ export default function Footer() {
           {/* Contact and Support */}
           <div className="md:col-span-4 space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-[#3a3f2b]">
-              সহায়তা ও হটলাইন
+              সহায়তা ও হটলাইন
             </h4>
             <div className="space-y-2.5 text-xs sm:text-sm text-black">
               <div className="flex items-center gap-2">
@@ -106,7 +109,7 @@ export default function Footer() {
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-[#3a3f2b] shrink-0" />
                 <a
-                  href="mailto:giftpacific@gmail.com।"
+                  href="mailto:giftpacific@gmail.com"
                   className="hover:text-[#3a3f2b]"
                 >
                   giftpacific@gmail.com
