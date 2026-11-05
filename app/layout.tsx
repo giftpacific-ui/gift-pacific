@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   description:
     "Gift Pacific - বাংলাদেশের সেরা প্রিমিয়াম হ্যান্ডমেড গিফট, কাস্টম কম্বো বক্স এবং আর্টিস্যানাল ক্রাফট। ক্যাশ অন ডেলিভারিতে সারা দেশে আপনার ভালোবাসার নিখুঁত উপহার পৌঁছে দিন।",
   verification: {
-    google: "YOUR_VERIFICATION_TOKEN_HERE", 
+    google: "YOUR_VERIFICATION_TOKEN_HERE",
   },
   keywords: [
     "gift box bangladesh",

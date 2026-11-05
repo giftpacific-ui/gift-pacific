@@ -1,6 +1,7 @@
 export type ProductCategory = "combo" | "individual";
 
 export interface Product {
+  sku?: string;
   id: number;
   slug: string;
   name: string;

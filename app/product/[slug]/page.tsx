@@ -8,6 +8,7 @@ import ProductDetailActions from "./ProductDetailActions";
 import ProductCard from "@/components/ProductCard";
 import { CheckCircle2, ArrowLeft, Sparkles, XCircle } from "lucide-react";
 import TrackPageEvent from "@/components/TrackPageEvent";
+import ReactMarkdown from "react-markdown";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -90,8 +91,9 @@ export default async function ProductDetailPage({ params }: Props) {
         <div className="bg-white rounded-3xl border border-[#e8dad5] p-6 sm:p-10 shadow-xs mb-16">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
             {/* Image Column */}
-            <div className="lg:col-span-6">
-              <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#f5ede8] border border-[#e8dad5] shadow-xs">
+            <div className="lg:col-span-6 h-full">
+              <div className="sticky top-24">
+                <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#f5ede8] border border-[#e8dad5] shadow-xs">
                 <Image
                   src={product.img}
                   alt={product.name}
@@ -105,16 +107,19 @@ export default async function ProductDetailPage({ params }: Props) {
                 {/* Product Tags / Badges */}
                 <div className="absolute top-4 left-4 flex flex-col gap-2">
                   {product.tag && (
-                    <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#3a3f2b] text-white shadow-sm">
+                    <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-600 text-white shadow-sm">
                       {product.tag}
                     </span>
                   )}
+
+                  {/* Out of Stock Badge */}
                   {!product.inStock && (
                     <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-600 text-white shadow-sm">
                       স্টক আউট (Out of Stock)
                     </span>
                   )}
                 </div>
+              </div>
               </div>
             </div>
 
@@ -163,7 +168,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 </h4>
               </div>
 
-              {/* Action Buttons (In Stock অনুযায়ী প্রসেস করবে) */}
+              {/* Action Buttons (In Stock অনুযায়ী প্রসেস করবে) */}
               {product.inStock ? (
                 <ProductDetailActions product={product} />
               ) : (
@@ -180,13 +185,25 @@ export default async function ProductDetailPage({ params }: Props) {
                 </div>
               )}
 
-              {/* Detailed Description */}
-              <div className="text-sm sm:text-base text-black leading-relaxed mb-6 space-y-3">
-                {product.details.split("\n\n").map((paragraph, index) => (
-                  <p key={index} className="whitespace-pre-line">
-                    {paragraph}
-                  </p>
-                ))}
+              {/* Detailed Description with react-markdown support */}
+              <div className="text-sm sm:text-base text-black leading-relaxed mb-6 space-y-3 prose max-w-none">
+                <ReactMarkdown
+                  components={{
+                    a: ({ node, ...props }) => (
+                      <a
+                        {...props}
+                        className="text-[#3a3f2b] hover:underline font-black"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    ),
+                    p: ({ node, ...props }) => (
+                      <p {...props} className="whitespace-pre-line mb-3" />
+                    ),
+                  }}
+                >
+                  {product.details}
+                </ReactMarkdown>
               </div>
 
               {/* Quality Guarantees */}

@@ -17,6 +17,8 @@ export default function HomePage() {
           content_category: "Landing Page",
         }}
       />
+
+      {/* Hero Section */}
       <Hero />
 
       {/* Featured Combos */}

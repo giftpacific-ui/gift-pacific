@@ -7,28 +7,96 @@ export const DELIVERY_CHARGE_OUTSIDE = 120;
 
 export const products: Product[] = [
   {
-    id: 1,
-    slug: "the-love-box",
-    inStock: false,
-    name: "দ্যা লাভ বক্স",
+    id: 11,
+    sku:'5pcSet01',
+    slug: "royal-elegance-5-piece-stone-jewelry-set-emerald-green",
+    inStock: true,
+    name: "Royal Elegance – 5-Piece Stone Jewelry Set",
     nameEnglish: "The Love Box",
-    price: 1500,
-    oldPrice: 1800,
-    tag: "Bestseller",
+    price: 3299,
+    oldPrice: 3499,
+    tag: "Limited Edition",
     cat: "combo",
-    img: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=800&auto=format&fit=crop",
-    desc: "সুগন্ধি ক্যান্ডেল, কাস্টম মাগ ও ব্যক্তিগত চিঠি।",
-    descEnglish:
-      "Scented candle, custom mug, and a personal handwritten letter.",
-    details: `এই কম্বোতে রয়েছে হ্যান্ডমেড সুগন্ধি ক্যান্ডেল, একটি কাস্টমাইজড সিরামিক মগ এবং একটি হাতে লেখা ব্যক্তিগত চিঠি।
+    img: "/img/products/combo/necklace-combo-green.jpg",
+    desc: ` এক সেটেই পূর্ণ হোক আপনার বিশেষ দিনের সাজ! \nআভিজাত্য`,
+    descEnglish: `A Touch of Elegance for Every Special Moment.`,
+    details: `আভিজাত্য, সৌন্দর্য আর নান্দনিকতার এক অপূর্ব সমন্বয় – নিয়ে এলাম Gift Pacific-এর *Royal Elegance 5-Piece Jewelry Set*।
 
-উপহারের জন্য সেরা বিকল্প। নিখুঁত প্যাকেজিং ও ফিনিশিং সহ।`,
+ঝলমলে Diamond-Cut Zircon Stones এবং আকর্ষণীয় ডিজাইনের এই সম্পূর্ণ সেটে থাকছে:
+
+💎 Elegant Necklace
+💎 Matching Earrings
+💎 Beautiful Bangles
+💎 Stylish Ring
+💎 Traditional Maang Tikka
+
+❤️ *Available in Two Stunning Colors:*
+🔴 Ruby Red
+💚 Emerald Green
+
+Check Ruby Red: [Royal Elegance – 5-Piece Stone Jewelry Set (Ruby Red)](/product/royal-elegance-5-piece-stone-jewelry-set-ruby-red)
+
+বিয়ে, পার্টি, উৎসব কিংবা প্রিয় কোনো মানুষের বিশেষ মুহূর্তে নিজেকে সাজিয়ে তুলতে এই কালেকশনটি হতে পারে আপনার পছন্দের একটি সংযোজন।
+
+🎁 নিজের জন্য হোক কিংবা প্রিয় কাউকে উপহার দেওয়ার জন্য – Gift Pacific-এর সঙ্গে প্রতিটি উপহার হয়ে উঠুক আরও বিশেষ।
+
+*অর্ডার করতে অথবা বিস্তারিত জানতে ইনবক্স করুন।*
+
+বিশেষ দ্রষ্টব্য: প্রদর্শিত গিফট বক্সটি নিয়মিত পণ্যের সঙ্গে অন্তর্ভুক্ত নয়। প্রয়োজন হলে আলাদাভাবে Gift Box ও Premium Gift Packaging অর্ডার করতে পারবেন।
+
+*GIFT PACIFIC*
+Make Her Feel Special.`,
+    detailsEnglish: `This combo includes a handmade scented candle, a customized ceramic mug, and a personalized handwritten letter.
+
+The best choice for gifting, featuring perfect packaging and finishing.`,
+  },
+  {
+    id: 12,
+    sku: '5pcSet02',
+    slug: "royal-elegance-5-piece-stone-jewelry-set-ruby-red",
+    inStock: true,
+    name: "Royal Elegance – 5-Piece Stone Jewelry Set",
+    nameEnglish: "The Love Box",
+    price: 3299,
+    oldPrice: 3499,
+    tag: "Limited Edition",
+    cat: "combo",
+    img: "/img/products/combo/necklace-combo-red.jpg",
+    desc: ` এক সেটেই পূর্ণ হোক আপনার বিশেষ দিনের সাজ! \nআভিজাত্য`,
+    descEnglish: `A Touch of Elegance for Every Special Moment.`,
+    details: `আভিজাত্য, সৌন্দর্য আর নান্দনিকতার এক অপূর্ব সমন্বয় – নিয়ে এলাম Gift Pacific-এর *Royal Elegance 5-Piece Jewelry Set*।
+
+ঝলমলে Diamond-Cut Zircon Stones এবং আকর্ষণীয় ডিজাইনের এই সম্পূর্ণ সেটে থাকছে:
+
+💎 Elegant Necklace
+💎 Matching Earrings
+💎 Beautiful Bangles
+💎 Stylish Ring
+💎 Traditional Maang Tikka
+
+❤️ *Available in Two Stunning Colors:*
+🔴 Ruby Red
+💚 Emerald Green
+
+Check Emerald Green: [Royal Elegance – 5-Piece Stone Jewelry Set (Emerald Green)](/product/royal-elegance-5-piece-stone-jewelry-set-emerald-green)
+
+বিয়ে, পার্টি, উৎসব কিংবা প্রিয় কোনো মানুষের বিশেষ মুহূর্তে নিজেকে সাজিয়ে তুলতে এই কালেকশনটি হতে পারে আপনার পছন্দের একটি সংযোজন।
+
+🎁 নিজের জন্য হোক কিংবা প্রিয় কাউকে উপহার দেওয়ার জন্য – Gift Pacific-এর সঙ্গে প্রতিটি উপহার হয়ে উঠুক আরও বিশেষ।
+
+*অর্ডার করতে অথবা বিস্তারিত জানতে ইনবক্স করুন।*
+
+বিশেষ দ্রষ্টব্য: প্রদর্শিত গিফট বক্সটি নিয়মিত পণ্যের সঙ্গে অন্তর্ভুক্ত নয়। প্রয়োজন হলে আলাদাভাবে Gift Box ও Premium Gift Packaging অর্ডার করতে পারবেন।
+
+*GIFT PACIFIC*
+Make Her Feel Special.`,
     detailsEnglish: `This combo includes a handmade scented candle, a customized ceramic mug, and a personalized handwritten letter.
 
 The best choice for gifting, featuring perfect packaging and finishing.`,
   },
   {
     id: 2,
+    sku: "Brclt(01)",
     slug: "rose-gold-ad-stone-tie-bracelet",
     inStock: true,
     name: "টাই ব্রেসলেট — রোজ গোল্ড এডি স্টোন",
@@ -36,7 +104,7 @@ The best choice for gifting, featuring perfect packaging and finishing.`,
     price: 350,
     oldPrice: 400,
     cat: "individual",
-    img: "/img/products/ad-bracelate.jpg",
+    img: "/img/products/single/ad-bracelate.jpg",
     desc: "ছোট্ট একটি জিনিস, আপনার সাজে যোগ করুক নান্দনিকতার ছোঁয়া।",
     descEnglish: "A touch of elegance for every occasion.",
     details: `GIFT PACIFIC-এর এই এলিগ্যান্ট টাই ব্রেসলেটটিতে রয়েছে আকর্ষণীয় রোজ গোল্ড বডি কালার, ঝলমলে হোয়াইট এডি স্টোন এবং স্টাইলিশ ডায়মন্ড কাট লক। এর মিনিমাল ও এস্থেটিক ডিজাইন ক্যাজুয়াল আউটফিট থেকে শুরু করে পার্টি কিংবা বিশেষ অনুষ্ঠানের সাজেও মানিয়ে যায়।
@@ -96,7 +164,7 @@ export const boxTypes: BoxType[] = [
     inStock: false,
     name: "Square Premium Box",
     price: 200,
-    img: "https://images.unsplash.com/photo-1549465220-1a8b9238cd48?q=80&w=800&auto=format&fit=crop",
+    img: "/img/products/box/box-1.jpg",
     desc: "সুন্দর ডিজাইনের স্কয়ার শেপ বক্স, প্রিয়জনকে ভালোবাসা জানানোর জন্য সেরা।",
     details:
       "প্রিমিয়াম রিজিড কার্ডবোর্ডের তৈরি স্কয়ার শেপ বক্স। ভেতরে ভেলভেট ফিনিশ এবং সুরক্ষিত প্যাডিং রয়েছে।",

@@ -16,7 +16,7 @@ export default function ProductCard({ product, onOrderNow }: ProductCardProps) {
   const { openOrderModal } = useCart();
 
   const handleOrder = () => {
-    if (!product.inStock) return; // স্টক আউট থাকলে ফাংশন চলবে না
+    if (!product.inStock) return; 
 
     if (onOrderNow) {
       onOrderNow(product);
@@ -38,7 +38,7 @@ export default function ProductCard({ product, onOrderNow }: ProductCardProps) {
             স্টক আউট
           </span>
         ) : product.tag ? (
-          <span className="px-2.5 py-1 text-[11px] font-bold rounded-md bg-[#3a3f2b] text-white shadow-xs">
+          <span className="px-2.5 py-1 text-[11px] font-bold rounded-md bg-orange-600 text-white shadow-xs">
             {product.tag}
           </span>
         ) : null}
