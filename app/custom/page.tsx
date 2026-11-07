@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function CustomPage() {
   return (
-    <main className="py-6">
+    <main className="">
       <CustomBuilder products={products} boxTypes={boxTypes} />
     </main>
   );

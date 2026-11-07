@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function ShopPage() {
   return (
-    <main className="py-6">
+    <main className="">
       <ShopSection products={products} />
     </main>
   );

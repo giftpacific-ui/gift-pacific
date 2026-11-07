@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <main className="py-6">
+    <main className="">
       <ContactSection />
     </main>
   );

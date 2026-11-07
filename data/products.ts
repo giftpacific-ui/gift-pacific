@@ -8,15 +8,15 @@ export const DELIVERY_CHARGE_OUTSIDE = 120;
 export const products: Product[] = [
   {
     id: 11,
-    sku:'5pcSet01',
+    sku: "5pcSet01",
     slug: "royal-elegance-5-piece-stone-jewelry-set-emerald-green",
     inStock: true,
     name: "Royal Elegance – 5-Piece Stone Jewelry Set",
     nameEnglish: "The Love Box",
     price: 3299,
-    oldPrice: 3499,
+    oldPrice: 3299,
     tag: "Limited Edition",
-    cat: "combo",
+    cat: "fullCombo",
     img: "/img/products/combo/necklace-combo-green.jpg",
     desc: ` এক সেটেই পূর্ণ হোক আপনার বিশেষ দিনের সাজ! \nআভিজাত্য`,
     descEnglish: `A Touch of Elegance for Every Special Moment.`,
@@ -52,15 +52,15 @@ The best choice for gifting, featuring perfect packaging and finishing.`,
   },
   {
     id: 12,
-    sku: '5pcSet02',
+    sku: "5pcSet02",
     slug: "royal-elegance-5-piece-stone-jewelry-set-ruby-red",
     inStock: true,
     name: "Royal Elegance – 5-Piece Stone Jewelry Set",
     nameEnglish: "The Love Box",
     price: 3299,
-    oldPrice: 3499,
+    oldPrice: 3299,
     tag: "Limited Edition",
-    cat: "combo",
+    cat: "fullCombo",
     img: "/img/products/combo/necklace-combo-red.jpg",
     desc: ` এক সেটেই পূর্ণ হোক আপনার বিশেষ দিনের সাজ! \nআভিজাত্য`,
     descEnglish: `A Touch of Elegance for Every Special Moment.`,
@@ -93,6 +93,132 @@ Make Her Feel Special.`,
     detailsEnglish: `This combo includes a handmade scented candle, a customized ceramic mug, and a personalized handwritten letter.
 
 The best choice for gifting, featuring perfect packaging and finishing.`,
+  },
+  {
+    id: 21,
+    sku: "Trdrp.p",
+    slug: "pink-butterfly-zircon-pendant-set",
+    inStock: true,
+    name: "Pink Butterfly – Zircon Pendant Set",
+    nameEnglish: "Pink Butterfly – Zircon Pendant Set",
+    price: 299,
+    oldPrice: 349,
+    tag: "",
+    cat: "miniCombo",
+    img: "/img/products/combo/discount-1.png",
+    desc: `স্নিগ্ধতায় সৌন্দর্য, প্রতিটি সাজে একটুখানি মুগ্ধতা।`,
+    descEnglish: `A Little Sparkle, A Touch of Grace.`,
+    details: `বিশেষ মুহূর্তের সাজে যোগ করুন নান্দনিকতার এক কোমল ছোঁয়া Gift Pacific এর Pink Butterfly Zircon Jewellery Set-এর সঙ্গে।
+
+প্রজাপতির আকর্ষণীয় নকশা, সুন্দর গোলাপি জার্কন স্টোন এবং ঝলমলে সিলভার-টোন ডিটেইলিংয়ের সমন্বয়ে তৈরি এই জুয়েলারি সেটে রয়েছে একটি নেকলেস, এক জোড়া ইয়াররিং এবং একটি ম্যাচিং রিং।
+
+পার্টি, জন্মদিন, উৎসব কিংবা বিশেষ কোনো আয়োজনে আপনার সাজকে আরও আকর্ষণীয় করে তুলতে এই Pink Butterfly Jewellery Set হতে পারে একটি সুন্দর সংযোজন।
+
+পণ্যের বিবরণ
+পণ্যের ধরন: Women's Zircon Jewellery Set
+ডিজাইন: Butterfly-Inspired Design
+স্টোন: Pink Zircon
+রং: গোলাপি ও সিলভার-টোন ডিটেইলিং
+সেটের মধ্যে রয়েছে: ১টি নেকলেস, ১ জোড়া ইয়াররিং এবং ১টি রিং
+ব্যবহারের ধরন: পার্টি ও বিশেষ আয়োজনের জুয়েলারি
+
+কেন পছন্দ করবেন?
+আকর্ষণীয় প্রজাপতি নকশা।
+সুন্দর গোলাপি জিরকন স্টোনের ডিটেইলিং।
+নেকলেস, ইয়াররিং ও রিংয়ের সমন্বিত ডিজাইন।
+পার্টি ও বিশেষ অনুষ্ঠানের সাজে মানানসই।
+প্রিয়জনকে উপহার দেওয়ার জন্য সুন্দর একটি পছন্দ।
+
+যেসব আয়োজনে মানানসই
+জন্মদিন, পার্টি, উৎসব, বিশেষ অনুষ্ঠান কিংবা প্রিয়জনকে উপহার দেওয়ার জন্য।
+
+প্রতিটি বিশেষ মুহূর্ত হয়ে উঠুক আরও সুন্দর, Gift Pacific এর সঙ্গে।
+`,
+    detailsEnglish: `Add a delicate touch of elegance to your special occasions with the Pink Butterfly Zircon Jewellery Set by Gift Pacific.
+
+Designed with charming butterfly motifs, beautiful pink zircon stones and sparkling silver-tone detailing, this elegant jewellery set brings together a matching necklace, a pair of earrings and a ring. Its graceful design makes it a lovely choice for parties, celebrations and special moments.
+
+Product Details
+Product Type: Women's Zircon Jewellery Set
+Design: Butterfly-Inspired Design
+Stone: Pink Zircon
+Color: Pink with Silver-Tone Detailing
+Set Includes: 1 Necklace, 1 Pair of Earrings and 1 Ring
+Style: Party Wear & Occasion Jewellery
+
+Why You'll Love It
+Beautiful pink zircon stone detailing.
+Delicate and attractive butterfly design.
+Coordinated necklace, earrings and matching ring.
+An elegant addition to party and occasion outfits.
+A thoughtful jewellery gift for someone special.
+
+Perfect For
+Birthday celebrations, parties, festive occasions, special events and gifting.
+
+Make every special moment shine with Gift Pacific.`,
+  },
+  {
+    id: 22,
+    sku: "Trdrp.p",
+    slug: "blush-teardrop-5-piece-stone-jewelry-set-pink",
+    inStock: true,
+    name: "Blush Teardrop – Pink Stone Pendant Set",
+    nameEnglish: "Blush Teardrop – Pink Stone Pendant Set",
+    price: 299,
+    oldPrice: 349,
+    tag: "",
+    cat: "miniCombo",
+    img: "/img/products/combo/discount-2.png",
+    desc: ` প্রতিটি ডিটেইলে নান্দনিকতার ছোঁয়া।`,
+    descEnglish: `Grace in Every Detail`,
+    details: `বিশেষ মুহূর্তের সাজে যোগ করুন আভিজাত্য ও স্নিগ্ধতার সুন্দর সমন্বয় Gift Pacific-এর Blush Teardrop Pink Stone Jewellery Set-এর সঙ্গে।
+
+পিয়ার-শেপড বা অশ্রুবিন্দু আকৃতির গোলাপি স্টোন, সূক্ষ্ম বো-ডিজাইন এবং ঝলমলে ক্রিস্টাল ডিটেইলিংয়ের সমন্বয়ে তৈরি এই জুয়েলারি সেটটি এনে দেয় এক মার্জিত ও আকর্ষণীয় লুক। সিলভার-টোন ফিনিশিংয়ের সঙ্গে গোলাপি স্টোনের সুন্দর সমন্বয় নেকলেস, ইয়াররিং ও রিংয়ের প্রতিটি অংশকে করে তুলেছে আরও নান্দনিক।
+
+পণ্যের বিবরণ
+পণ্যের ধরন: Women's Fashion Jewellery Set
+ডিজাইন: Pear-Shaped / Teardrop with Bow Detailing
+স্টোনের রং: ইরিডিসেন্ট গোলাপি
+ফিনিশিং: সিলভার-টোন ও ক্রিস্টাল ডিটেইলিং
+সেটের মধ্যে রয়েছে: ১টি নেকলেস, ১ জোড়া ইয়াররিং এবং ১টি রিং
+ব্যবহারের ধরন: পার্টি ও বিশেষ আয়োজনের জুয়েলারি
+
+কেন পছন্দ করবেন?
+অশ্রুবিন্দু আকৃতির আকর্ষণীয় গোলাপি স্টোন।
+সূক্ষ্ম বো-ডিজাইন ও নান্দনিক ডিটেইলিং।
+মূল স্টোনের চারপাশে ঝলমলে ক্রিস্টাল অ্যাকসেন্ট।
+নেকলেস, ইয়াররিং ও ম্যাচিং রিংয়ের সমন্বিত ডিজাইন।
+বিশেষ অনুষ্ঠানের সাজে যোগ করবে মার্জিত সৌন্দর্য।
+
+যেসব আয়োজনে মানানসই
+জন্মদিন, পার্টি, বিয়ে, উৎসব, বিশেষ অনুষ্ঠান কিংবা প্রিয়জনকে উপহার দেওয়ার জন্য।
+
+আপনার বিশেষ মুহূর্তের সাজে থাকুক Gift Pacific-এর নান্দনিক ছোঁয়া।
+`,
+    detailsEnglish: `Bring a touch of timeless elegance to your special occasions with the Blush Teardrop Pink Stone Jewellery Set by Gift Pacific.
+
+Featuring beautiful pear-shaped pink stones, delicate bow-inspired detailing and sparkling crystal accents, this coordinated jewellery set creates a graceful and sophisticated look. The soft pink centerpiece stones are complemented by elegant silver-tone settings, making this necklace, earrings and ring combination a charming addition to your occasion wear collection.
+
+Product Details
+Product Type: Women's Fashion Jewellery Set
+Design: Pear-Shaped / Teardrop with Bow Detailing
+Stone Color: Iridescent Pink
+Setting: Silver-Tone Finish with Crystal Accents
+Set Includes: 1 Necklace, 1 Pair of Earrings and 1 Ring
+Style: Elegant Party Wear & Occasion Jewellery
+
+Why You'll Love It
+Beautiful pear-shaped pink centerpiece stones.
+Delicate bow-inspired design for a graceful appearance.
+Sparkling crystal accents surrounding the main stones.
+Coordinated necklace, earrings and matching ring.
+A lovely statement accessory for special occasions.
+
+Perfect For
+Birthday celebrations, parties, weddings, festive gatherings, special events and thoughtful gifting.
+
+Complete your special look with the elegance of Gift Pacific.`,
   },
   {
     id: 2,
@@ -160,14 +286,24 @@ Care note: The bracelet may last over 12 months with careful use. Actual lifespa
 
 export const boxTypes: BoxType[] = [
   {
+    sku: "ElgBox(01)",
     id: "b1",
+    inStock: true,
+    name: "Elegant Gift Box",
+    price: 250,
+    img: "/img/products/box/box-2.jpg",
+    desc: "সুন্দর ডিজাইনের স্কয়ার শেপ বক্স, প্রিয়জনকে ভালোবাসা জানানোর জন্য সেরা।",
+    details: `স্নিগ্ধ সাদা রঙ, সুন্দর সাটিন রিবন হ্যান্ডেল এবং সামনের দিকে থাকা এলিগ্যান্ট Jewelry লেখাটি বক্সটিকে দিয়েছে এক অনন্য প্রিমিয়াম লুক।`,
+  },
+  {
+    sku: "ElgBox(02)",
+    id: "b2",
     inStock: false,
     name: "Square Premium Box",
     price: 200,
     img: "/img/products/box/box-1.jpg",
     desc: "সুন্দর ডিজাইনের স্কয়ার শেপ বক্স, প্রিয়জনকে ভালোবাসা জানানোর জন্য সেরা।",
-    details:
-      "প্রিমিয়াম রিজিড কার্ডবোর্ডের তৈরি স্কয়ার শেপ বক্স। ভেতরে ভেলভেট ফিনিশ এবং সুরক্ষিত প্যাডিং রয়েছে।",
+    details: `প্রিমিয়াম রিজিড কার্ডবোর্ডের তৈরি স্কয়ার শেপ বক্স। ভেতরে ভেলভেট ফিনিশ এবং সুরক্ষিত প্যাডিং রয়েছে।`,
   },
 ];
 

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function BoxesPage() {
   return (
-    <main className="py-6">
+    <main className="">
       <OurBoxes boxTypes={boxTypes} />
     </main>
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Package, Heart, Phone, Mail } from "lucide-react";
+import { Heart, Phone, Mail } from "lucide-react";
 import Image from "next/image";
 
 export default function Footer() {

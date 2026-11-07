@@ -94,32 +94,32 @@ export default async function ProductDetailPage({ params }: Props) {
             <div className="lg:col-span-6 h-full">
               <div className="sticky top-24">
                 <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-[#f5ede8] border border-[#e8dad5] shadow-xs">
-                <Image
-                  src={product.img}
-                  alt={product.name}
-                  fill
-                  priority
-                  sizes="(max-width: 1024px) 100vw, 550px"
-                  className={`object-cover ${!product.inStock ? "grayscale opacity-80" : ""}`}
-                  referrerPolicy="no-referrer"
-                />
+                  <Image
+                    src={product.img}
+                    alt={product.name}
+                    fill
+                    priority
+                    sizes="(max-width: 1024px) 100vw, 550px"
+                    className={`object-cover ${!product.inStock ? "grayscale opacity-80" : ""}`}
+                    referrerPolicy="no-referrer"
+                  />
 
-                {/* Product Tags / Badges */}
-                <div className="absolute top-4 left-4 flex flex-col gap-2">
-                  {product.tag && (
-                    <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-600 text-white shadow-sm">
-                      {product.tag}
-                    </span>
-                  )}
+                  {/* Product Tags / Badges */}
+                  <div className="absolute top-4 left-4 flex flex-col gap-2">
+                    {product.tag && (
+                      <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-orange-600 text-white shadow-sm">
+                        {product.tag}
+                      </span>
+                    )}
 
-                  {/* Out of Stock Badge */}
-                  {!product.inStock && (
-                    <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-600 text-white shadow-sm">
-                      স্টক আউট (Out of Stock)
-                    </span>
-                  )}
+                    {/* Out of Stock Badge */}
+                    {!product.inStock && (
+                      <span className="px-3 py-1.5 text-xs font-bold rounded-lg bg-red-600 text-white shadow-sm">
+                        স্টক আউট (Out of Stock)
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
               </div>
             </div>
 
@@ -128,9 +128,11 @@ export default async function ProductDetailPage({ params }: Props) {
               <div>
                 <div className="flex items-center gap-3 mb-2">
                   <span className="inline-block px-3 py-1 rounded-full bg-[#f5ede8] text-[#3a3f2b] text-xs font-semibold uppercase tracking-wider">
-                    {product.cat === "combo"
+                    {product.cat === "fullCombo"
                       ? "কম্বো গিফট বক্স"
-                      : "একক উপহার উপাদান"}
+                      : product.cat === "miniCombo"
+                        ? "মিনি কম্বো"
+                        : "একক উপহার উপাদান"}
                   </span>
 
                   {/* Availability Badge */}

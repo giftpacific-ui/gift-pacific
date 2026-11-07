@@ -25,6 +25,7 @@ export default function ProductCard({ product, onOrderNow }: ProductCardProps) {
         name: product.name,
         basePrice: product.price,
         isCustom: false,
+        cat: product.cat,
       });
     }
   };

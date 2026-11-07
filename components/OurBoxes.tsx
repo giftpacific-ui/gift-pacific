@@ -1,10 +1,18 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { BoxType } from "@/types";
 import { formatPrice } from "@/lib/utils";
-import { Package, Sparkles, ShoppingBag, XCircle } from "lucide-react";
+import {
+  Package,
+  Sparkles,
+  ShoppingBag,
+  XCircle,
+  Plus,
+  Minus,
+} from "lucide-react";
 import { useCart } from "@/context/CartContext";
 
 interface OurBoxesProps {
@@ -15,12 +23,40 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
   const router = useRouter();
   const { selectBox, openOrderModal } = useCart();
 
+  // প্রতিটি বক্সের আলাদা কোয়ান্টিটি ট্র্যাক করার জন্য স্টেট (Key হলো box.id, Value হলো quantity)
+  const [quantities, setQuantities] = useState<{ [key: string]: number }>({});
+
+  // নির্দিষ্ট বক্সের কোয়ান্টিটি পাওয়ার ফাংশন (ডিফল্ট ১)
+  const getQty = (boxId: string) => quantities[boxId] || 1;
+
+  // কোয়ান্টিটি বাড়ানোর ফাংশন
+  const handleIncrease = (boxId: string) => {
+    setQuantities((prev) => ({
+      ...prev,
+      [boxId]: getQty(boxId) + 1,
+    }));
+  };
+
+  // কোয়ান্টিটি কমানোর ফাংশন (কমপক্ষে ১ থাকবে)
+  const handleDecrease = (boxId: string) => {
+    const current = getQty(boxId);
+    if (current > 1) {
+      setQuantities((prev) => ({
+        ...prev,
+        [boxId]: current - 1,
+      }));
+    }
+  };
+
   const handleOrderBox = (box: BoxType) => {
     if (box.inStock === false) return;
 
+    const qty = getQty(box.id);
+    const totalPrice = box.price * qty;
+
     openOrderModal({
-      name: `শুধু বক্স: ${box.name}`,
-      basePrice: box.price,
+      name: `${box.name} (${qty} পিস)`,
+      basePrice: totalPrice,
       isCustom: false,
     });
   };
@@ -33,7 +69,7 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
   };
 
   return (
-    <section className="py-14">
+    <section className="py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-12">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f5ede8] text-[#3a3f2b] text-xs font-semibold mb-2">
@@ -45,7 +81,7 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
           </h2>
           <p className="text-sm text-black mt-2.5 leading-relaxed">
             প্রিমিয়াম কোয়ালিটির ডিজাইন করা মজবুত ও দৃষ্টিনন্দন বক্স। আপনি
-            চাইলে শুধু বক্স অর্ডার করতে পারেন, অথবা আমাদের &quot;নিজে
+            চাইলে একাধিক বক্স অর্ডার করতে পারেন, অথবা আমাদের &quot;নিজে
             বানান&quot; বিল্ডার দিয়ে এই বক্সে পছন্দের আইটেম সাজিয়ে সম্পূর্ণ
             কাস্টমাইজড কম্বো উপহার পাঠাতে পারেন।
           </p>
@@ -53,7 +89,9 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {boxTypes.map((box) => {
-            const isAvailable = box.inStock !== false; // ডিফল্টভাবে true ধরা হবে যদি undefined থাকে
+            const isAvailable = box.inStock !== false;
+            const currentQty = getQty(box.id);
+            const calculatedPrice = box.price * currentQty;
 
             return (
               <div
@@ -75,27 +113,57 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
                       referrerPolicy="no-referrer"
                     />
 
-                    {/* Price or Stock Status Badge */}
-                    <div className="absolute top-3 right-3 flex flex-col gap-1 items-end">
-                      {isAvailable ? (
-                        <div className="px-2 py-1 rounded-md bg-white/90 backdrop-blur-xs text-[11px] font-bold text-[#3a3f2b] shadow-xs">
-                          {formatPrice(box.price)}
-                        </div>
-                      ) : (
+                    {/* Stock Status Badge (Only for Out of Stock) */}
+                    {!isAvailable && (
+                      <div className="absolute top-3 right-3">
                         <div className="px-2.5 py-1 rounded-md bg-red-600 text-white text-[11px] font-bold shadow-xs">
                           স্টক আউট
                         </div>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
 
                   <div className="p-4">
-                    <h3 className="text-base font-bold text-[#3a3f2b] mb-1">
-                      {box.name}
+                    <h3 className="text-base font-bold text-[#3a3f2b] mb-2 flex justify-between items-center gap-2">
+                      <span className="line-clamp-1">{box.name}</span>
+                      {isAvailable && (
+                        <span className="inline-block text-sm font-bold text-[#f5ede8] bg-[#3a3f2b] px-2.5 py-0.5 rounded-md shrink-0">
+                          {formatPrice(calculatedPrice)}
+                        </span>
+                      )}
                     </h3>
+
                     <p className="text-xs text-black line-clamp-2 leading-relaxed mb-4">
                       {box.desc}
                     </p>
+
+                    {/* Quantity Selector UI */}
+                    {isAvailable && (
+                      <div className="flex items-center justify-between bg-[#fbf7f4] border border-[#e8dad5] px-3 py-1.5 rounded-xl mb-3">
+                        <span className="text-xs font-semibold text-[#3a3f2b]">
+                          পরিমাণ:
+                        </span>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleDecrease(box.id)}
+                            className="w-7 h-7 rounded-lg bg-white border border-[#e8dad5] flex items-center justify-center text-[#3a3f2b] hover:bg-[#f5ede8] transition-colors cursor-pointer shadow-2xs"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="text-xs font-bold text-[#3a3f2b] w-4 text-center">
+                            {currentQty}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleIncrease(box.id)}
+                            className="w-7 h-7 rounded-lg bg-white border border-[#e8dad5] flex items-center justify-center text-[#3a3f2b] hover:bg-[#f5ede8] transition-colors cursor-pointer shadow-2xs"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -112,7 +180,7 @@ export default function OurBoxes({ boxTypes }: OurBoxesProps) {
                     {isAvailable ? (
                       <>
                         <ShoppingBag className="w-3.5 h-3.5" />
-                        <span>শুধু বক্সটি অর্ডার করুন</span>
+                        <span>বক্সটি অর্ডার করুন ({currentQty} পিস)</span>
                       </>
                     ) : (
                       <>

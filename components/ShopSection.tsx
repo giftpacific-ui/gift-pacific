@@ -21,7 +21,7 @@ export default function ShopSection({ products }: ShopSectionProps) {
       : products.filter((p) => p.cat === selectedFilter);
 
   return (
-    <section className="py-12 sm:py-16">
+    <section className="py-12">
       <TrackPageEvent
         eventName="ViewContent"
         data={{
@@ -58,14 +58,26 @@ export default function ShopSection({ products }: ShopSectionProps) {
               সব ({products.length})
             </button>
             <button
-              onClick={() => setSelectedFilter("combo")}
+              onClick={() => setSelectedFilter("fullCombo")}
               className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                selectedFilter === "combo"
+                selectedFilter === "fullCombo"
                   ? "bg-[#3a3f2b] text-white shadow-xs"
                   : "bg-white border border-[#e8dad5] text-black hover:border-[#3a3f2b] hover:text-[#3a3f2b]"
               }`}
             >
-              কম্বো প্যাক ({products.filter((p) => p.cat === "combo").length})
+              কম্বো প্যাক (
+              {products.filter((p) => p.cat === "fullCombo").length})
+            </button>
+            <button
+              onClick={() => setSelectedFilter("miniCombo")}
+              className={`px-4 py-1.5 rounded-full text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
+                selectedFilter === "miniCombo"
+                  ? "bg-[#3a3f2b] text-white shadow-xs"
+                  : "bg-white border border-[#e8dad5] text-black hover:border-[#3a3f2b] hover:text-[#3a3f2b]"
+              }`}
+            >
+              মিনি কম্বো ({products.filter((p) => p.cat === "miniCombo").length}
+              )
             </button>
             <button
               onClick={() => setSelectedFilter("individual")}

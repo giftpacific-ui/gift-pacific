@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/purity */
+/* eslint-disable react-hooks/set-state-in-effect */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,6 +15,8 @@ import {
   AlertCircle,
   ShoppingBag,
   Loader2,
+  Gift,
+  PlusCircle,
 } from "lucide-react";
 
 interface OrderModalProps {
@@ -22,6 +26,7 @@ interface OrderModalProps {
     name: string;
     basePrice: number;
     isCustom?: boolean;
+    cat?: string; // ক্যাটাগরি ট্র্যাক করার জন্য (miniCombo, individual, fullCombo etc.)
   } | null;
   onOrderSuccess?: () => void;
 }
@@ -42,10 +47,25 @@ export default function OrderModal({
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
-  // মডাল ওপেন হলে বডি স্ক্রল অফ এবং বন্ধ হলে রিস্টোর করার ইফেক্ট
+  // Google Preferred Source & 50% Delivery Discount State
+  const [isDiscountApplied, setIsDiscountApplied] = useState(false);
+
+  // Mini Combo Box Option State (True = With Box @ 499, False = Without Box @ 299)
+  const [includeBox, setIncludeBox] = useState(true);
+
+  // Individual Product Upsell Box State (True = Add Elegant Gift Box for +200 BDT, False = Just Product)
+  const [addIndividualBox, setAddIndividualBox] = useState(false);
+
+  // Category Checkers
+  const isMiniCombo = orderItem?.cat === "miniCombo";
+  const isIndividual = orderItem?.cat === "individual";
+
+  // Modal open hole state reset
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
+      setIncludeBox(true); // মিনি কম্বোর জন্য ডিফল্ট বক্সসহ
+      setAddIndividualBox(false); // ইন্ডিভিজুয়ালের জন্য ডিফল্ট বক্স ছাড়া
     } else {
       document.body.style.overflow = "unset";
     }
@@ -56,11 +76,29 @@ export default function OrderModal({
 
   if (!isOpen || !orderItem) return null;
 
-  const deliveryCharge =
+  // ডাইনামিক বেস প্রাইস ক্যালকুলেশন
+  let currentBasePrice = orderItem.basePrice;
+
+  if (isMiniCombo) {
+    currentBasePrice = includeBox ? 499 : 299;
+  } else if (isIndividual) {
+    // ইন্ডিভিজুয়াল আইটেমের সাথে বক্স চাইলে অতিরিক্ত ২৫০ টাকা যোগ হবে
+    currentBasePrice = addIndividualBox
+      ? orderItem.basePrice + 200
+      : orderItem.basePrice;
+  }
+
+  const baseDeliveryCharge =
     deliveryArea === "inside"
       ? DELIVERY_CHARGE_INSIDE
       : DELIVERY_CHARGE_OUTSIDE;
-  const grandTotal = orderItem.basePrice + deliveryCharge;
+
+  // Google Preferred Source click korle 50% off
+  const deliveryCharge = isDiscountApplied
+    ? baseDeliveryCharge * 0.5
+    : baseDeliveryCharge;
+
+  const grandTotal = currentBasePrice + deliveryCharge;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,35 +106,40 @@ export default function OrderModal({
     setStatus("idle");
     setErrorMessage("");
 
-    // Generate unique Event ID for Deduplication
     const eventId = `order_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+    // পণ্যের নামের সাথে ভেরিয়েন্ট বা বক্সের তথ্য যুক্ত করে দেওয়া
+    let finalProductName = orderItem.name;
+    if (isMiniCombo) {
+      finalProductName = `${orderItem.name} (${includeBox ? "Elegant Gift Box সহ" : "শুধু প্রোডাক্ট, বক্স ছাড়া"})`;
+    } else if (isIndividual && addIndividualBox) {
+      finalProductName = `${orderItem.name} + Elegant Gift Box (৳২৫০)`;
+    }
 
     const orderPayload = {
       type: "order",
       name,
       phone,
       address,
-      product: orderItem.name,
-      basePrice: orderItem.basePrice,
+      product: finalProductName,
+      basePrice: currentBasePrice,
       deliveryCharge,
       deliveryArea:
         deliveryArea === "inside" ? "Inside Dhaka" : "Outside Dhaka",
       price: grandTotal,
       device: getDeviceInfo(),
       location: "Fetching...",
-      eventId, // Event ID passed for backend CAPI
+      eventId,
     };
 
     try {
-      // 1. Track Client-side Meta Pixel Purchase event with eventID
       trackPixelEvent("Purchase", {
         value: grandTotal,
         currency: "BDT",
-        content_name: orderItem.name,
+        content_name: finalProductName,
         eventID: eventId,
       });
 
-      // 2. Call Server API (Triggers Google Sheet + Server-side CAPI)
       const res = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -113,7 +156,7 @@ export default function OrderModal({
       console.error("Order submission error:", err);
       setStatus("error");
       setErrorMessage(
-        "অর্ডার সম্পন্ন করতে সমস্যা হয়েছে, অনুগ্রহ করে আবার চেষ্টা করুন বা সরাসরি আমাদের ফোনে যোগাযোগ করুন।",
+        "অর্ডার সম্পন্ন করতে সমস্যা হয়েছে, অনুগ্রহ করে আবার চেষ্টা করুন।",
       );
     } finally {
       setIsLoading(false);
@@ -125,6 +168,7 @@ export default function OrderModal({
     setPhone("");
     setAddress("");
     setStatus("idle");
+    setIsDiscountApplied(false);
     onClose();
   };
 
@@ -153,29 +197,8 @@ export default function OrderModal({
             <p className="text-sm text-black max-w-sm mx-auto leading-relaxed">
               ধন্যবাদ{" "}
               <span className="font-semibold text-[#3a3f2b]">{name}</span>!
-              আমাদের সাপোর্ট টিম খুব শীঘ্রই আপনার সাথে ফোনে যোগাযোগ করে অর্ডার
-              কনফার্ম করবে।
+              আমাদের টিম দ্রুত আপনার সাথে যোগাযোগ করবে।
             </p>
-            <div className="p-4 bg-[#fbf7f4] rounded-2xl border border-[#e8dad5] text-left text-xs space-y-1.5 max-w-sm mx-auto">
-              <div className="flex justify-between">
-                <span className="text-black">প্রোডাক্ট:</span>
-                <span className="font-semibold text-[#3a3f2b] line-clamp-1">
-                  {orderItem.name}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-black">পেমেন্ট মেথড:</span>
-                <span className="font-semibold text-emerald-700">
-                  ক্যাশ অন ডেলিভারি (COD)
-                </span>
-              </div>
-              <div className="flex justify-between text-sm font-bold pt-2 border-t border-[#e8dad5]">
-                <span>মোট প্রদেয়:</span>
-                <span className="text-[#3a3f2b]">
-                  {formatPrice(grandTotal)}
-                </span>
-              </div>
-            </div>
             <button
               onClick={handleResetAndClose}
               className="mt-4 px-6 py-2.5 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-colors cursor-pointer"
@@ -185,7 +208,7 @@ export default function OrderModal({
           </div>
         ) : (
           <div>
-            <div className="mb-6">
+            <div className="mb-4">
               <span className="text-xs font-bold text-[#3a3f2b] uppercase tracking-wider">
                 ক্যাশ অন ডেলিভারি চেকআউট
               </span>
@@ -194,19 +217,116 @@ export default function OrderModal({
               </h3>
             </div>
 
+            {/* ১. মিনি কম্বো (miniCombo) হলে বক্স অপশন দেখাবে */}
+            {isMiniCombo && (
+              <div className="mb-4 p-3 bg-[#fbf7f4] rounded-2xl border border-[#e8dad5]">
+                <label className="block text-xs font-bold text-[#3a3f2b] mb-2 flex items-center gap-1.5">
+                  <Gift className="w-4 h-4 text-[#3a3f2b]" />
+                  <span>প্যাকেজিং অপশন সিলেক্ট করুন:</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setIncludeBox(false)}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-center ${
+                      !includeBox
+                        ? "bg-[#3a3f2b] text-white border-[#3a3f2b] shadow-xs"
+                        : "bg-white text-[#3a3f2b] border-[#e8dad5] hover:bg-[#f5ede8]"
+                    }`}
+                  >
+                    <div>শুধু প্রোডাক্ট</div>
+                    <div className="text-[12px] opacity-90 mt-0.5">
+                      ৳২৯৯ (বক্স ছাড়া)
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIncludeBox(true)}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-center ${
+                      includeBox
+                        ? "bg-[#3a3f2b] text-white border-[#3a3f2b] shadow-xs"
+                        : "bg-white text-[#3a3f2b] border-[#e8dad5] hover:bg-[#f5ede8]"
+                    }`}
+                  >
+                    <div>বক্সসহ কম্বো</div>
+                    <div className="text-[12px] opacity-90 mt-0.5">
+                      +{formatPrice(200)} (Elegant Box)
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ২. ইন্ডিভিজুয়াল (individual) প্রোডাক্ট হলে গিফট বক্স যোগ করার আপসেল অপশন দেখাবে */}
+            {isIndividual && (
+              <div className="mb-4 p-3 bg-[#fbf7f4] rounded-2xl border border-[#e8dad5]">
+                <label className="block text-xs font-bold text-[#3a3f2b] mb-2 flex items-center gap-1.5">
+                  <PlusCircle className="w-4 h-4 text-[#3a3f2b]" />
+                  <span>উপহার দেওয়ার জন্য প্রিমিয়াম বক্স যোগ করতে চান?</span>
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAddIndividualBox(true)}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-center ${
+                      addIndividualBox
+                        ? "bg-[#3a3f2b] text-white border-[#3a3f2b] shadow-xs"
+                        : "bg-white text-[#3a3f2b] border-[#e8dad5] hover:bg-[#f5ede8]"
+                    }`}
+                  >
+                    <div>বক্সসহ নিন</div>
+                    <div className="text-[11px] opacity-90 mt-0.5">
+                      +{formatPrice(200)} (Elegant Box)
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAddIndividualBox(false)}
+                    className={`py-2 px-3 rounded-xl text-xs font-semibold border transition-all cursor-pointer text-center ${
+                      !addIndividualBox
+                        ? "bg-[#3a3f2b] text-white border-[#3a3f2b] shadow-xs"
+                        : "bg-white text-[#3a3f2b] border-[#e8dad5] hover:bg-[#f5ede8]"
+                    }`}
+                  >
+                    <div>শুধু প্রোডাক্ট</div>
+                    <div className="text-[11px] opacity-90 mt-0.5">
+                      বক্স ছাড়া
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Product & Price Summary Card */}
-            <div className="bg-[#f5ede8]/70 p-4 rounded-2xl border border-[#e8dad5] mb-6 space-y-2">
+            <div className="bg-[#f5ede8]/70 p-4 rounded-2xl border border-[#e8dad5] mb-5 space-y-2">
               <div className="flex justify-between items-start gap-4">
                 <span className="text-xs font-semibold text-[#3a3f2b] line-clamp-2">
-                  {orderItem.name}
+                  {orderItem.name}{" "}
+                  {isMiniCombo &&
+                    (includeBox ? " + Elegant Gift Box" : " (বক্স ছাড়া)")}
+                  {isIndividual && addIndividualBox && " + Elegant Gift Box"}
                 </span>
                 <span className="text-xs font-bold text-[#3a3f2b] shrink-0">
-                  {formatPrice(orderItem.basePrice)}
+                  {formatPrice(currentBasePrice)}
                 </span>
               </div>
               <div className="flex justify-between text-xs text-black pt-1.5 border-t border-[#e8dad5]">
                 <span>ডেলিভারি চার্জ:</span>
-                <span>{formatPrice(deliveryCharge)}</span>
+                <span className="flex items-center gap-1.5">
+                  {isDiscountApplied && (
+                    <span className="line-through text-gray-400">
+                      {formatPrice(baseDeliveryCharge)}
+                    </span>
+                  )}
+                  <span
+                    className={
+                      isDiscountApplied ? "font-bold text-emerald-600" : ""
+                    }
+                  >
+                    {formatPrice(deliveryCharge)}
+                  </span>
+                </span>
               </div>
               <div className="flex justify-between text-sm font-bold text-[#3a3f2b] pt-1">
                 <span>সর্বমোট:</span>
@@ -224,9 +344,9 @@ export default function OrderModal({
             )}
 
             {/* Order Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-3.5">
               <div>
-                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1">
                   আপনার পুরো নাম <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -235,12 +355,12 @@ export default function OrderModal({
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="যেমন: রাহাত মাহমুদ"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1">
                   মোবাইল নম্বর <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -249,12 +369,12 @@ export default function OrderModal({
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="017XXXXXXXX"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1">
                   সম্পূর্ণ ডেলিভারি ঠিকানা{" "}
                   <span className="text-red-500">*</span>
                 </label>
@@ -264,12 +384,25 @@ export default function OrderModal({
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="বাড়ি/রোড নং, থানা, জেলা"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors resize-none"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors resize-none"
                 />
               </div>
 
+              {/* Google Preferred Source Button Container */}
+              <div
+                className="py-1 cursor-pointer"
+                onClick={() => setIsDiscountApplied(true)}
+              >
+                <div google-add-preferred-source-btn="true"></div>
+                {isDiscountApplied && (
+                  <p className="text-[11px] text-emerald-600 font-medium mt-1">
+                    ✓ ডেলিভারি চার্জে ৫০% ডিসকাউন্ট সফলভাবে যুক্ত হয়েছে!
+                  </p>
+                )}
+              </div>
+
               <div>
-                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1.5">
+                <label className="block text-xs font-semibold text-[#3a3f2b] mb-1">
                   ডেলিভারি এরিয়া <span className="text-red-500">*</span>
                 </label>
                 <select
@@ -277,7 +410,7 @@ export default function OrderModal({
                   onChange={(e) =>
                     setDeliveryArea(e.target.value as "inside" | "outside")
                   }
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] font-medium focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors cursor-pointer"
+                  className="w-full px-3.5 py-2 rounded-xl border border-[#e8dad5] bg-[#fbf7f4] text-sm text-[#3a3f2b] font-medium focus:bg-white focus:border-[#3a3f2b] focus:outline-none transition-colors cursor-pointer"
                 >
                   <option value="inside">
                     ঢাকার ভেতরে ({formatPrice(DELIVERY_CHARGE_INSIDE)})
@@ -292,7 +425,7 @@ export default function OrderModal({
                 <button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full py-3.5 px-4 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#3a3f2b]/20 disabled:opacity-60 cursor-pointer"
+                  className="w-full py-3 px-4 rounded-xl bg-[#3a3f2b] text-white font-semibold text-sm hover:bg-[#000] transition-all flex items-center justify-center gap-2 shadow-md shadow-[#3a3f2b]/20 disabled:opacity-60 cursor-pointer"
                 >
                   {isLoading ? (
                     <>
@@ -302,7 +435,7 @@ export default function OrderModal({
                   ) : (
                     <>
                       <ShoppingBag className="w-4 h-4" />
-                      <span>কনফার্ম অর্ডার (ক্যাশ অন ডেলিভারি)</span>
+                      <span>কনফার্ম অর্ডার ({formatPrice(grandTotal)})</span>
                     </>
                   )}
                 </button>

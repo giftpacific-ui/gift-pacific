@@ -1,4 +1,4 @@
-export type ProductCategory = "combo" | "individual";
+export type ProductCategory = "fullCombo" | "individual" | 'miniCombo';
 
 export interface Product {
   sku?: string;
@@ -19,6 +19,7 @@ export interface Product {
 }
 
 export interface BoxType {
+  sku?: string;
   id: string;
   name: string;
   price: number;

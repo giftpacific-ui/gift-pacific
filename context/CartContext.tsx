@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, BoxType, CustomCartItem } from '@/types';
+import React, { createContext, useContext, useState, useEffect } from "react";
+import { Product, BoxType, CustomCartItem } from "@/types";
 
 export interface OrderModalItem {
   name: string;
   basePrice: number;
   isCustom?: boolean;
+  cat?: string; // ক্যাটাগরি প্রপার্টি এখানে যুক্ত করা হয়েছে
 }
 
 interface CartContextType {
@@ -34,7 +35,9 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [selectedBox, setSelectedBox] = useState<BoxType | null>(null);
   const [customCart, setCustomCart] = useState<CustomCartItem[]>([]);
-  const [orderModalItem, setOrderModalItem] = useState<OrderModalItem | null>(null);
+  const [orderModalItem, setOrderModalItem] = useState<OrderModalItem | null>(
+    null,
+  );
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
@@ -43,10 +46,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        const savedBox = localStorage.getItem('mtc_selected_box');
+        const savedBox = localStorage.getItem("mtc_selected_box");
         if (savedBox) setSelectedBox(JSON.parse(savedBox));
 
-        const savedCart = localStorage.getItem('mtc_custom_cart');
+        const savedCart = localStorage.getItem("mtc_custom_cart");
         if (savedCart) setCustomCart(JSON.parse(savedCart));
       } catch {
         // Ignore storage errors
@@ -63,9 +66,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (!isHydrated) return;
     try {
       if (selectedBox) {
-        localStorage.setItem('mtc_selected_box', JSON.stringify(selectedBox));
+        localStorage.setItem("mtc_selected_box", JSON.stringify(selectedBox));
       } else {
-        localStorage.removeItem('mtc_selected_box');
+        localStorage.removeItem("mtc_selected_box");
       }
     } catch {
       // Ignore storage errors
@@ -75,7 +78,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isHydrated) return;
     try {
-      localStorage.setItem('mtc_custom_cart', JSON.stringify(customCart));
+      localStorage.setItem("mtc_custom_cart", JSON.stringify(customCart));
     } catch {
       // Ignore storage errors
     }
@@ -91,7 +94,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const selectBox = (box: BoxType | null) => {
     setSelectedBox(box);
     if (box) {
-      showToast(`✓ ${box.name} সিলেক্ট করা হয়েছে`);
+      showToast(`✓ ${box.name} সিলেক্ট করা হয়েছে`);
     }
   };
 
@@ -100,12 +103,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const exists = prev.find((item) => item.id === product.id);
       if (exists) {
         return prev.map((item) =>
-          item.id === product.id ? { ...item, qty: item.qty + 1 } : item
+          item.id === product.id ? { ...item, qty: item.qty + 1 } : item,
         );
       }
       return [...prev, { ...product, qty: 1 }];
     });
-    showToast(`✓ ${product.name} কম্বোতে যোগ করা হয়েছে!`);
+    showToast(`✓ ${product.name} কম্বোতে যোগ করা হয়েছে!`);
   };
 
   const updateCustomCartQty = (productId: number, delta: number) => {
@@ -124,15 +127,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeFromCustomCart = (productId: number) => {
     setCustomCart((prev) => prev.filter((item) => item.id !== productId));
-    showToast('আইটেমটি সরানো হয়েছে');
+    showToast("আইটেমটি সরানো হয়েছে");
   };
 
   const clearCustomCart = () => {
     setCustomCart([]);
     setSelectedBox(null);
     try {
-      localStorage.removeItem('mtc_selected_box');
-      localStorage.removeItem('mtc_custom_cart');
+      localStorage.removeItem("mtc_selected_box");
+      localStorage.removeItem("mtc_custom_cart");
     } catch {
       // Ignore storage errors
     }
@@ -147,7 +150,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setIsOrderModalOpen(false);
   };
 
-  const totalCustomCartItems = customCart.reduce((sum, item) => sum + item.qty, 0);
+  const totalCustomCartItems = customCart.reduce(
+    (sum, item) => sum + item.qty,
+    0,
+  );
   const totalCustomPrice =
     (selectedBox ? selectedBox.price : 0) +
     customCart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -180,7 +186,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 export function useCart() {
   const context = useContext(CartContext);
   if (!context) {
-    throw new Error('useCart must be used within a CartProvider');
+    throw new Error("useCart must be used within a CartProvider");
   }
   return context;
 }

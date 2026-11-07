@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import { Product, BoxType } from "@/types";
 import { formatPrice, toBengaliNum } from "@/lib/utils";
@@ -34,9 +35,13 @@ export default function CustomBuilder({
     showToast,
   } = useCart();
 
+  // বক্সের কোয়ান্টিটি ট্র্যাক করার জন্য স্টেট (যেমন: selectedBoxQty)
+  const [boxQty, setBoxQty] = useState(1);
+
   const individualItems = products.filter((p) => p.cat === "individual");
 
-  const boxTotal = selectedBox ? selectedBox.price : 0;
+  // বক্স এবং আইটেমগুলোর মোট দাম হিসাব
+  const boxTotal = selectedBox ? selectedBox.price * boxQty : 0;
   const itemsTotal = customCart.reduce(
     (sum, item) => sum + item.price * item.qty,
     0,
@@ -54,8 +59,8 @@ export default function CustomBuilder({
     const parts: string[] = [];
 
     if (selectedBox) {
-      basePrice += selectedBox.price;
-      parts.push(`বক্স: ${selectedBox.name}`);
+      basePrice += selectedBox.price * boxQty;
+      parts.push(`বক্স: ${selectedBox.name} (x${boxQty})`);
     }
 
     if (customCart.length > 0) {
@@ -74,7 +79,7 @@ export default function CustomBuilder({
   };
 
   return (
-    <section className="py-12 sm:py-16">
+    <section className="py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-10">
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f5ede8] text-[#3a3f2b] text-xs font-semibold mb-2">
@@ -85,8 +90,8 @@ export default function CustomBuilder({
             নিজে বানান মনের মতো কম্বো
           </h2>
           <p className="text-sm text-black mt-2">
-            প্রথমে একটি আকর্ষণীয় গিফট বক্স বাছাই করুন, এরপর আপনার পছন্দের
-            উপকরণগুলো যোগ করে তৈরি করুন সম্পূর্ণ অনন্য উপহার।
+            প্রথমে একটি আকর্ষণীয় গিফট বক্স বাছাই করুন এবং পরিমাণ নির্ধারণ করুন,
+            এরপর আপনার পছন্দের উপকরণগুলো যোগ করে তৈরি করুন সম্পূর্ণ অনন্য উপহার।
           </p>
         </div>
 
@@ -101,12 +106,15 @@ export default function CustomBuilder({
                     ১
                   </div>
                   <h3 className="text-lg font-bold text-[#3a3f2b]">
-                    বক্স সিলেক্ট করুন
+                    বক্স সিলেক্ট করুন ও পরিমাণ দিন
                   </h3>
                 </div>
                 {selectedBox && (
                   <button
-                    onClick={() => selectBox(null)}
+                    onClick={() => {
+                      selectBox(null);
+                      setBoxQty(1);
+                    }}
                     className="text-xs text-black hover:text-[#3a3f2b] underline cursor-pointer"
                   >
                     বক্স বাতিল করুন
@@ -114,7 +122,7 @@ export default function CustomBuilder({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {boxTypes.map((box) => {
                   const isSelected = selectedBox?.id === box.id;
                   const isBoxAvailable = box.inStock !== false;
@@ -122,47 +130,91 @@ export default function CustomBuilder({
                   return (
                     <div
                       key={box.id}
-                      onClick={() => {
-                        if (!isBoxAvailable) {
-                          showToast("⚠️ দুঃখিত, এই বক্সটি বর্তমানে স্টক আউট!");
-                          return;
-                        }
-                        selectBox(box);
-                      }}
-                      className={`relative p-3 rounded-xl border text-center transition-all ${
+                      className={`relative p-4 rounded-xl border transition-all flex flex-col justify-between ${
                         !isBoxAvailable
                           ? "border-gray-200 bg-gray-50 opacity-75 cursor-not-allowed"
                           : isSelected
-                            ? "border-[#3a3f2b] bg-[#f5ede8]/40 ring-2 ring-[#3a3f2b]/30 shadow-xs cursor-pointer"
-                            : "border-[#e8dad5] bg-[#fbf7f4]/40 hover:border-[#3a3f2b]/60 cursor-pointer"
+                            ? "border-[#3a3f2b] bg-[#f5ede8]/40 ring-2 ring-[#3a3f2b]/30 shadow-xs"
+                            : "border-[#e8dad5] bg-[#fbf7f4]/40 hover:border-[#3a3f2b]/60"
                       }`}
                     >
-                      <div className="relative aspect-square w-full rounded-lg overflow-hidden mb-2 bg-white">
-                        <Image
-                          src={box.img}
-                          alt={box.name}
-                          fill
-                          sizes="150px"
-                          className={`object-cover ${!isBoxAvailable ? "grayscale opacity-75" : ""}`}
-                          referrerPolicy="no-referrer"
-                        />
-                        {!isBoxAvailable && (
-                          <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[9px] font-bold rounded-md bg-red-600 text-white shadow-xs">
+                      <div>
+                        <div className="flex gap-3 items-center mb-3">
+                          <div className="relative w-16 h-16 rounded-lg overflow-hidden shrink-0 bg-white">
+                            <Image
+                              src={box.img}
+                              alt={box.name}
+                              fill
+                              sizes="100px"
+                              className={`object-cover ${!isBoxAvailable ? "grayscale opacity-75" : ""}`}
+                              referrerPolicy="no-referrer"
+                            />
+                            {!isBoxAvailable && (
+                              <span className="absolute top-1 right-1 px-1 py-0.5 text-[8px] font-bold rounded-md bg-red-600 text-white shadow-xs">
+                                স্টক আউট
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-xs sm:text-sm font-semibold text-[#3a3f2b] truncate">
+                              {box.name}
+                            </h4>
+                            <div className="text-xs font-bold text-[#3a3f2b] mt-0.5">
+                              {formatPrice(box.price)}
+                            </div>
+                            <p className="text-[11px] text-black line-clamp-1 mt-0.5">
+                              {box.desc}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Box Selection & Qty Controls */}
+                      <div>
+                        {!isBoxAvailable ? (
+                          <button
+                            disabled
+                            className="w-full py-1.5 rounded-lg bg-gray-200 text-xs font-semibold text-gray-500 cursor-not-allowed"
+                          >
                             স্টক আউট
-                          </span>
+                          </button>
+                        ) : isSelected ? (
+                          <div className="flex items-center justify-between bg-white border border-[#3a3f2b]/40 rounded-xl p-1.5">
+                            <span className="text-xs font-semibold text-[#3a3f2b] pl-2">
+                              পরিমাণ:
+                            </span>
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => {
+                                  if (boxQty > 1) setBoxQty(boxQty - 1);
+                                }}
+                                className="w-7 h-7 rounded-lg bg-[#f5ede8] text-[#3a3f2b] flex items-center justify-center hover:bg-[#3a3f2b] hover:text-white transition-colors cursor-pointer"
+                              >
+                                <Minus className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="text-xs font-bold text-[#3a3f2b] w-4 text-center">
+                                {toBengaliNum(boxQty)}
+                              </span>
+                              <button
+                                onClick={() => setBoxQty(boxQty + 1)}
+                                className="w-7 h-7 rounded-lg bg-[#3a3f2b] text-white flex items-center justify-center hover:bg-[#000] transition-colors cursor-pointer"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              selectBox(box);
+                              setBoxQty(1); // নতুন বক্স সিলেক্ট করলে ডিফল্ট ১ হবে
+                            }}
+                            className="w-full py-2 rounded-xl bg-white border border-[#e8dad5] text-xs font-semibold text-[#3a3f2b] hover:bg-[#3a3f2b] hover:text-white transition-colors shadow-2xs cursor-pointer"
+                          >
+                            এই বক্সটি সিলেক্ট করুন
+                          </button>
                         )}
                       </div>
-                      <div className="text-xs font-semibold text-[#3a3f2b] truncate">
-                        {box.name}
-                      </div>
-                      <div className="text-xs font-bold text-[#3a3f2b] mt-0.5">
-                        {formatPrice(box.price)}
-                      </div>
-                      {isSelected && (
-                        <div className="mt-2 py-0.5 text-[10px] font-bold rounded-md bg-[#3a3f2b] text-white">
-                          সিলেক্টেড
-                        </div>
-                      )}
                     </div>
                   );
                 })}
@@ -180,7 +232,8 @@ export default function CustomBuilder({
                     উপকরণ বেছে নিন
                   </h3>
                   <p className="text-xs text-black">
-                    বক্সে যোগ করতে &quot;+ যোগ করুন&quot; বাটনে ক্লিক করুন
+                    বক্সে যোগ করতে &quot;+ যোগ করুন&quot; বাটনে ক্লিক করুন এবং
+                    পরিমাণ বাড়ান
                   </p>
                 </div>
               </div>
@@ -275,14 +328,14 @@ export default function CustomBuilder({
                 </h3>
               </div>
 
-              {/* Selected Box Display */}
+              {/* Selected Box Display with Qty */}
               <div className="py-4 border-b border-dashed border-[#e8dad5]">
                 <div className="text-xs font-medium text-black mb-2">
                   প্যাকেজিং বক্স:
                 </div>
                 {selectedBox ? (
                   <div className="flex items-center justify-between bg-[#f5ede8]/60 p-2.5 rounded-xl border border-[#e8dad5]">
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <div className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0">
                         <Image
                           src={selectedBox.img}
@@ -292,21 +345,30 @@ export default function CustomBuilder({
                           referrerPolicy="no-referrer"
                         />
                       </div>
-                      <div>
-                        <div className="text-xs font-bold text-[#3a3f2b]">
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-[#3a3f2b] truncate">
                           {selectedBox.name}
                         </div>
                         <div className="text-[11px] font-semibold text-[#3a3f2b]">
-                          {formatPrice(selectedBox.price)}
+                          {formatPrice(selectedBox.price)} ×{" "}
+                          {toBengaliNum(boxQty)} পিস
                         </div>
                       </div>
                     </div>
-                    <button
-                      onClick={() => selectBox(null)}
-                      className="text-xs text-black hover:text-red-500 p-1 cursor-pointer"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-[#3a3f2b]">
+                        {formatPrice(boxTotal)}
+                      </span>
+                      <button
+                        onClick={() => {
+                          selectBox(null);
+                          setBoxQty(1);
+                        }}
+                        className="text-xs text-black hover:text-red-500 p-1 cursor-pointer"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200/60 p-2.5 rounded-xl">
@@ -336,22 +398,24 @@ export default function CustomBuilder({
                         className="flex items-center justify-between text-xs bg-[#fbf7f4] p-2 rounded-lg"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="font-medium text-[#3a3f2b] line-clamp-1 max-w-[130px]">
+                          <span className="font-medium text-[#3a3f2b] line-clamp-1 max-w-[120px]">
                             {item.name}
                           </span>
                           <span className="text-[11px] text-black">
                             x{toBengaliNum(item.qty)}
                           </span>
                         </div>
-                        <span className="font-bold text-[#3a3f2b]">
-                          {formatPrice(item.price * item.qty)}
-                        </span>
-                        <button
-                          onClick={() => removeFromCustomCart(item.id)}
-                          className="text-red-600 hover:text-red-500 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-[#3a3f2b]">
+                            {formatPrice(item.price * item.qty)}
+                          </span>
+                          <button
+                            onClick={() => removeFromCustomCart(item.id)}
+                            className="text-red-600 hover:text-red-500 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -361,7 +425,7 @@ export default function CustomBuilder({
               {/* Total Calculation */}
               <div className="pt-4 space-y-2">
                 <div className="flex items-center justify-between text-xs text-black">
-                  <span>বক্সের মূল্য:</span>
+                  <span>বক্সের মূল্য ({toBengaliNum(boxQty)} পিস):</span>
                   <span>{formatPrice(boxTotal)}</span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-black">
