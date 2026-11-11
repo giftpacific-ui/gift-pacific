@@ -6,10 +6,7 @@ export const siteConfig = {
   description:
     "বাংলাদেশের সেরা প্রিমিয়াম হ্যান্ডমেড ক্রাফট ও কাস্টমাইজড কম্বো গিফট বক্স। ভালোবাসা প্রকাশের প্রতিটি মুহূর্তকে নিখুঁত ও অবিস্মরণীয় করে তুলতে আমরা বদ্ধপরিকর।.",
   // One production origin for canonicals, sitemaps, robots and Open Graph. Trailing slashes are removed so no URL gets "//".
-  url: (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000")
-    .split(",")[0]
-    .trim()
-    .replace(/\/+$/, ""),
+  url: (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, ""),
   // No default logo: the previous logo asset belonged to the discontinued brand and was removed. Until a Gift Pacific
   // logo is uploaded in Admin → Settings, every surface falls back to the text wordmark (the store name).
   logoUrl: "",

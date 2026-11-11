@@ -26,7 +26,7 @@ export default async function BuildYourOwnComboPage() {
   return (
     <div className="container-boutique space-y-10 px-4 py-16 sm:px-6">
       <header className="mx-auto max-w-2xl space-y-3 text-center">
-        <h1 className="font-heading text-[clamp(2rem,4.5vw,3.2rem)] font-semibold">Nije Combo Banan</h1>
+        <h1 className="font-heading text-[clamp(2rem,4.5vw,3.2rem)] font-semibold">Build your own Combo</h1>
         <p className="text-sm text-muted-foreground">Build your own combo: choose items for each step, review the price, then add it to your cart. You can also pick a ready-made{" "}
           <Link href="/shop?kind=combo" className="underline underline-offset-4">fixed combo</Link> or one of{" "}
           <Link href="/boxes" className="underline underline-offset-4">our boxes</Link>.</p>

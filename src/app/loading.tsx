@@ -5,6 +5,7 @@ import { siteConfig } from "@/config/site";
 export default async function Loading() {
   const [storeSettings] = await Promise.all([getStoreSettings()]);
   const logoUrl = storeSettings?.logoUrl;
+  const storeName = storeSettings?.storeName || siteConfig.name;
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#fbf7f4]/80 backdrop-blur-sm">
       {/* অ্যানিমেটেড স্পিনার বা গিফট বক্স থিমড লোডার */}
@@ -16,7 +17,7 @@ export default async function Loading() {
         <div className="absolute  animate-pulse">
           <Image
             src={logoUrl || "/images/logo.png"}
-            alt={storeSettings?.storeName || siteConfig.name}
+            alt={storeName || siteConfig.name}
             width={120}
             height={120}
           />
