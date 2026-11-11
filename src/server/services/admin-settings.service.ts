@@ -3,9 +3,11 @@ import { cache } from "react";
 import { prisma } from "@/lib/db/prisma";
 
 export const getStoreSettings = cache(async () => {
-  const settings = await prisma.storeSettings.findUnique({ where: { id: "singleton" } });
-  if (settings) return settings;
-  return prisma.storeSettings.create({ data: { id: "singleton" } });
+  return prisma.storeSettings.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: { id: "singleton" },
+  });
 });
 
 export type StoreSettingsInput = {
@@ -31,7 +33,7 @@ export type StoreSettingsInput = {
   shippingFlatRate: number;
   freeShippingThreshold?: number | null;
   taxRatePercent: number;
-    /** null clears the value; undefined leaves it unchanged. */
+  /** null clears the value; undefined leaves it unchanged. */
   gtmId?: string | null;
   metaPixelId?: string | null;
   tiktokPixelId?: string | null;
