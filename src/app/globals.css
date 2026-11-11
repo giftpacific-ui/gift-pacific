@@ -1,0 +1,313 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------- */
+/* Brand tokens — warm editorial handmade-gift palette                    */
+/* cream paper · burgundy-rose accent · restrained gold · plum ink        */
+/*                                                                        */
+/* Legacy token NAMES (cream/sand/clay/sage/…) are kept and re-pointed so  */
+/* every existing component re-themes without edits; admin-set theme      */
+/* colors (Admin → Settings) still override --primary/--secondary at      */
+/* runtime from the root layout.                                          */
+/* ---------------------------------------------------------------------- */
+:root {
+  --radius: 0.375rem;
+
+  /* Core palette */
+  --color-cream: #faf4ec;        /* paper */
+  --color-secondary: #fbf7f4;         /* paper-2: sections, wells */
+  --color-clay: #832b47;         /* deep burgundy (text-safe accent) */
+  --color-terracotta: #832b47;
+  --color-primary: #3a3f2b;         /* primary: muted burgundy-rose */
+  --color-sage-dark: #832b47;
+  --color-blush: #ecd2d6;        /* soft rose tint */
+  --color-gold: #c29a4b;         /* decorative only — low contrast on cream */
+  --color-gold-deep: #8a6a24;    /* gold that is safe for small text */
+  --color-ink: #261722;          /* deep plum-charcoal */
+  --color-ink-muted: #6b5560;
+
+  --background: var(--color-cream);
+  --foreground: var(--color-ink);
+
+  --card: #fffdf9;
+  --card-foreground: var(--color-ink);
+
+  --popover: #fffdf9;
+  --popover-foreground: var(--color-ink);
+
+  --primary: var(--color-primary);
+  --primary-foreground: #ffffff;
+
+  --secondary: var(--color-secondary);
+  --secondary-foreground: var(--color-ink);
+
+  --accent: var(--color-blush);
+  --accent-foreground: var(--color-ink);
+
+  --muted: var(--color-secondary);
+  --muted-foreground: var(--color-ink-muted);
+
+  --destructive: #b3423a;
+  --destructive-foreground: #ffffff;
+
+  --success: #3f6b4f;
+  --success-foreground: #ffffff;
+
+  --border: #e4d6c6;             /* the reference's rgba(38,23,34,.16) on paper, as a solid */
+  --input: #dccbb9;
+  --ring: var(--color-sage);
+
+  --chart-1: var(--color-sage);
+  --chart-2: var(--color-gold);
+  --chart-3: var(--color-blush);
+  --chart-4: var(--color-ink-muted);
+  --chart-5: var(--color-terracotta);
+}
+
+.dark {
+  --background: #1d1319;
+  --foreground: #f4ebe1;
+  --card: #281b23;
+  --card-foreground: #f4ebe1;
+  --popover: #281b23;
+  --popover-foreground: #f4ebe1;
+  --primary: #3a3f2b;
+  --primary-foreground: #ffffff;
+  --secondary: #fbf7f4;
+  --secondary-foreground: #f4ebe1;
+  --accent: #5a2e41;
+  --accent-foreground: #f4ebe1;
+  --muted: #34252e;
+  --muted-foreground: #bfa9b3;
+  --destructive: #c9584d;
+  --destructive-foreground: #ffffff;
+  --success: #6a9a6f;
+  --success-foreground: #10160f;
+  --border: #44323c;
+  --input: #44323c;
+  --ring: #c4587a;
+}
+
+@theme inline {
+  /* Latin glyphs come from Cormorant/Manrope; Bengali glyphs (product names or
+     descriptions entered in Bangla) fall through to the Bengali families,
+     which the browser only downloads when such text is actually on the page. */
+  --font-heading: var(--font-cormorant), "Cormorant", var(--font-noto-bengali), "Noto Serif Bengali", serif;
+  --font-body: var(--font-manrope), "Manrope", var(--font-noto-bengali), "Noto Serif Bengali", sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-clay: var(--color-clay);
+  --color-terracotta: var(--color-terracotta);
+  --color-sage: var(--color-sage);
+  --color-sage-dark: var(--color-sage-dark);
+  --color-blush: var(--color-blush);
+  --color-sand: var(--color-secondary);
+  --color-gold: var(--color-gold);
+  --color-gold-deep: var(--color-gold-deep);
+  --color-plum: var(--color-ink);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-body);
+    line-height: 1.65;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  /* One consistent, visible keyboard focus ring everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+  }
+}
+
+@layer utilities {
+  .container-boutique {
+    @apply mx-auto w-full max-w-[1280px] px-[clamp(1.1rem,4vw,3rem)];
+  }
+  .text-balance {
+    text-wrap: balance;
+  }
+  .section-y {
+    padding-block: clamp(3.5rem, 8vw, 4rem);
+  }
+
+  /* Small overline with a leading rule — the editorial section label. */
+  .eyebrow {
+    @apply mb-3 flex items-center gap-3 text-sm font-semibold tracking-wide text-primary;
+  }
+  .eyebrow::before {
+    content: "";
+    @apply h-px w-8 bg-current;
+  }
+
+  /* Animated underline link (hover/focus). */
+  .link-underline {
+    @apply relative inline-flex items-center gap-1.5 pb-0.5 font-semibold;
+  }
+  .link-underline::after {
+    content: "";
+    @apply absolute bottom-0 left-0 h-[1.5px] w-full origin-right scale-x-0 bg-primary transition-transform duration-300;
+  }
+  .link-underline:hover::after,
+  .link-underline:focus-visible::after {
+    @apply origin-left scale-x-100;
+  }
+
+  .arch {
+    border-radius: 12rem 12rem 4px 4px;
+  }
+
+  .product-image-tone {
+    filter: saturate(0.92) contrast(1.02);
+  }
+
+  /* Scroll reveal (see components/shared/reveal.tsx): hidden state is only
+     ever applied by JS after hydration, so no-JS visitors still see content. */
+  .reveal-hidden {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  .reveal-in {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 0.7s ease,
+      transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+
+  .marquee-track {
+    animation: marquee 40s linear infinite;
+  }
+  .marquee:hover .marquee-track {
+    animation-play-state: paused;
+  }
+  .stamp-spin {
+    animation: stamp-spin 22s linear infinite;
+  }
+  .rise-in {
+    animation: rise-in 0.9s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes stamp-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+/* Respect the visitor's motion preference: no marquee, no spinning stamp, no
+   reveal/transition motion, no smooth scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal-hidden {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media print {
+  @page {
+    margin: 8mm 10mm 10mm 10mm; 
+    size: auto;
+  }
+  body * {
+    visibility: hidden;
+  }
+
+  #printable-invoice,
+  #printable-invoice * {
+    visibility: visible;
+  }
+  #printable-invoice {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
+
+/* Outlined display text (hero second line). Falls back to solid ink where
+   text-stroke isn't supported, so the words are never invisible. */
+.text-outline {
+  color: var(--foreground);
+}
+@supports (-webkit-text-stroke: 1px black) {
+  .text-outline {
+    color: transparent;
+    -webkit-text-stroke: 1.5px var(--foreground);
+    paint-order: stroke fill;
+  }
+}

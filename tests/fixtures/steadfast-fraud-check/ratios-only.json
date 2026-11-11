@@ -1,0 +1,13 @@
+{
+  "phone": "01712345678",
+  "delivery_ratio": 92,
+  "cancellation_ratio": 7,
+  "volume_band": "high",
+  "total_reports": 0,
+  "fraud_categories": [],
+  "score": null,
+  "level": null,
+  "reasons": [],
+  "scoring_disabled": true,
+  "doubtful_reports": false
+}

@@ -1,0 +1,1581 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  name                String
+  email               String               @unique
+  emailVerified       DateTime?
+  passwordHash        String? // NULL for social-only accounts
+  phone               String?
+  role                UserRole             @default(CUSTOMER)
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  addresses           Address[]
+  cart                Cart?
+  orders              Order[]
+  passwordResetTokens PasswordResetToken[]
+  reviews             Review[]
+  notifications       Notification[]
+  recentlyViewed      RecentlyViewedProduct[]
+  productQuestions    ProductQuestion[]
+  stockAdjustments    StockAdjustment[]
+  wishlist            Wishlist?
+  oauthAccounts       OAuthAccount[]
+
+  @@index([role])
+  @@index([email])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Address {
+  id             String      @id @default(cuid())
+  userId         String
+  type           AddressType @default(SHIPPING)
+  fullName       String
+  phone          String
+  line1          String
+  line2          String?
+  city           String
+  state          String?
+  postalCode     String?
+  country        String      @default("Bangladesh")
+  isDefault      Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  billingOrders  Order[]     @relation("BillingAddress")
+  shippingOrders Order[]     @relation("ShippingAddress")
+
+  @@index([userId])
+}
+
+model Category {
+  id                      String     @id @default(cuid())
+  name                    String
+  slug                    String     @unique
+  description             String?
+  // Category SEO (optional; the page falls back to name/description).
+  metaTitle               String?
+  metaDescription         String?
+  metaKeywords            String[]   @default([])
+  // Phase 5: admin can keep a category out of search engines (it stays reachable and out of the sitemap).
+  seoNoIndex              Boolean    @default(false)
+  image                   String?
+  imageCloudinaryPublicId String?
+  isActive                Boolean    @default(true)
+  isFeatured              Boolean    @default(false)
+  sortOrder               Int        @default(0)
+  parentId                String?
+  parent                  Category?  @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children                Category[] @relation("CategoryParent")
+  products                Product[]
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
+}
+
+model Collection {
+  id          String              @id @default(cuid())
+  name        String
+  slug        String              @unique
+  description String?
+  image       String?
+  // Phase 5: optional SEO overrides (the campaign page falls back to name/description).
+  metaTitle       String?
+  metaDescription String?
+  isFeatured  Boolean             @default(false)
+  // A Collection with isCampaign = true is a storefront campaign: shown at
+  // /campaign while isActive and inside its startsAt/endsAt window.
+  isCampaign  Boolean             @default(false)
+  isActive    Boolean             @default(true)
+  startsAt    DateTime?
+  endsAt      DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  products    ProductCollection[]
+
+  @@index([slug])
+}
+
+model Tag {
+  id       String       @id @default(cuid())
+  name     String       @unique
+  slug     String       @unique
+  products ProductTag[]
+}
+
+model Product {
+  id                  String                      @id @default(cuid())
+  name                String
+  slug                String                      @unique
+  shortDescription    String?
+  description         String
+  sku                 String?                     @unique
+  brand               String?
+  type                ProductType                 @default(STANDARD)
+  // SINGLE = a normal sellable product; COMBO = composed of other products.
+  // Invariant (CHECK in the migration): kind = COMBO <=> type = BUNDLE <=> comboMode IS NOT NULL.
+  kind                ProductKind                 @default(SINGLE)
+  comboMode           ComboMode?
+  comboPricing        ComboPricing?
+  comboStockPolicy    ComboStockPolicy?
+  status              ProductStatus               @default(DRAFT)
+  badges              ProductBadge[]
+  categoryId          String?
+  price               Decimal                     @db.Decimal(10, 2)
+  compareAtPrice      Decimal?                    @db.Decimal(10, 2)
+  costPrice           Decimal?                    @db.Decimal(10, 2)
+  saleStartsAt        DateTime?
+  saleEndsAt          DateTime?
+  currency            String                      @default("BDT")
+  stock               Int                         @default(0)
+  lowStockThreshold   Int                         @default(5)
+  allowBackorder      Boolean                     @default(false)
+  // Procurement / backorder: units accepted beyond physical stock are tracked HERE, never as negative stock.
+  procurementPending  Int                         @default(0)
+  procurementLimit    Int?
+  backorderNote       String?
+  trackInventory      Boolean                     @default(true)
+  videoUrl            String?
+  weightGrams         Int?
+  isFeatured          Boolean                     @default(false)
+  // true = the hidden product that backs a Box (price/stock are managed from the Box screen).
+  // Never listed in the shop, search, sitemap or catalog groups; only reachable through /boxes.
+  isBoxProduct        Boolean                     @default(false)
+  metaTitle           String?
+  metaDescription     String?
+  metaKeywords        String[]                    @default([])
+  // Phase 5: image used for social sharing / search previews (falls back to the main product image) and an index switch.
+  seoImage            String?
+  seoNoIndex          Boolean                     @default(false)
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+  cartItems           CartItem[]
+  box                 Box?
+  orderItems          OrderItem[]
+  category            Category?                   @relation(fields: [categoryId], references: [id])
+  bundleItems         ProductBundleItem[]         @relation("BundleParent")
+  usedInBundles       ProductBundleItem[]         @relation("BundleChild")
+  collections         ProductCollection[]
+  customizationFields ProductCustomizationField[]
+  images              ProductImage[]
+  tags                ProductTag[]
+  variants            ProductVariant[]
+  reviews             Review[]
+  recentlyViewedBy    RecentlyViewedProduct[]
+  questions           ProductQuestion[]
+  wishlistItems       WishlistItem[]
+  stockAdjustments    StockAdjustment[]
+  comboSlots          ComboSlot[]
+  comboOptions        ComboSlotOption[]
+  orderItemComponents OrderItemComponent[]
+  attributeValues     ProductAttributeValue[]
+  attributeOptions    ProductAttributeOption[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([isFeatured])
+  @@index([type])
+  @@index([createdAt])
+  @@index([kind, status, createdAt])
+  @@index([isBoxProduct])
+}
+
+model ProductImage {
+  id                 String  @id @default(cuid())
+  productId          String
+  url                String
+  cloudinaryPublicId String?
+  altText            String?
+  sortOrder          Int     @default(0)
+  isMain             Boolean @default(false)
+  product            Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductVariant {
+  id               String               @id @default(cuid())
+  productId        String
+  name             String
+  sku              String               @unique
+  price            Decimal              @db.Decimal(10, 2)
+  options          Json
+  image            String?
+  stock            Int                  @default(0)
+  allowBackorder   Boolean              @default(false)
+  procurementPending Int                @default(0)
+  procurementLimit   Int?
+  isDefault        Boolean              @default(false)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  cartItems        CartItem[]
+  orderItems       OrderItem[]
+  stockAdjustments StockAdjustment[]
+  product          Product              @relation(fields: [productId], references: [id], onDelete: Cascade)
+  bundleItems      ProductBundleItem[]
+  comboOptions     ComboSlotOption[]
+  orderComponents  OrderItemComponent[]
+
+  @@index([productId])
+}
+
+model ProductCustomizationField {
+  id         String                 @id @default(cuid())
+  productId  String
+  label      String
+  fieldKey   String
+  type       CustomizationFieldType @default(TEXT)
+  isRequired Boolean                @default(true)
+  options    String[]
+  maxLength  Int?
+  sortOrder  Int                    @default(0)
+  product    Product                @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, fieldKey])
+  @@index([productId])
+}
+
+model ProductBundleItem {
+  id          String          @id @default(cuid())
+  bundleId    String
+  componentId String
+  quantity    Int             @default(1)
+  bundle      Product         @relation("BundleParent", fields: [bundleId], references: [id], onDelete: Cascade)
+  component   Product         @relation("BundleChild", fields: [componentId], references: [id])
+  // Required when the component is a VARIANT product (which variant goes in the box).
+  variantId   String?
+  variant     ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([bundleId, componentId])
+  @@index([bundleId])
+  @@index([componentId])
+}
+
+model ProductCollection {
+  productId    String
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([productId, collectionId])
+}
+
+model ProductTag {
+  productId String
+  tagId     String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([productId, tagId])
+}
+
+model Review {
+  id          String                  @id @default(cuid())
+  productId   String
+  userId      String
+  rating      Int
+  title       String?
+  body        String?
+  isApproved  Boolean                 @default(false)
+  // Set when an admin rejects the review (kept, so a rejected customer can
+  // not simply resubmit). Pending = !isApproved && rejectedAt IS NULL.
+  rejectedAt  DateTime?
+  createdAt   DateTime                @default(now())
+  product     Product                 @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user        User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      ReviewStatus            @default(PENDING)
+  // The delivered order item that earned this review (NULL only for legacy reviews).
+  orderItemId String?                 @unique
+  orderItem   OrderItem?              @relation(fields: [orderItemId], references: [id], onDelete: SetNull)
+  events      ReviewModerationEvent[]
+
+  @@unique([userId, productId])
+  @@index([productId])
+  @@index([userId])
+  @@index([isApproved])
+  @@index([status])
+}
+
+model Cart {
+  id         String     @id @default(cuid())
+  userId     String?    @unique
+  guestToken String?    @unique
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items      CartItem[]
+}
+
+model CartItem {
+  id            String              @id @default(cuid())
+  cartId        String
+  productId     String
+  variantId     String?
+  quantity      Int                 @default(1)
+  customization Json?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  cart          Cart                @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product       Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant       ProductVariant?     @relation(fields: [variantId], references: [id])
+  selections    CartItemSelection[]
+
+  @@index([cartId])
+  @@index([productId])
+}
+
+model Wishlist {
+  id     String         @id @default(cuid())
+  userId String         @unique
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items  WishlistItem[]
+}
+
+model WishlistItem {
+  id         String   @id @default(cuid())
+  wishlistId String
+  productId  String
+  addedAt    DateTime @default(now())
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  wishlist   Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+
+  @@unique([wishlistId, productId])
+  @@index([wishlistId])
+}
+
+model Order {
+  id                      String               @id @default(cuid())
+  orderNumber             String               @unique
+  // Non-guessable token handed to the browser once, in the checkout
+  // redirect URL, so a guest (no session) can view their own order
+  // confirmation without orderNumber alone (small, sequential) being
+  // enough to view ANY order.
+  confirmationToken       String               @unique @default(cuid())
+  userId                  String?
+  email                   String? // NULL for external orders where the marketplace gave no email
+  phone                   String
+  status                  OrderStatus          @default(PENDING)
+  paymentStatus           PaymentStatus        @default(UNPAID)
+  paymentMethod           PaymentMethod        @default(COD)
+  shippingAddressId       String?
+  billingAddressId        String?
+  shippingSnapshot        Json
+  billingSnapshot         Json?
+  subtotal                Decimal              @db.Decimal(10, 2)
+  discountTotal           Decimal              @default(0) @db.Decimal(10, 2)
+  // Delivery-charge reward applied to this order (already subtracted from shippingTotal; kept for explainability).
+  deliveryDiscount        Decimal              @default(0) @db.Decimal(10, 2)
+  // Advance (part-payment) policy outcome, SNAPSHOTTED at checkout so history stays explainable if settings change later.
+  advanceRequired         Decimal              @default(0) @db.Decimal(10, 2)
+  advancePaid             Decimal              @default(0) @db.Decimal(10, 2) // VERIFIED advance payments only
+  trustScore              Int?
+  trustSnapshot           Json?
+  advanceWaivedById       String?
+  advanceWaivedReason     String?
+  advanceWaivedAt         DateTime?
+  // Low-trust review gate. `trustReviewRequired` is DECIDED AT CHECKOUT (copied from the snapshot's decision) and never recomputed from later
+  // history. While it is true and `trustReviewedAt` is null the order cannot be confirmed, shipped or booked with a courier.
+  trustReviewRequired     Boolean              @default(false)
+  trustReviewedById       String?
+  trustReviewedAt         DateTime?
+  trustReviewNote         String?
+  // Marketplace/third-party payout tracking (NOT_APPLICABLE for website orders).
+  settlementStatus        SettlementStatus     @default(NOT_APPLICABLE)
+  settledAt               DateTime?
+  shippingTotal           Decimal              @default(0) @db.Decimal(10, 2)
+  deliveryZone            DeliveryZone?
+  taxTotal                Decimal              @default(0) @db.Decimal(10, 2)
+  total                   Decimal              @db.Decimal(10, 2)
+  currency                String               @default("BDT")
+  couponId                String?
+  courierName             String?
+  trackingNumber          String?
+  trackingUrl             String?
+  // Courier booking state (see src/server/services/courier.service.ts).
+  // Booking never changes the order status or stock by itself.
+  courierProvider         String?
+  courierConsignmentId    String?
+  courierBookingStatus    CourierBookingStatus @default(NOT_BOOKED)
+  courierBookingStartedAt DateTime?
+  courierBookedAt         DateTime?
+  courierLastStatus       String?
+  courierLastEventAt      DateTime?
+  // Admin-only, sanitized & truncated. Never shown to customers.
+  courierLastError        String?
+  customerNote            String?
+  adminNote               String?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+  billingAddress          Address?             @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  coupon                  Coupon?              @relation(fields: [couponId], references: [id])
+  shippingAddress         Address?             @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  user                    User?                @relation(fields: [userId], references: [id])
+  items                   OrderItem[]
+  trackingEvents          OrderTrackingEvent[]
+  codEntries              CourierCodEntry[]
+  payments                Payment[]
+  gatewayTransactions     GatewayTransaction[]
+  channelId               String               @default("channel_website")
+  // The marketplace's own order id (Daraz/Cartup/...). Unique per channel; NULL for website orders.
+  externalOrderRef        String?
+  externalPlacedAt        DateTime?
+  fulfillmentMode         FulfillmentMode      @default(SELF_SHIP)
+  createdById             String?
+  channel                 SalesChannel         @relation(fields: [channelId], references: [id])
+  costLines               OrderCostLine[]
+  settlements             MarketplaceSettlement[]
+
+  @@unique([channelId, externalOrderRef])
+  @@index([userId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([orderNumber])
+  @@index([courierProvider, courierConsignmentId])
+  @@index([channelId, createdAt])
+}
+
+model OrderItem {
+  id              String               @id @default(cuid())
+  orderId         String
+  productId       String
+  variantId       String?
+  productName     String
+  variantName     String?
+  imageUrl        String?
+  unitPrice       Decimal              @db.Decimal(10, 2)
+  quantity        Int
+  lineTotal       Decimal              @db.Decimal(10, 2)
+  customization   Json?
+  // Inventory lifecycle (see src/lib/order-transitions.ts): the quantity
+  // actually deducted from stock when the order was placed (0 for untracked
+  // products), and when it was returned. Restoring gives back exactly
+  // `stockDeducted`, once, so stock that was never decremented is never
+  // restored and nothing is ever restored twice.
+  stockDeducted   Int                  @default(0)
+  stockRestoredAt DateTime?
+  // Units of this line that were accepted beyond stock (to be sourced) and how many have arrived so far.
+  procurementQty         Int           @default(0)
+  procurementReceivedQty Int           @default(0)
+  // Physical accounting of this line (units): out = stockDeducted + procurementReceivedQty. `stockReturnedQty` went back on the shelf
+  // (cancel/failed-delivery/return restock), `stockDiscardedQty` came back unsellable. Invariant: returned + discarded <= out
+  // (for a COMPONENTS-policy combo the counters count whole combos, bounded by `quantity`). One place enforces it: src/lib/inventory-rules.ts.
+  stockReturnedQty       Int           @default(0)
+  stockDiscardedQty      Int           @default(0)
+  order           Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product              @relation(fields: [productId], references: [id])
+  variant         ProductVariant?      @relation(fields: [variantId], references: [id])
+  // Cost of ONE unit when the order was placed (NULL = unknown). Never recomputed.
+  unitCost        Decimal?             @db.Decimal(10, 2)
+  // Immutable record of the combo configuration that was bought (NULL for single products).
+  comboSnapshot   Json?
+  components      OrderItemComponent[]
+  review          Review?
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderTrackingEvent {
+  id        String      @id @default(cuid())
+  orderId   String
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now())
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+enum PaymentKind {
+  ADVANCE
+  BALANCE
+  FULL
+}
+
+model Payment {
+  gatewayTransaction GatewayTransaction?
+  id          String        @id @default(cuid())
+  orderId     String
+  method      PaymentMethod
+  status      PaymentStatus
+  amount      Decimal       @db.Decimal(10, 2)
+  currency    String        @default("BDT")
+  providerRef String?
+  rawResponse Json?
+  // ADVANCE = part-payment before dispatch; BALANCE/FULL reserved for later flows.
+  kind        PaymentKind   @default(FULL)
+  // What the CUSTOMER typed (a wallet transaction id). NEVER trusted: it only becomes `providerRef` after an admin verifies it.
+  customerReference String?
+  verifiedById String?
+  verifiedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  // One wallet transaction can only ever be counted once, across all orders (replay / double-count protection).
+  @@unique([method, providerRef])
+  @@index([orderId])
+}
+
+model Coupon {
+  id           String     @id @default(cuid())
+  code         String     @unique
+  type         CouponType
+  value        Decimal    @db.Decimal(10, 2)
+  minPurchase  Decimal?   @db.Decimal(10, 2)
+  maxDiscount  Decimal?   @db.Decimal(10, 2)
+  usageLimit   Int?
+  usageCount   Int        @default(0)
+  perUserLimit Int?
+  startsAt     DateTime?
+  endsAt       DateTime?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  orders       Order[]
+
+  @@index([code])
+}
+
+model StoreSettings {
+  id                         String      @id @default("singleton")
+  storeName                  String      @default("Gift Pacific")
+  storeEmail                 String?
+  storePhone                 String?
+  storeAddress               String?
+  logoUrl                    String?
+  logoCloudinaryPublicId     String?
+  faviconUrl                 String?
+  faviconCloudinaryPublicId  String?
+  primaryColor               String?     @default("#A63A5B")
+  secondaryColor             String?     @default("#F1E5D6")
+  currencyCode               String      @default("BDT")
+  currencySymbol             String      @default("৳")
+  instagramUrl               String?
+  facebookUrl                String?
+  whatsappUrl                String?
+  tiktokUrl                  String?
+  deliveryChargeDhaka        Decimal     @default(70) @db.Decimal(10, 2)
+  deliveryChargeOutsideDhaka Decimal     @default(100) @db.Decimal(10, 2)
+  deliveryChargeOther        Decimal     @default(150) @db.Decimal(10, 2)
+  shippingFlatRate           Decimal     @default(0) @db.Decimal(10, 2)
+  freeShippingThreshold      Decimal?    @db.Decimal(10, 2)
+  taxRatePercent             Decimal     @default(0) @db.Decimal(5, 2)
+  gtmId                      String?
+  metaPixelId                String?
+  updatedAt                  DateTime    @updatedAt
+  tiktokPixelId              String?
+  linkedinPartnerId          String?
+  consentMode                ConsentMode @default(OFF)
+  seoTitleTemplate           String?
+  seoDescription             String?
+  seoKeywords                String[]    @default([])
+  // Repeat-purchase delivery reward (see CustomerReward). Off until the merchant enables it.
+  rewardEnabled              Boolean     @default(false)
+  rewardDeliveryPercent      Int         @default(50)
+  rewardMinOrderAmount       Decimal     @default(0) @db.Decimal(10, 2)
+  rewardMaxDiscount          Decimal?    @db.Decimal(10, 2)
+  rewardValidityDays         Int?
+  rewardOncePerCustomer      Boolean     @default(false)
+  rewardStackWithCoupon      Boolean     @default(true)
+  // Advance payment + trust policy (see lib/advance-policy.ts). Trust = confidence in successful fulfilment, 100 = highest.
+  advanceEnabled             Boolean     @default(false)
+  advanceZones               DeliveryZone[] @default([OUTSIDE_DHAKA])
+  advanceStandardAmount      Decimal     @default(200) @db.Decimal(10, 2)
+  advanceReducedAmount       Decimal     @default(100) @db.Decimal(10, 2)
+  advanceZeroAtFullTrust     Boolean     @default(false)
+  trustLowBelow              Int         @default(60)
+  trustReducedFrom           Int         @default(80)
+  trustFullAt                Int         @default(100)
+  advanceInstructions        String?
+  // Low-trust orders need a staff review before dispatch (the review itself is enforced per order; see Order.trustReviewRequired).
+  trustReviewEnabled         Boolean     @default(true)
+  advancePolicyUpdatedAt     DateTime?
+  advancePolicyUpdatedById   String?
+  ogImageUrl                 String?
+}
+
+model Banner {
+  id                 String          @id @default(cuid())
+  title              String
+  subtitle           String?
+  imageUrl           String
+  cloudinaryPublicId String?
+  ctaLabel           String?
+  ctaHref            String?
+  placement          BannerPlacement @default(HERO)
+  sortOrder          Int             @default(0)
+  isActive           Boolean         @default(true)
+  startsAt           DateTime?
+  endsAt             DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  @@index([placement])
+  @@index([isActive])
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+enum UserRole {
+  ADMIN
+  CUSTOMER
+}
+
+enum AddressType {
+  SHIPPING
+  BILLING
+}
+
+// A gift box shown on /boxes. `price` is the box's own BDT price; stock/backorder live on the hidden managed
+// Product (Product.isBoxProduct = true) that the box service keeps in sync in one transaction, so the cart, checkout,
+// stock deduction/restoration and invoices keep a single implementation. A box whose productId points at an ordinary
+// (legacy) product is left untouched by saves.
+model Box {
+  id                String   @id @default(cuid())
+  name              String
+  slug              String   @unique
+  description       String?
+  imageUrl          String?
+  imagePublicId     String?
+  price             Decimal  @default(0) @db.Decimal(10, 2)
+  sortOrder         Int      @default(0)
+  isActive          Boolean  @default(true)
+  productId         String?  @unique
+  seoTitle          String?
+  seoDescription    String?
+  seoKeywords       String[] @default([])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  product           Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@index([isActive, sortOrder])
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum ProductKind {
+  SINGLE
+  COMBO
+}
+
+enum ComboMode {
+  FIXED
+  CUSTOMIZABLE
+}
+
+enum ComboPricing {
+  FIXED_PRICE
+  COMPONENT_SUM
+}
+
+enum ComboStockPolicy {
+  OWN_STOCK
+  COMPONENTS
+}
+
+enum ProductType {
+  STANDARD
+  VARIANT
+  PERSONALIZED
+  BUNDLE
+}
+
+enum ProductBadge {
+  NEW
+  BEST_SELLER
+  LIMITED_EDITION
+  HANDMADE
+  PERSONALIZED
+  SALE
+}
+
+enum CustomizationFieldType {
+  TEXT
+  TEXTAREA
+  DATE
+  COLOR
+  SELECT
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+  FAILED_DELIVERY
+  REFUND_REQUESTED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PENDING
+  PARTIALLY_PAID
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentMethod {
+  COD
+  MARKETPLACE
+  STRIPE
+  SSLCOMMERZ
+  BKASH
+  NAGAD
+}
+
+enum DeliveryZone {
+  DHAKA_CITY
+  OUTSIDE_DHAKA
+  OTHER
+}
+
+enum CouponType {
+  PERCENTAGE
+  FIXED
+}
+
+enum BannerPlacement {
+  HERO
+  PROMO_STRIP
+  MID_PAGE
+  CAMPAIGN
+  POPUP
+}
+
+// NOT_BOOKED  - nothing sent to a courier
+// BOOKING     - a booking request is in flight (claimed; blocks duplicates)
+// BOOKED      - provider accepted it; consignment id stored
+// FAILED      - provider definitely rejected it; safe to retry
+// UNCERTAIN   - timeout / 5xx / bad response: the provider MAY have created it;
+//               retrying needs an explicit confirmation
+// MANUAL      - admin entered courier/tracking details by hand
+enum CourierBookingStatus {
+  NOT_BOOKED
+  BOOKING
+  BOOKED
+  FAILED
+  UNCERTAIN
+  MANUAL
+}
+
+// Simple stock history: every manual change to a product's or variant's
+// stock is recorded with a reason. Order placement/cancellation stock changes
+// are tracked per order line (OrderItem.stockDeducted) and are not duplicated here.
+model StockAdjustment {
+  id          String          @id @default(cuid())
+  productId   String
+  variantId   String?
+  delta       Int
+  stockAfter  Int
+  reason      String
+  createdById String?
+  createdAt   DateTime        @default(now())
+  // STOCK LEDGER (Phase 2). Every movement states WHY (kind), WHICH record caused it (sourceType + sourceId) and carries a unique
+  // idempotency key where a retry is possible, so the same cause can never move stock twice. NULL on rows from before Phase 2.
+  kind           String?
+  sourceType     String?
+  sourceId       String?
+  idempotencyKey String?         @unique
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variant     ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  createdBy   User?           @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([productId, createdAt])
+  @@index([variantId])
+  @@index([createdById])
+  @@index([sourceType, sourceId])
+}
+
+// ---------------------------------------------------------------------------
+// Combos
+// ---------------------------------------------------------------------------
+
+// A selection group of a customizable combo ("Choose your box", "Pick 3 treats").
+// Where a slot's choices come from. MANUAL = the admin lists them (ComboSlotOption rows).
+// CATALOG = every ACTIVE single product (optionally one category) is offered, built at read time.
+// BOXES   = every active Box whose managed product is ACTIVE is offered (box price for fixed-price combos).
+enum ComboSlotSource {
+  MANUAL
+  CATALOG
+  BOXES
+}
+
+model ComboSlot {
+  id           String            @id @default(cuid())
+  comboId      String
+  label        String
+  helpText     String?
+  minSelect    Int               @default(1)
+  maxSelect    Int               @default(1)
+  maxPerOption Int               @default(1)
+  sortOrder    Int               @default(0)
+  source       ComboSlotSource   @default(MANUAL)
+  categoryId   String?
+  combo        Product           @relation(fields: [comboId], references: [id], onDelete: Cascade)
+  options      ComboSlotOption[]
+
+  @@index([comboId])
+}
+
+// A product (optionally one variant of it) a customer may pick for a slot.
+model ComboSlotOption {
+  id         String          @id @default(cuid())
+  slotId     String
+  productId  String
+  variantId  String?
+  priceDelta Decimal         @default(0) @db.Decimal(10, 2)
+  sortOrder  Int             @default(0)
+  slot       ComboSlot       @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  product    Product         @relation(fields: [productId], references: [id])
+  variant    ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@unique([slotId, productId, variantId])
+  @@index([productId])
+}
+
+// What a customer picked for one customizable-combo cart line.
+model CartItemSelection {
+  id         String   @id @default(cuid())
+  cartItemId String
+  slotId     String
+  optionId   String
+  quantity   Int      @default(1)
+  cartItem   CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+
+  @@index([cartItemId])
+}
+
+// Immutable snapshot of one component of a purchased combo line. Rows are
+// created with the order and never edited (except the stock-restore claim).
+model OrderItemComponent {
+  id              String          @id @default(cuid())
+  orderItemId     String
+  slotLabel       String?
+  productId       String
+  variantId       String?
+  productName     String
+  variantName     String?
+  // Units of this component in ONE combo.
+  quantity        Int
+  unitPrice       Decimal         @db.Decimal(10, 2)
+  unitCost        Decimal?        @db.Decimal(10, 2)
+  // Total units taken from stock for this line (quantity x combo quantity); 0 when the
+  // combo uses its OWN stock or the component is untracked.
+  stockDeducted   Int             @default(0)
+  stockRestoredAt DateTime?
+  // Units accepted beyond stock for this component (to be sourced) and how many have arrived — same meaning as on OrderItem.
+  procurementQty         Int      @default(0)
+  procurementReceivedQty Int      @default(0)
+  stockReturnedQty       Int      @default(0)
+  stockDiscardedQty      Int      @default(0)
+  orderItem       OrderItem       @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id])
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([orderItemId])
+  @@index([productId])
+}
+
+// ---------------------------------------------------------------------------
+// Attributes (descriptive product data; never SKU/variant/stock-defining)
+// ---------------------------------------------------------------------------
+
+model AttributeGroup {
+  id         String      @id @default(cuid())
+  name       String
+  slug       String      @unique
+  sortOrder  Int         @default(0)
+  isActive   Boolean     @default(true)
+  attributes Attribute[]
+}
+
+model Attribute {
+  id            String                   @id @default(cuid())
+  groupId       String
+  name          String
+  slug          String                   @unique
+  valueType     AttributeValueType
+  // One canonical unit per attribute ("cm", "kg", "W"); measurements are NUMBER + unit.
+  unit          String?
+  minNumber     Decimal?                 @db.Decimal(14, 4)
+  maxNumber     Decimal?                 @db.Decimal(14, 4)
+  maxLength     Int?
+  isRequired    Boolean                  @default(false)
+  isFilterable  Boolean                  @default(false)
+  showOnProduct Boolean                  @default(true)
+  sortOrder     Int                      @default(0)
+  isActive      Boolean                  @default(true)
+  group         AttributeGroup           @relation(fields: [groupId], references: [id])
+  options       AttributeOption[]
+  values        ProductAttributeValue[]
+  optionLinks   ProductAttributeOption[]
+
+  @@index([groupId, sortOrder])
+}
+
+model AttributeOption {
+  id          String                   @id @default(cuid())
+  attributeId String
+  value       String
+  label       String
+  sortOrder   Int                      @default(0)
+  attribute   Attribute                @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  links       ProductAttributeOption[]
+
+  @@unique([attributeId, value])
+}
+
+// Scalar values (TEXT / NUMBER / BOOLEAN). Exactly one value column is set.
+model ProductAttributeValue {
+  productId    String
+  attributeId  String
+  valueText    String?
+  valueNumber  Decimal?  @db.Decimal(14, 4)
+  valueBoolean Boolean?
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute    Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([productId, attributeId])
+  @@index([attributeId, valueNumber])
+  @@index([attributeId, valueBoolean])
+}
+
+// SELECT / MULTI_SELECT choices.
+model ProductAttributeOption {
+  productId   String
+  attributeId String
+  optionId    String
+  product     Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute   Attribute       @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+  option      AttributeOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@id([productId, attributeId, optionId])
+  @@index([attributeId, optionId])
+}
+
+// ---------------------------------------------------------------------------
+// Team, About, Career
+// ---------------------------------------------------------------------------
+
+model TeamMember {
+  id                      String      @id @default(cuid())
+  section                 TeamSection
+  name                    String
+  designation             String
+  bio                     String?
+  imageUrl                String?
+  imageCloudinaryPublicId String?
+  sortOrder               Int         @default(0)
+  isPublished             Boolean     @default(false)
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+
+  @@index([isPublished, section, sortOrder])
+}
+
+model JobPost {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  title          String
+  department     String?
+  location       String?
+  employmentType String?
+  description    String
+  requirements   String?
+  status         JobStatus        @default(DRAFT)
+  closesAt       DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  questions      JobQuestion[]
+  applications   JobApplication[]
+
+  @@index([status, closesAt])
+}
+
+// Optional extra questions beyond the fixed core fields (name, email, phone, cover note, link).
+model JobQuestion {
+  id         String   @id @default(cuid())
+  jobPostId  String
+  label      String
+  kind       String   @default("TEXT")
+  options    String[]
+  isRequired Boolean  @default(false)
+  sortOrder  Int      @default(0)
+  job        JobPost  @relation(fields: [jobPostId], references: [id], onDelete: Cascade)
+
+  @@index([jobPostId])
+}
+
+// Applicant data: private. Only reachable through requireAdmin() services.
+model JobApplication {
+  id           String                 @id @default(cuid())
+  jobPostId    String
+  name         String
+  email        String
+  phone        String?
+  coverNote    String?
+  portfolioUrl String?
+  consentAt    DateTime
+  status       ApplicationStatus      @default(NEW)
+  adminNote    String?
+  createdAt    DateTime               @default(now())
+  job          JobPost                @relation(fields: [jobPostId], references: [id])
+  answers      JobApplicationAnswer[]
+
+  @@index([jobPostId, status, createdAt])
+}
+
+// questionLabel is a snapshot: the question may be edited or deleted later.
+model JobApplicationAnswer {
+  id            String         @id @default(cuid())
+  applicationId String
+  questionLabel String
+  value         String
+  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+}
+
+// ---------------------------------------------------------------------------
+// Social login, reviews, throttling
+// ---------------------------------------------------------------------------
+
+// Provider tokens are deliberately NOT stored: they are not needed after sign-in.
+model OAuthAccount {
+  id                      String        @id @default(cuid())
+  userId                  String
+  provider                OAuthProvider
+  providerAccountId       String
+  emailAtLink             String?
+  emailVerifiedByProvider Boolean       @default(false)
+  createdAt               DateTime      @default(now())
+  lastLoginAt             DateTime?
+  user                    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@unique([userId, provider])
+}
+
+// Append-only moderation history. actorId is NULL for automatic (system) actions.
+model ReviewModerationEvent {
+  id        String   @id @default(cuid())
+  reviewId  String
+  action    String
+  actorId   String?
+  note      String?
+  createdAt DateTime @default(now())
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, createdAt])
+}
+
+// Fixed-window request counter (no Redis). `key` is a hash, never a raw IP or password.
+model RateLimitBucket {
+  key         String
+  windowStart DateTime
+  count       Int      @default(0)
+
+  @@id([key, windowStart])
+  @@index([windowStart])
+}
+
+// ---------------------------------------------------------------------------
+// Channels, costs, expenses
+// ---------------------------------------------------------------------------
+
+model SalesChannel {
+  id       String      @id @default(cuid())
+  key      String      @unique
+  name     String
+  kind     ChannelKind
+  isActive Boolean     @default(true)
+  orders   Order[]
+}
+
+// A cost somebody actually entered for one order. Nothing here is ever estimated or invented.
+model OrderCostLine {
+  id          String   @id @default(cuid())
+  orderId     String
+  kind        CostKind
+  amount      Decimal  @db.Decimal(10, 2)
+  note        String?
+  enteredById String?
+  createdAt   DateTime @default(now())
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+// Business expense not tied to a single order (ads, tools, rent).
+model Expense {
+  id        String   @id @default(cuid())
+  spentOn   DateTime @db.Date
+  category  String
+  amount    Decimal  @db.Decimal(10, 2)
+  channelId String?
+  note      String?
+  createdAt DateTime @default(now())
+
+  @@index([spentOn])
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+enum OAuthProvider {
+  GOOGLE
+  FACEBOOK
+}
+
+enum AttributeValueType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  SELECT
+  MULTI_SELECT
+}
+
+enum TeamSection {
+  MANAGEMENT
+  STAFF
+}
+
+enum JobStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum ApplicationStatus {
+  NEW
+  REVIEWING
+  SHORTLISTED
+  INTERVIEW
+  REJECTED
+  HIRED
+}
+
+enum ChannelKind {
+  WEBSITE
+  MARKETPLACE
+  OTHER
+}
+
+enum FulfillmentMode {
+  SELF_SHIP
+  MARKETPLACE_FULFILLED
+}
+
+enum CostKind {
+  MARKETPLACE_COMMISSION
+  PAYMENT_FEE
+  COURIER_FEE
+  PACKAGING
+  OTHER
+}
+
+enum ConsentMode {
+  OFF
+  OPT_IN
+}
+
+// Audit trail of sourced goods arriving (one row per receipt operation).
+model ProcurementReceipt {
+  id                String   @id @default(cuid())
+  productId         String
+  variantId         String?
+  quantity          Int
+  allocatedToOrders Int
+  addedToStock      Int
+  // What the received goods cost in total (cash out for procurement). Optional: unknown stays unknown.
+  totalCost         Decimal? @db.Decimal(10, 2)
+  adminId           String?
+  note              String?
+  createdAt         DateTime @default(now())
+  // One key per form opening: a retried/double-clicked receipt returns the first result instead of allocating the goods twice.
+  idempotencyKey    String?  @unique
+
+  @@index([productId, createdAt])
+}
+
+enum RewardStatus {
+  AVAILABLE
+  USED
+  EXPIRED
+  REVOKED
+}
+
+// A customer-specific, one-time delivery-charge discount earned by a qualifying (delivered) order.
+// The percentage/limits are SNAPSHOTS taken at issue time so later setting changes never rewrite history.
+model CustomerReward {
+  id             String       @id @default(cuid())
+  userId         String
+  orderId        String       @unique // the order that EARNED it: at most one reward per order (no duplicate issuance)
+  code           String       @unique
+  percent        Int
+  maxDiscount    Decimal?     @db.Decimal(10, 2)
+  minOrderAmount Decimal      @default(0) @db.Decimal(10, 2)
+  stackable      Boolean      @default(true)
+  status         RewardStatus @default(AVAILABLE)
+  expiresAt      DateTime?
+  usedOrderId    String?      @unique // the order that REDEEMED it
+  usedAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([userId, status])
+}
+
+// Cached from the payout rows (see src/lib/settlement.ts). PENDING = nothing received, PARTIAL = some received, SETTLED = expected payout received.
+enum SettlementStatus {
+  NOT_APPLICABLE
+  PENDING
+  SETTLED
+  PARTIAL
+}
+
+enum IncidentKind {
+  DAMAGED_BEFORE_DISPATCH
+  DAMAGED_IN_PACKAGING
+  DAMAGED_BOX
+  DAMAGED_IN_TRANSIT
+  CUSTOMER_RETURN
+  FAILED_DELIVERY
+  REFUND
+  COURIER_RETURN_FEE
+  UNSELLABLE_WRITE_OFF
+  OTHER
+}
+
+// What an incident does to SELLABLE stock. NONE = nothing; RESTOCK = units are sellable again (goes back on the shelf);
+// WRITE_OFF = removes units that are ON the shelf (never for units an order already took); DISCARD = units that left with an order
+// came back (or stay) unsellable: they remain OUT of sellable stock and can no longer be restocked.
+enum IncidentStockEffect {
+  NONE
+  RESTOCK
+  WRITE_OFF
+  DISCARD
+}
+
+// A documented loss/return/refund event. Money fields are explicit and separate so nothing is counted twice:
+//  lossAmount   = cost of goods/boxes that are gone (never together with RESTOCK: restocked goods are not a loss)
+//  refundAmount = cash handed back to the customer
+//  courierFee   = extra courier cost (return/re-delivery)
+model FinancialIncident {
+  id           String              @id @default(cuid())
+  kind         IncidentKind
+  occurredOn   DateTime            @db.Date
+  orderId      String?
+  orderItemId  String?
+  productId    String?
+  variantId    String?
+  quantity     Int                 @default(0)
+  stockEffect  IncidentStockEffect @default(NONE)
+  lossAmount   Decimal             @default(0) @db.Decimal(10, 2)
+  refundAmount Decimal             @default(0) @db.Decimal(10, 2)
+  courierFee   Decimal             @default(0) @db.Decimal(10, 2)
+  note         String?
+  createdById  String?
+  createdAt    DateTime            @default(now())
+  // One key per form opening: a double-click/retry returns the first record instead of recording the same event twice.
+  idempotencyKey String?           @unique
+
+  @@index([occurredOn])
+  @@index([orderId])
+  @@index([orderItemId])
+}
+
+// A payout a marketplace (or other third party) ACTUALLY sent for ONE order. Append-only: the app never edits or deletes a row.
+// `amount` is what arrived (it may be less than the expected payout: a partial settlement leaves the rest receivable).
+// Duplicate protection: (orderId, reference) is unique per order, `idempotencyKey` makes a retried/double-clicked submit a no-op,
+// and the service refuses any entry that would push the total received above the expected payout.
+model MarketplaceSettlement {
+  id             String   @id @default(cuid())
+  orderId        String
+  amount         Decimal  @db.Decimal(10, 2)
+  receivedOn     DateTime @db.Date
+  // The marketplace's payout / statement reference (normalised: no spaces, upper-case).
+  reference      String?
+  idempotencyKey String?  @unique
+  note           String?
+  // TRUE for rows back-filled from the old "SETTLED" flag, which assumed the full expected payout arrived. Disclosed on the Accounts page.
+  legacyAssumed  Boolean  @default(false)
+  recordedById   String?
+  createdAt      DateTime @default(now())
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, reference])
+  @@index([orderId])
+  @@index([receivedOn])
+}
+
+// Append-only audit trail of sensitive staff actions (advance verified/rejected/waived, trust review, advance-policy changes).
+// Staff-only: never selected into a customer-facing projection. `detail` holds the reason / before-after values.
+model AdminAuditEvent {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  detail     Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+/// Phase 5: a previous public slug of a product/category. The row stores the ENTITY id (not the new slug), so the
+/// target is always the entity's current slug: chains collapse and a redirect loop is impossible.
+model SlugRedirect {
+  id         String   @id @default(cuid())
+  entityType String // "PRODUCT" | "CATEGORY"
+  oldSlug    String
+  entityId   String
+  createdAt  DateTime @default(now())
+
+  @@unique([entityType, oldSlug])
+  @@index([entityType, entityId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 6: customer experience
+// ---------------------------------------------------------------------------
+
+/// In-app notification (no external provider). `dedupeKey` makes a repeated trigger (the same status set twice, a retried
+/// request) create ONE row per customer.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String // ORDER | PAYMENT | REFUND | REVIEW | QUESTION
+  title     String
+  body      String?
+  href      String?
+  dedupeKey String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+}
+
+/// One row per (customer, product); viewedAt moves to "now" on every view and the oldest rows beyond 20 are pruned.
+model RecentlyViewedProduct {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  viewedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId, viewedAt])
+}
+
+enum QuestionStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+}
+
+/// A customer question about a product. Public only while APPROVED; the answer is the store's.
+model ProductQuestion {
+  id           String         @id @default(cuid())
+  productId    String
+  userId       String
+  question     String
+  answer       String?
+  answeredAt   DateTime?
+  answeredById String?
+  status       QuestionStatus @default(PENDING)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  product      Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId, status, createdAt])
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7: courier COD reconciliation
+// ---------------------------------------------------------------------------
+
+enum CourierCodEntryKind {
+  COLLECTION_REPORTED // the courier reports it collected this much cash from the customer
+  FEE_DEDUCTED // the courier deducted its delivery fee / COD charge (kept apart from the collected cash)
+  SETTLEMENT_RECEIVED // the courier paid this much to the store
+  ADJUSTMENT // a signed correction to the reported collection; requires a note
+}
+
+/// Append-only record of what a courier reported and paid for a COD order. It never creates revenue (the order already
+/// counted it); it only lets staff compare expected cash, reported cash and settlement. Corrections are NEW ADJUSTMENT rows:
+/// a database trigger refuses UPDATE and DELETE.
+model CourierCodEntry {
+  id          String              @id @default(cuid())
+  orderId     String
+  kind        CourierCodEntryKind
+  amount      Decimal             @db.Decimal(10, 2)
+  provider    String?
+  /// The courier statement / settlement reference (used to refuse duplicate entries).
+  reference   String?
+  note        String?
+  createdById String
+  createdAt   DateTime            @default(now())
+  order       Order               @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([kind, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Phase 7.1: online wallet gateway transactions
+// ---------------------------------------------------------------------------
+
+enum GatewayProvider {
+  BKASH
+  NAGAD
+}
+
+enum GatewayTxnStatus {
+  INITIATED // created locally, provider payment not created yet
+  PENDING_APPROVAL // provider payment exists; the customer has been sent to approve it
+  VERIFYING // a server-side execute/query is in progress (claimed by exactly one request)
+  SUCCEEDED // the provider confirmed it server-side; see paymentId for the credited local payment
+  FAILED
+  CANCELLED
+  EXPIRED
+  NEEDS_REVIEW // the provider took money but we could not credit it automatically (amount/invoice mismatch, order no longer payable)
+}
+
+enum GatewayRefundStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+/// One online payment attempt. Identifiers are kept apart on purpose:
+///   id (internal) · merchantInvoiceNumber (ours, sent to the provider) · providerPaymentId (provider's payment id)
+///   providerTrxId (the wallet transaction id; becomes Payment.providerRef when credited) · paymentId (the local Payment, created ONLY on verified success).
+/// A failed/cancelled/expired/unverified attempt never creates a Payment and never touches advancePaid.
+model GatewayTransaction {
+  id                    String           @id @default(cuid())
+  provider              GatewayProvider
+  orderId               String
+  purpose               PaymentKind      @default(ADVANCE)
+  merchantInvoiceNumber String           @unique
+  providerPaymentId     String?          @unique
+  providerTrxId         String?
+  status                GatewayTxnStatus @default(INITIATED)
+  amount                Decimal          @db.Decimal(10, 2)
+  currency              String           @default("BDT")
+  environment           String // SANDBOX | PRODUCTION
+  redirectUrl           String?
+  providerStatus        String?
+  providerStatusCode    String?
+  failureReason         String?
+  /// Raw provider payloads kept for troubleshooting (they contain no credentials).
+  rawInitiate           Json?
+  rawVerify             Json?
+  paymentId             String?          @unique
+  expiresAt             DateTime
+  verifiedAt            DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  order                 Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  payment               Payment?         @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  refunds               GatewayRefund[]
+
+  @@index([orderId])
+  @@index([provider, status])
+}
+
+model GatewayRefund {
+  id                    String              @id @default(cuid())
+  transactionId         String
+  amount                Decimal             @db.Decimal(10, 2)
+  reason                String
+  status                GatewayRefundStatus @default(PENDING)
+  /// One admin submission = one key; a repeated submit can never create a second refund.
+  idempotencyKey        String              @unique
+  providerRefundTrxId   String?
+  providerStatus        String?
+  rawResponse           Json?
+  /// The FinancialIncident (REFUND) that records this refund in the existing refund accounting. Null until it is recorded.
+  incidentId            String?
+  /// Set (atomically) just BEFORE the request is sent to the provider. Null = the request was never sent, so it is safe to send.
+  /// Set while the status is still PENDING = the request MAY have reached the provider: never resend, query or resolve it.
+  submittedAt           DateTime?
+  /// When bKash's confirmation was first observed (or the date an admin attested from the bKash dashboard). Never rewritten.
+  providerConfirmedAt   DateTime?
+  /// When the refund was written to accounting (may be later than providerConfirmedAt after a retry).
+  accountingRecordedAt  DateTime?
+  /// Admin resolution of an uncertain refund (always with a note).
+  resolvedAt            DateTime?
+  resolvedById          String?
+  resolutionNote        String?
+  /// Where the admin saw the outcome (dashboard screenshot id, support ticket, statement line): required for a manual resolution.
+  resolutionEvidence    String?
+  /// Optional second-admin approval for high-value attestations: a PROPOSAL waits here until a DIFFERENT admin approves it.
+  proposedOutcome       String?
+  proposedTrxId         String?
+  proposedConfirmedOn   DateTime?
+  proposedEvidence      String?
+  proposedNote          String?
+  proposedById          String?
+  proposedAt            DateTime?
+  requestedById         String
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  transaction           GatewayTransaction  @relation(fields: [transactionId], references: [id], onDelete: Restrict)
+
+  @@index([transactionId])
+}

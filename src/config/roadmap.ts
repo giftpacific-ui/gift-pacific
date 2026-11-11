@@ -1,0 +1,31 @@
+export const roadmapData = {
+  currentRelease: "V1.0.0",
+  v1Completed: [
+    "Customer checkout auto-fill (profile info + saved address)",
+    "Conditional billing address (validation is genuinely conditional, not just hidden)",
+    "Product variation system: real-time variant UI on create and edit, base price/stock prefill, per-variant price/stock override, inline variant edit/add/delete",
+    "Product image management (multi-image upload, gallery, thumbnail)",
+    "Category image upload via Cloudinary",
+    "Drag & drop image uploads (products, banners, categories, logo, favicon)",
+    "Refund request flow (customer request → admin approve/reject → refunded state)",
+    "Order stock lifecycle (idempotent restore on cancel/fail/refund)",
+    "Banner management (Hero, Promo Strip, Mid-page placements)",
+    "Store settings: logo, favicon, theme color",
+    "Admin/customer authentication isolation",
+    "GA4 / Meta Pixel tracking from admin settings",
+  ],
+  v1_1Planned: [
+    "Media Center",
+    "Free Delivery Coupon",
+    "Refund workflow refinements",
+    "Admin UX improvements",
+  ],
+  v2Planned: [
+    "Store / Branch Management",
+    "Brand Management",
+    "Store ↔ Brand ↔ Product relationship",
+    "Courier API integration",
+    "Courier automation / webhooks",
+    "Store-wise inventory architecture",
+  ],
+};

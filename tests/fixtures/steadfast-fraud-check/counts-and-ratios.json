@@ -1,0 +1,10 @@
+{
+  "status": 200,
+  "phone": "01712345678",
+  "delivery_ratio": 92,
+  "cancellation_ratio": 7,
+  "volume_band": "high",
+  "volume_range": "50+",
+  "delivered_count": 58,
+  "cancelled_count": 5
+}
