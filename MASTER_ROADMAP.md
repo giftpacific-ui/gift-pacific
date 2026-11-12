@@ -178,10 +178,11 @@ This is the **authoritative Phase 0–11 development plan**. No phase may be del
 | Status | Items |
 |---|---|
 | **Completed** (fast-track) | Regression: 795 tests (767 pass, 4 pre-existing failures, 24 DB-only) [T]; **24 integration tests passed on real PostgreSQL**; 12 real-database release scenarios [PG]; **migration rehearsal on an empty PostgreSQL 16: all 28 apply** [PG]; read-only production migration-check procedure written **and executed under PowerShell against an emulated table** (not production); HTTP smoke on the built app [HTTP]. |
-| **Partial** | Build verified **only with mocked fonts** in a verification copy (genuine build blocked by network). |
-| **Missing** | Browser E2E suite; load testing; responsive/browser matrix; **migration rehearsal on a copy of production data**; **backup/restore drill** (procedure documented, never executed); post-deployment verification on the real host. |
+| **Verified in the latest Phase 11 pass** (see handoff §19.1d) | Real app + real Prisma on an isolated scratch PostgreSQL: public storefront routes, 33 admin pages and 6 customer pages render (HTTP 200, 0 error pages); live access-control and token-tampering checks pass; all 143 Server Actions audited for authorization (89/89 admin-area actions authenticate); schema vs migrations: no drift; dump/restore mechanics rehearsed on scratch [PG]+[HTTP dev]+[SRC]. Campaign image upload added and tested (839 tests; same 6 pre-existing failures). |
+| **Partial** | A genuine production build **fails in the sandbox on the three Google Fonts fetches only** (re-attempted, exit 1); earlier builds were verified only with mocked fonts. |
+| **Missing** | Browser E2E suite; load testing; responsive/browser matrix; **migration rehearsal on a copy of production data**; **backup/restore drill on a real production backup** (the mechanics were rehearsed on a scratch database only); post-deployment verification on the real host; a **real Cloudinary upload test** (campaign, banner, product). |
 | **Broken** | 4 pre-existing failing tests (proxy never runs; hero pause control; theme-vs-migration guard; stale campaigns test) and 22 lint errors — none in order/payment/stock paths. |
-| **Unverified** | **Genuine `pnpm build` with Google Fonts**; production deployment; production migration status; browser behaviour. |
+| **Unverified** | **Genuine `pnpm build` with Google Fonts**; production deployment; production migration status; browser behaviour (upload UI, cart, forms, checkout flow); real Cloudinary/bKash/courier behaviour. **Phase 11 is NOT complete and production is NOT cleared.** |
 | **Dependencies** | Owner access to production and a host with internet. |
 | **Next** | Execute `RELEASE_CHECKLIST.md`; then add Playwright E2E and the backup/restore drill. |
 

@@ -69,7 +69,20 @@
 
 ### P2 — post-release
 
-Non-critical lint (22 errors / 10 warnings, identical to the original archive) · stale `campaigns` test · theme-vs-migration guard test (fails because migration 22 contains an `UPDATE "StoreSettings"`) · enum value *order* of `PaymentStatus`/`PaymentMethod` differs from the Prisma declaration (sets equal; cosmetic) · `db:migrate` script runs `migrate dev` (never use on a real database) · bKash and online balance/full payment · Nagad · free-delivery coupon · manifest/PWA · Phase 2/3/5/6 redesigns · load testing · browser E2E. Nothing in security, payment, stock or database integrity is classified P2.
+Non-critical lint (22 errors / 12 warnings, identical to the untouched archive; the earlier "10 warnings" was stale) · stale `campaigns` test · theme-vs-migration guard test (fails because migration 22 contains an `UPDATE "StoreSettings"`) · enum value *order* of `PaymentStatus`/`PaymentMethod` differs from the Prisma declaration (sets equal; cosmetic) · `db:migrate` script runs `migrate dev` (never use on a real database) · bKash and online balance/full payment · Nagad · free-delivery coupon · manifest/PWA · Phase 2/3/5/6 redesigns · load testing · browser E2E. Nothing in security, payment, stock or database integrity is classified P2.
+
+### Phase 11 pass: new findings (nothing below was changed; all need an owner decision)
+
+| # | Finding | Severity | Evidence | Suggested handling |
+|---|---|---|---|---|
+| F-1 | **No rate limit on `submitCheckout`, `checkCoupon`, `getDeliveryChargesAction`, `getAdvanceQuoteAction`.** Every other public mutation is limited. Anonymous order spam / coupon-code guessing is limited only by fraud scoring and the order rules. | Medium | [SRC] audit of `RATE_LIMITS` usage | Add per-IP limits in a later phase; do not change checkout in an emergency |
+| F-2 | **Unknown product, box and order URLs return HTTP 200** (the body is the not-found page with `noindex`). The root `loading.tsx` streams before `notFound()` resolves. | Low (SEO hygiene) | [HTTP dev server] | Monitor in Search Console; fix later if it matters |
+| F-3 | **Loading screen references `/images/logo.png`, which is not in the ZIP** (owner-protected, intentionally hard-coded). If the file is missing on the host the loading screen shows a broken image; two `brand-assets` tests fail because of it. | Low | [SRC]+[T] | Owner: confirm the file exists in the deployment; then adjust the two guards |
+| F-4 | **No `Strict-Transport-Security`; no Content-Security-Policy** (CSP is deliberate and deferred; HSTS is normally added by the host). `X-Powered-By` is sent. | Low | [HTTP dev server] | Confirm HSTS at the host/CDN; design CSP in Phase 10 (allow `api.cloudinary.com` in `connect-src`) |
+| F-5 | **Replaced or removed *saved* campaign images stay in Cloudinary as orphans** (no public-id column). Images replaced within one form session are discarded safely. | Low | [SRC]+[T] | Optional later migration adding `Collection.imagePublicId`; none done (no migrations in this phase) |
+| F-6 | **Abandoned uploads** (uploaded, then the dialog closed without saving) remain in Cloudinary for the campaign form, as for the other forms. | Low | [SRC] | Periodic Cloudinary cleanup by the owner |
+| F-7 | A saved campaign image that is a hand-typed URL on a host not in `images.remotePatterns` would make `next/image` throw on the public pages (pre-existing; the admin form deliberately never previews such URLs). Cloudinary URLs are unaffected. | Low | [SRC] | Keep hand-typed URLs to allowed hosts, or upload instead |
+| F-8 | The supplied ZIP contained no `.md` files; the documents were restored from the previous delivery. | Process | ZIP listing | Owner: diff against your own copies |
 
 ## 3. Verification log
 
@@ -92,6 +105,22 @@ Non-critical lint (22 errors / 10 warnings, identical to the original archive) �
 | 15 | Security headers | `curl -D -` on 200/307/401 | present | |
 | 16 | Migration-check PowerShell | PowerShell 7.5.4 against an emulated `_prisma_migrations` | works as designed | Not Windows PS 5.1; not production |
 | 17 | Browser verification | — | **UNVERIFIED** | no browser available |
+
+### 3.1 Phase 11 verification pass (executed this pass; details in `HANDOFF_GIFTPACIFIC.md` §19.1d)
+
+| # | Check | Method | Result | Establishes / does not |
+|---|---|---|---|---|
+| 1 | branding guard / prisma validate / typecheck | scripts (placeholder Prisma engine for validate) | **PASS** | Source consistency only |
+| 2 | Full tests | `pnpm test` equivalent | 839 run, 809 pass, **6 fail** (identical to untouched ZIP), 24 skipped | New campaign-image logic covered; failures pre-existing, none in upload/campaign code |
+| 3 | Lint | eslint | 34 problems, identical to untouched ZIP; 0 in changed files | No new lint debt |
+| 4 | Production build | `next build` in a scratch copy | **FAIL (environment)**: 3 Google Fonts fetch errors only | A genuine build is still **UNVERIFIED** |
+| 5 | Migration consistency | checksums vs checklist; 28 migrations applied to scratch PG 16; column comparison with `schema.prisma` | **PASS**: 28/28, applied cleanly, no drift | Not Prisma's own `migrate diff`; not production |
+| 6 | Real-stack HTTP smoke | real app + real Prisma (driver-adapter copy) on scratch PG | public routes 200; 33 admin pages 200, 0 errors; 6 account pages 200 | Rendering with a minimal seeded catalog; **not** production data; **no browser** |
+| 7 | Access control (live) | cookies: none / customer / forged / tampered / garbage / cross-role | **PASS**: all refused or redirected as designed | Proxy-level gate; Server Actions audited separately |
+| 8 | Server Action authorization audit | static scan of 143 actions + service ownership review | **PASS**: 89/89 admin-area authenticate; customer data scoped by session user | Static analysis, not an exploit test |
+| 9 | Campaign persistence | real `adminSaveCampaign` against real PostgreSQL | **PASS**: create / replace / remove / legacy URL / unsafe rejected | Database and service layer; **not** the browser upload |
+| 10 | Backup/restore mechanics | `pg_dump` custom format → `pg_restore` into a new scratch DB | **PASS**: counts identical | Procedure works; **not** a production backup |
+| 11 | Real Cloudinary upload; browser UI; checkout/payment/courier live behaviour | n/a | **NOT VERIFIED** | No credentials, network or browser |
 
 ## 4. HTTP smoke results (actual status codes; rehearsal database, mocked-font build)
 
@@ -148,7 +177,8 @@ Response headers on 200, 307 and 401 responses: `X-Content-Type-Options: nosniff
 | Production environment variables (P0-5) | **OWNER ACTION REQUIRED** | Checklist §2 |
 | Genuine `pnpm build` with real fonts (P0-6) | **UNVERIFIED** — needs internet | Owner's host / CI |
 | Browser and client-side verification (P0-7) | **UNVERIFIED** | Owner smoke test (checklist §6.4); later Playwright (Phase 11) |
-| Database backup and restore drill | **OWNER ACTION REQUIRED / never executed** | Checklist §3 |
+| Database backup and restore drill | **OWNER ACTION REQUIRED** (mechanics rehearsed on a scratch DB only; no production backup was restored) | Checklist §3 |
+| Real Cloudinary upload test: campaign, banner, product, multi-image, replace, delete; plan limit confirmed | **UNVERIFIED** — no credentials/network/browser here | Owner: one real upload of each kind, including one above 20 MiB if the plan allows |
 | Post-deployment smoke tests | **OWNER ACTION REQUIRED** | Checklist §6 |
 | bKash, Steadfast live, GTM/Pixel, Cloudinary, OAuth | **UNVERIFIED** (kept disabled/optional) | Later phases |
 

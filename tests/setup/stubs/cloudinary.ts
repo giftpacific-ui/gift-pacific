@@ -14,4 +14,7 @@ export function createSignedUploadParams(folder: string, nameHint?: string) {
     allowedFormats: "jpg,png,webp",
   };
 }
-export async function deleteImageFromCloudinary() {}
+/** Records which public ids the app asked Cloudinary to delete. */
+export async function deleteImageFromCloudinary(publicId: string) {
+  (globalThis as any).__TEST_DELETES__ = [...((globalThis as any).__TEST_DELETES__ ?? []), publicId];
+}

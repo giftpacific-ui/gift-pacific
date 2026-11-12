@@ -16,6 +16,9 @@ import {
 } from "@/server/actions/admin-campaign.actions";
 
 import { SeoCounter, SeoPreview } from "@/features/admin/seo-preview";
+import { SingleImageUploader, type ImageValue } from "@/features/admin/single-image-uploader";
+import { discardUnsavedUploadAction } from "@/server/actions/upload.actions";
+import { assetToDiscard, imageForSave, initialImageState } from "@/lib/campaign-image";
 
 export type CampaignView = {
   id: string;
@@ -52,12 +55,24 @@ export function CampaignForm({
   const [name, setName] = useState(campaign?.name ?? "");
   const [slug, setSlug] = useState(campaign?.slug ?? "");
   const [description, setDescription] = useState(campaign?.description ?? "");
-  const [image, setImage] = useState(campaign?.image ?? "");
+  // Saved Cloudinary image -> uploader; saved hand-typed URL -> plain URL field (see lib/campaign-image.ts).
+  const initialImage = initialImageState(campaign?.image);
+  const [uploaded, setUploaded] = useState<ImageValue | null>(initialImage.uploaded);
+  const [imageUrl, setImageUrl] = useState(initialImage.urlText);
+  const image = imageForSave({ uploaded, urlText: imageUrl });
   const [metaTitle, setMetaTitle] = useState(campaign?.metaTitle ?? "");
   const [metaDescription, setMetaDescription] = useState(campaign?.metaDescription ?? "");
   const [startsAt, setStartsAt] = useState(campaign?.startsAt ?? "");
   const [endsAt, setEndsAt] = useState(campaign?.endsAt ?? "");
   const [isActive, setIsActive] = useState(campaign?.isActive ?? true);
+
+  function handleUploadChange(next: ImageValue | null) {
+    const abandoned = assetToDiscard(uploaded, next);
+    setUploaded(next);
+    // An image uploaded in THIS session was replaced/removed: discard the abandoned Cloudinary asset. The action never
+    // deletes an asset that any record (including a saved campaign) still references.
+    if (abandoned?.publicId) void discardUnsavedUploadAction(abandoned.publicId, abandoned.url);
+  }
 
   function submit() {
     startTransition(async () => {
@@ -81,7 +96,8 @@ export function CampaignForm({
         setName("");
         setSlug("");
         setDescription("");
-        setImage("");
+        setUploaded(null);
+        setImageUrl("");
         setStartsAt("");
         setEndsAt("");
       }
@@ -115,12 +131,24 @@ export function CampaignForm({
         rows={2}
         onChange={(e) => setDescription(e.target.value)}
       />
-      <Input
-        className="sm:col-span-2"
-        placeholder="Header image URL (optional, https://…)"
-        value={image}
-        onChange={(e) => setImage(e.target.value)}
-      />
+      <div className="space-y-2 sm:col-span-2">
+        <SingleImageUploader
+          value={uploaded}
+          onChange={handleUploadChange}
+          folder="banners"
+          label="Header image (optional)"
+          aspectClassName="aspect-[21/9]"
+          deferDelete
+          nameHint={name.trim() || undefined}
+        />
+        {!uploaded && (
+          <Input
+            placeholder="Or paste an image URL (optional, https://…)"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+          />
+        )}
+      </div>
       <div className="space-y-1 sm:col-span-2">
         <p className="text-sm font-medium">Search &amp; sharing (optional)</p>
         <Input placeholder="SEO title (defaults to the campaign name)" value={metaTitle} maxLength={120} onChange={(e) => setMetaTitle(e.target.value)} />
