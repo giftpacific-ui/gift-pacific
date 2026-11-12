@@ -2,37 +2,34 @@
 
 import { requireAdmin } from "@/lib/auth/current-user";
 import {
-  uploadImageToCloudinary,
+  createSignedUploadParams,
   deleteImageFromCloudinary,
   isCloudinaryConfigured,
+  type SignedUploadParams,
 } from "@/lib/cloudinary/cloudinary";
 import { logServerError } from "@/lib/logger";
 import { isCloudinaryAssetReferenced } from "@/server/services/admin-product.service";
-import { isAppCloudinaryPublicId, validateImageDataUrl } from "@/lib/upload-validation";
+import { isAppCloudinaryPublicId, UPLOAD_FOLDERS, type UploadFolder } from "@/lib/upload-validation";
 
-export type UploadImageResult =
-  | { success: true; url: string; publicId: string }
+export type UploadSignatureResult =
+  | ({ success: true } & SignedUploadParams)
   | { success: false; message: string };
 
-const UPLOAD_FOLDERS = ["products", "banners", "branding", "categories", "team", "boxes"] as const;
-type UploadFolder = (typeof UPLOAD_FOLDERS)[number];
-
 /**
- * Accepts a base64 data URL from the browser (read via FileReader on the
- * client) and uploads it to Cloudinary. Used by every admin image field:
- * product thumbnail/gallery, banner image, store logo.
+ * Step 1 of an admin image upload. Returns a short-lived Cloudinary signature (a few hundred bytes) so the browser
+ * can upload the file DIRECTLY to Cloudinary as multipart `File` data. The image itself never travels through this
+ * Server Action (React's Server Action decoder rejects large string arguments, which is what used to break large
+ * uploads), and the API secret never leaves the server - only the public API key and the signature are returned.
  *
- * Validation (see lib/upload-validation.ts): explicit MIME allow-list
- * (JPEG / PNG / WebP — SVG and everything else rejected), decoded-byte
- * signature must match the declared type, and an 8 MB cap. The request-body
- * limit in next.config.ts is sized to fit this, so the two don't contradict.
+ * Used by every admin image field (SingleImageUploader / GalleryImageUploader): product thumbnail/gallery, banner,
+ * category, box, team member, store logo/favicon. Folder structure ("giftpacific/<folder>") and the readable public
+ * id are generated exactly as before, and are part of the signed parameters, so the client cannot redirect the upload.
  */
-export async function uploadImageAction(
-  dataUrl: string,
+export async function createUploadSignatureAction(
   folder: UploadFolder,
   /** Optional readable name (e.g. the product name) used for the stored file name. */
   nameHint?: string,
-): Promise<UploadImageResult> {
+): Promise<UploadSignatureResult> {
   await requireAdmin();
 
   if (!(UPLOAD_FOLDERS as readonly string[]).includes(folder)) {
@@ -47,15 +44,12 @@ export async function uploadImageAction(
     };
   }
 
-  const validation = validateImageDataUrl(dataUrl);
-  if (!validation.ok) return { success: false, message: validation.message };
-
   try {
-    const result = await uploadImageToCloudinary(dataUrl, folder, typeof nameHint === "string" ? nameHint.slice(0, 120) : undefined);
-    return { success: true, url: result.url, publicId: result.publicId };
+    const params = createSignedUploadParams(folder, typeof nameHint === "string" ? nameHint.slice(0, 120) : undefined);
+    return { success: true, ...params };
   } catch (error) {
-    logServerError("upload.cloudinary", error, { folder });
-    return { success: false, message: "Upload failed. Please try again." };
+    logServerError("upload.signature", error, { folder });
+    return { success: false, message: "Could not start the upload. Please try again." };
   }
 }
 

@@ -6,12 +6,9 @@ import { ImagePlus, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { validateImageFileClientSide } from "@/lib/upload-validation";
 import { Button } from "@/components/ui/button";
-import { readFileAsDataUrl } from "@/lib/cloudinary/read-file";
+import { uploadImageFile } from "@/lib/cloudinary/upload-image";
 import { cn } from "@/lib/utils";
-import {
-  uploadImageAction,
-  deleteCloudinaryImageAction,
-} from "@/server/actions/upload.actions";
+import { deleteCloudinaryImageAction } from "@/server/actions/upload.actions";
 
 export type ImageValue = { url: string; publicId: string | null };
 
@@ -42,15 +39,14 @@ export function SingleImageUploader({
   }
 
   function uploadFile(file: File) {
-    // Instant client-side feedback; the server re-validates type, size and file signature.
+    // Instant client-side feedback (type only; there is no size cap). The file goes straight to Cloudinary.
     const problem = validateImageFileClientSide(file);
     if (problem) {
       toast.error(problem);
       return;
     }
     startTransition(async () => {
-      const dataUrl = await readFileAsDataUrl(file);
-      const result = await uploadImageAction(dataUrl, folder, nameHint);
+      const result = await uploadImageFile(file, folder, nameHint);
       if (!result.success) {
         toast.error(result.message);
         return;

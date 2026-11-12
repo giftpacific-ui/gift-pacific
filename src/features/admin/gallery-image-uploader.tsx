@@ -5,8 +5,7 @@ import Image from "next/image";
 import { ImagePlus, Loader2, MoveLeft, MoveRight, Star, X } from "lucide-react";
 import { toast } from "sonner";
 import { validateImageFileClientSide } from "@/lib/upload-validation";
-import { readFileAsDataUrl } from "@/lib/cloudinary/read-file";
-import { uploadImageAction } from "@/server/actions/upload.actions";
+import { uploadImageFile } from "@/lib/cloudinary/upload-image";
 import { cn } from "@/lib/utils";
 
 export type GalleryImage = {
@@ -78,10 +77,8 @@ export function GalleryImageUploader({
       // current state, which would race (all calls seeing the same stale
       // "gallery is empty" snapshot) if fired once per file back-to-back.
       const results = await Promise.all(
-        toUpload.map(async (file) => {
-          const dataUrl = await readFileAsDataUrl(file);
-          return uploadImageAction(dataUrl, "products", nameHint);
-        }),
+        // Each File goes straight to Cloudinary (no base64, nothing large through a Server Action).
+        toUpload.map((file) => uploadImageFile(file, "products", nameHint)),
       );
 
       const succeeded: { url: string; publicId: string }[] = [];

@@ -13,7 +13,7 @@ import {
   saveCustomizationFieldAction,
 } from "@/server/actions/admin-product.actions";
 import {
-  uploadImageAction,
+  createUploadSignatureAction,
   deleteCloudinaryImageAction,
 } from "@/server/actions/upload.actions";
 
@@ -48,7 +48,7 @@ test("admin actions require an admin session", async () => {
   );
   await assert.rejects(
     runAs({ sub: "cust" }, () =>
-      uploadImageAction("data:image/png;base64,AAAA", "products"),
+      createUploadSignatureAction("products"),
     ),
     /FORBIDDEN/,
   );
@@ -232,51 +232,20 @@ test("customization field action: IMAGE_UPLOAD is gone; SELECT/COLOR need option
   ); // not a PERSONALIZED product
 });
 
-const PNG = Buffer.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0,
-]).toString("base64");
-test("upload action: only JPEG/PNG/WebP with matching bytes reach Cloudinary", async () => {
-  const svg = Buffer.from("<svg onload=alert(1)/>").toString("base64");
-  const before = (
-    (globalThis as { __TEST_UPLOADS__?: unknown[] }).__TEST_UPLOADS__ ?? []
-  ).length;
-  assert.equal(
-    (
-      await admin(() =>
-        uploadImageAction(`data:image/svg+xml;base64,${svg}`, "products"),
-      )
-    ).success,
-    false,
-  );
-  assert.equal(
-    (
-      await admin(() =>
-        uploadImageAction(`data:image/png;base64,${svg}`, "products"),
-      )
-    ).success,
-    false,
-  );
-  assert.equal(
-    (
-      await admin(() =>
-        uploadImageAction(`data:image/png;base64,${PNG}`, "../etc" as never),
-      )
-    ).success,
-    false,
-  );
-  assert.equal(
-    ((globalThis as { __TEST_UPLOADS__?: unknown[] }).__TEST_UPLOADS__ ?? [])
-      .length,
-    before,
-  );
-  assert.equal(
-    (
-      await admin(() =>
-        uploadImageAction(`data:image/png;base64,${PNG}`, "products"),
-      )
-    ).success,
-    true,
-  );
+test("upload signature action: admin-only, known folders only, returns a signed descriptor and never the secret", async () => {
+  const uploads = () => ((globalThis as { __TEST_UPLOADS__?: unknown[] }).__TEST_UPLOADS__ ?? []).length;
+  const before = uploads();
+  // an unknown / path-traversal folder is refused and nothing is signed
+  assert.equal((await admin(() => createUploadSignatureAction("../etc" as never))).success, false);
+  assert.equal(uploads(), before);
+  const ok = await admin(() => createUploadSignatureAction("products", "Blue Mug"));
+  assert.equal(ok.success, true);
+  assert.equal(uploads(), before + 1);
+  if (ok.success) {
+    assert.equal(ok.folder, "giftpacific/products");
+    assert.equal(ok.allowedFormats, "jpg,png,webp");
+    assert.ok(!/secret/i.test(JSON.stringify(ok)));
+  }
   assert.equal(
     (await admin(() => deleteCloudinaryImageAction("somewhere-else/x")))
       .success,

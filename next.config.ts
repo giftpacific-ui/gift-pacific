@@ -19,16 +19,12 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
-  experimental: {
-    serverActions: {
-      // Admin image uploads are sent to a Server Action as a base64 data URL.
-      // The default limit is 1 MB, which contradicted the 8 MB upload limit
-      // enforced in lib/upload-validation.ts (8 MB raw ≈ 10.7 MB base64).
-      // Keep this >= MAX_DATA_URL_LENGTH (a unit test asserts it).
-      bodySizeLimit: "11mb",
-    },
-  },
   images: {
+    // Cloudinary images are delivered pre-optimised by Cloudinary (f_auto, q_auto, responsive widths); every other
+    // source still goes through the Next.js optimizer. `loader` is deliberately left at its default: setting it to
+    // "custom" would switch OFF the built-in /_next/image optimizer for all non-Cloudinary images.
+    // See lib/cloudinary/image-loader.ts.
+    loaderFile: "./src/lib/cloudinary/image-loader.ts",
     remotePatterns: [
       // Seed data uses placeholder images from picsum.photos.
       { protocol: "https", hostname: "picsum.photos" },

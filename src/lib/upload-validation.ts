@@ -1,40 +1,33 @@
 /**
- * Upload hardening for the (existing) data-URL → Cloudinary flow.
+ * Upload hardening for the direct browser -> Cloudinary flow.
  *
- * `data:image/` alone is not a safe check: it accepts image/svg+xml (which
- * can carry script) and anything else that claims to be an image. This
- * module enforces an explicit MIME allow-list, verifies the decoded bytes
- * really are that format (magic numbers), and bounds the size.
+ * Files never pass through a Server Action: the browser uploads the `File` itself straight to Cloudinary using a
+ * short-lived signature minted by the server (see `server/actions/upload.actions.ts`). What we still enforce:
+ *
+ * - an explicit MIME allow-list (JPEG / PNG / WebP; SVG and everything else rejected - SVG can carry script),
+ * - the file's leading bytes (magic numbers) must really be that format,
+ * - `allowed_formats` is part of the SIGNED upload parameters, so Cloudinary itself refuses any other format
+ *   even if this client-side check were bypassed.
+ *
+ * There is deliberately NO application-level file-size cap. The only size limits are Cloudinary's own account/plan
+ * limits, which Cloudinary reports and `lib/cloudinary/browser-upload.ts` surfaces to the admin verbatim.
  */
 
 export const ALLOWED_IMAGE_MIME_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 export type AllowedImageMime = (typeof ALLOWED_IMAGE_MIME_TYPES)[number];
 
-/** Raw (decoded) image size limit. Unchanged from the previous behavior. */
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+/** Cloudinary `allowed_formats` value matching ALLOWED_IMAGE_MIME_TYPES (Cloudinary names JPEG "jpg"). */
+export const CLOUDINARY_ALLOWED_FORMATS = "jpg,png,webp";
 
-/** Longest legal data URL: base64 expands raw bytes by 4/3, plus a short header. */
-export const MAX_DATA_URL_LENGTH = Math.ceil(MAX_UPLOAD_BYTES / 3) * 4 + 64;
-
-/**
- * Next.js Server Actions reject request bodies over 1 MB by default — which
- * contradicts an 8 MB upload limit. `next.config.ts` raises
- * `serverActions.bodySizeLimit` to this value, which must always be
- * >= MAX_DATA_URL_LENGTH (asserted by a unit test).
- */
-export const SERVER_ACTION_BODY_LIMIT_MB = 11;
-
-export type UploadValidation =
-  | { ok: true; mime: AllowedImageMime; bytes: number }
-  | { ok: false; message: string };
-
-const BASE64_BODY = /^[A-Za-z0-9+/]+={0,2}$/;
+export type UploadFolder = "products" | "banners" | "branding" | "categories" | "team" | "boxes";
+export const UPLOAD_FOLDERS: readonly UploadFolder[] = ["products", "banners", "branding", "categories", "team", "boxes"];
 
 function startsWith(bytes: Uint8Array, signature: number[], offset = 0): boolean {
   return signature.every((b, i) => bytes[offset + i] === b);
 }
 
-function detectMime(head: Uint8Array): AllowedImageMime | null {
+/** Detects JPEG / PNG / WebP from the first bytes of a file. Returns null for anything else. */
+export function detectMime(head: Uint8Array): AllowedImageMime | null {
   if (startsWith(head, [0xff, 0xd8, 0xff])) return "image/jpeg";
   if (startsWith(head, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return "image/png";
   // RIFF....WEBP
@@ -44,60 +37,29 @@ function detectMime(head: Uint8Array): AllowedImageMime | null {
   return null;
 }
 
-export function validateImageDataUrl(dataUrl: unknown): UploadValidation {
-  if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) {
-    return { ok: false, message: "Please choose an image file." };
-  }
-  if (dataUrl.length > MAX_DATA_URL_LENGTH) {
-    return { ok: false, message: "Image is too large — please use a file under 8MB." };
-  }
-
-  const comma = dataUrl.indexOf(",");
-  if (comma === -1) return { ok: false, message: "Please choose an image file." };
-
-  const header = dataUrl.slice(5, comma); // between "data:" and ","
-  const [mimeRaw, encoding, ...rest] = header.split(";");
-  const mime = mimeRaw.trim().toLowerCase();
-  if (encoding !== "base64" || rest.length > 0) {
-    return { ok: false, message: "Unsupported image encoding." };
-  }
-  if (!(ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(mime)) {
-    return { ok: false, message: "Unsupported image type. Please upload a JPEG, PNG or WebP image." };
-  }
-
-  const body = dataUrl.slice(comma + 1);
-  if (body.length === 0 || body.length % 4 !== 0 || !BASE64_BODY.test(body)) {
-    return { ok: false, message: "The image data is corrupted. Please try another file." };
-  }
-
-  const padding = body.endsWith("==") ? 2 : body.endsWith("=") ? 1 : 0;
-  const bytes = (body.length / 4) * 3 - padding;
-  if (bytes > MAX_UPLOAD_BYTES) {
-    return { ok: false, message: "Image is too large — please use a file under 8MB." };
-  }
-
-  let head: Uint8Array;
-  try {
-    const binary = atob(body.slice(0, 24)); // 24 base64 chars = 18 bytes
-    head = Uint8Array.from(binary, (c) => c.charCodeAt(0));
-  } catch {
-    return { ok: false, message: "The image data is corrupted. Please try another file." };
-  }
-
-  const detected = detectMime(head);
-  if (detected === null || detected !== mime) {
-    return { ok: false, message: "The file isn't a valid JPEG, PNG or WebP image." };
-  }
-
-  return { ok: true, mime: detected, bytes };
-}
-
-/** Client-side pre-check (type + size) so users get instant feedback; the server re-validates. */
-export function validateImageFileClientSide(file: { type: string; size: number }): string | null {
+/** Instant, synchronous pre-check (type only - there is no size limit). */
+export function validateImageFileClientSide(file: { type: string }): string | null {
   if (!(ALLOWED_IMAGE_MIME_TYPES as readonly string[]).includes(file.type)) {
     return "Please choose a JPEG, PNG or WebP image.";
   }
-  if (file.size > MAX_UPLOAD_BYTES) return "Image is too large — please use a file under 8MB.";
+  return null;
+}
+
+/**
+ * Reads only the first 16 bytes of the file (never the whole file) and checks they match the declared type.
+ * Returns an error message, or null when the file is acceptable.
+ */
+export async function validateImageFileSignature(file: Blob & { type: string }): Promise<string | null> {
+  const typeProblem = validateImageFileClientSide(file);
+  if (typeProblem) return typeProblem;
+  let head: Uint8Array;
+  try {
+    head = new Uint8Array(await file.slice(0, 16).arrayBuffer());
+  } catch {
+    return "Could not read this file. Please try another one.";
+  }
+  const detected = detectMime(head);
+  if (detected === null || detected !== file.type) return "The file isn't a valid JPEG, PNG or WebP image.";
   return null;
 }
 

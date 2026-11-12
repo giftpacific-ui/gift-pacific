@@ -1,5 +1,6 @@
 import "server-only";
 import { v2 as cloudinary } from "cloudinary";
+import { CLOUDINARY_ALLOWED_FORMATS, CLOUDINARY_FOLDER_PREFIX, type UploadFolder } from "@/lib/upload-validation";
 
 let configured = false;
 
@@ -31,21 +32,34 @@ function ensureConfigured() {
   configured = true;
 }
 
-export type CloudinaryUploadResult = {
-  url: string;
-  publicId: string;
+/**
+ * Everything the browser needs to upload one file DIRECTLY to Cloudinary. Contains the public API key and a
+ * signature, never the API secret. The signed parameters (folder, public_id, allowed_formats, timestamp) are fixed
+ * by the server: the browser cannot change the destination folder or the allowed formats without invalidating it.
+ */
+export type SignedUploadParams = {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+  /** Present only when a readable name hint was given; otherwise Cloudinary generates the id (as before). */
+  publicId?: string;
+  allowedFormats: string;
 };
 
 /**
- * Uploads a base64 data URL (what the browser's FileReader produces) to
- * Cloudinary under a folder so assets stay organized by type.
+ * Creates the signed parameters for a direct browser -> Cloudinary upload. Folder structure and public-id scheme are
+ * identical to the previous server-side upload ("giftpacific/<folder>", readable "<name>-<8 hex>" public id).
+ * No transformation/eager/incoming parameters are signed: the ORIGINAL file is stored untouched; resizing and
+ * format/quality optimisation happen at delivery time (see lib/cloudinary/image-loader.ts).
  */
-export async function uploadImageToCloudinary(
-  dataUrl: string,
-  folder: "products" | "banners" | "branding" | "categories" | "team" | "boxes",
+export function createSignedUploadParams(
+  folder: UploadFolder,
   nameHint?: string,
-): Promise<CloudinaryUploadResult> {
+): SignedUploadParams {
   ensureConfigured();
+  const { cloud_name: cloudName, api_key: apiKey, api_secret: apiSecret } = cloudinary.config();
   // A readable public id ("blue-ceramic-mug-3f9a1c2b") instead of a random string: it becomes the image file name.
   const base = (nameHint ?? "")
     .toLowerCase()
@@ -53,12 +67,24 @@ export async function uploadImageToCloudinary(
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 60);
-  const result = await cloudinary.uploader.upload(dataUrl, {
-    folder: `giftpacific/${folder}`,
-    resource_type: "image",
-    ...(base ? { public_id: `${base}-${crypto.randomUUID().slice(0, 8)}` } : {}),
-  });
-  return { url: result.secure_url, publicId: result.public_id };
+  const publicId = base ? `${base}-${crypto.randomUUID().slice(0, 8)}` : undefined;
+  const timestamp = Math.round(Date.now() / 1000);
+  const toSign: Record<string, string | number> = {
+    allowed_formats: CLOUDINARY_ALLOWED_FORMATS,
+    folder: `${CLOUDINARY_FOLDER_PREFIX}${folder}`,
+    timestamp,
+    ...(publicId ? { public_id: publicId } : {}),
+  };
+  const signature = cloudinary.utils.api_sign_request(toSign, apiSecret as string);
+  return {
+    uploadUrl: `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    apiKey: apiKey as string,
+    timestamp,
+    signature,
+    folder: toSign.folder as string,
+    ...(publicId ? { publicId } : {}),
+    allowedFormats: CLOUDINARY_ALLOWED_FORMATS,
+  };
 }
 
 /**
