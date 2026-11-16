@@ -15,7 +15,7 @@
  *   - A line containing `branding-guard:allow`, or the line right after it, is ignored (use for documented legacy compatibility).
  *   - Lines between `branding-guard:allow-start` and `branding-guard:allow-end` are ignored.
  *
- * The patterns below are written with character classes so that this file does not match itself.
+ * CONTENT_PATTERNS below add a customer-facing positioning check. The patterns below are written with character classes so that this file does not match itself.
  */
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -32,6 +32,20 @@ export const PATTERNS = [
   { id: "legacy-ap-identifier", re: /(?<![a-z0-9])a[p]_(?:order_conf|purchase_tracked|popup)/i },
 ];
 
+/**
+ * Obsolete brand-POSITIONING phrases (Gift Pacific is a general gifting brand, not a handmade/clay/pottery brand).
+ * Only applied to customer-facing code (CONTENT_SCOPE). The bare word "handmade" is deliberately NOT matched: it is a valid
+ * per-product attribute (ProductBadge.HANDMADE, attribute names, admin hints). Migrations are never scanned.
+ */
+export const CONTENT_PATTERNS = [
+  { id: "obsolete-craft-positioning", re: /clay[ -](?:art|pieces?)|hand-?shaped|shaped by hand|pottery|homemade|handmade,? with care|100% handmade|handcrafted gifts?|made in small batches|supporting handmade|handmade (?:gift|collection)/i },
+];
+const CONTENT_SCOPE = ["src/app/", "src/components/", "src/features/", "src/config/", "src/lib/", "prisma/seed"];
+const CONTENT_SCOPE_EXCLUDE = ["src/app/admin", "src/features/admin"];
+function inContentScope(rel) {
+  return CONTENT_SCOPE.some((p) => rel.startsWith(p)) && !CONTENT_SCOPE_EXCLUDE.some((p) => rel.startsWith(p));
+}
+
 /** SHA-256 of retired brand assets. A file with one of these hashes must not exist anywhere in the repository. */
 export const RETIRED_ASSET_SHA256 = {
   "ddb2cf1849ef96fff5458f07cfe204a0d3d89c411d3db30981e2ceb7739bb7be": "retired logo (public/images/logo.png)",
@@ -46,9 +60,9 @@ const BINARY_EXT = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".avif", "
 const SINGLE_MARKER = /branding-guard:allow(?!-)/;
 const MAX_BYTES = 20 * 1024 * 1024;
 
-function findIn(text) {
+function findIn(text, patterns = PATTERNS) {
   const hits = [];
-  for (const { id, re } of PATTERNS) {
+  for (const { id, re } of patterns) {
     const m = text.match(re);
     if (m) hits.push({ id, match: m[0] });
   }
@@ -107,7 +121,7 @@ export function scan(root, options = {}) {
       const allowed = inBlock || SINGLE_MARKER.test(line) || (i > 0 && SINGLE_MARKER.test(lines[i - 1]));
       if (line.includes("branding-guard:allow-end")) inBlock = false;
       if (allowed) continue;
-      const [hit] = findIn(line);
+      const [hit] = findIn(line, inContentScope(rel) && !binary ? [...PATTERNS, ...CONTENT_PATTERNS] : PATTERNS);
       if (hit) {
         violations.push({ file: rel, line: i + 1, kind: binary ? "binary-metadata" : "content", ...hit });
         if (binary) break; // one finding per binary file is enough

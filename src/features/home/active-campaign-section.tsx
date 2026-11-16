@@ -59,7 +59,7 @@ export function ActiveCampaignSection({
 
   return (
     <section className="container-boutique my-10 md:my-14">
-      <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-secondary/70 shadow-sm">
+      <div className="relative overflow-hidden rounded-[4px] border border-border/60 bg-secondary/70 shadow-sm">
         <div className="grid grid-cols-1 items-center lg:grid-cols-12">
           {/* বাম পাশ: ক্যাম্পেইন ইনফো */}
           <div className="flex flex-col justify-center p-6 sm:p-10 lg:col-span-6 lg:p-12">
@@ -94,7 +94,7 @@ export function ActiveCampaignSection({
                   ].map((item) => (
                     <div
                       key={item.label}
-                      className="flex min-w-[58px] flex-col items-center rounded-xl border border-border/80 bg-background px-3 py-2 shadow-2xs"
+                      className="flex min-w-[58px] flex-col items-center rounded-[4px] border border-border/80 bg-background px-3 py-2 shadow-2xs"
                     >
                       <span className="font-heading text-lg font-bold text-foreground sm:text-xl">
                         {String(item.value).padStart(2, "0")}

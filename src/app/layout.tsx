@@ -1,16 +1,13 @@
 import { keywordsForMetadata } from "@/lib/seo-keywords";
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
-import {
-  Cormorant,
-  Manrope,
-  Noto_Serif_Bengali,
-} from "next/font/google";
+import { Cormorant, Manrope, Noto_Serif_Bengali } from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "@/app/providers";
 import { siteConfig } from "@/config/site";
 import { AnalyticsRoot } from "@/lib/analytics/analytics-scripts";
 import { getStoreSettings } from "@/server/services/admin-settings.service";
+import { getCanonicalOrigin } from "@/server/services/seo.service";
 import { readableForeground } from "@/lib/color-contrast";
 import { BRAND_PRIMARY, resolveThemeOverrides } from "@/lib/theme";
 import "@/app/globals.css";
@@ -39,34 +36,56 @@ const notoSerifBengali = Noto_Serif_Bengali({
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getStoreSettings();
   const brand = settings.storeName?.trim() || siteConfig.name;
+  const origin = await getCanonicalOrigin();
   const template = settings.seoTitleTemplate?.includes("%s")
     ? settings.seoTitleTemplate
     : `%s | ${brand}`;
   const description = settings.seoDescription || siteConfig.description;
+  const defaultTitle = settings.seoDefaultTitle?.trim() || brand;
+  const ogTitle = settings.seoOgTitle?.trim() || defaultTitle;
+  const ogDescription = settings.seoOgDescription?.trim() || description;
   const image = settings.ogImageUrl
     ? [{ url: settings.ogImageUrl }]
     : undefined;
+
+  const facebookDomainVerification =
+    process.env.FACEBOOK_DOMAIN_VERIFICATION?.trim() || "";
+
   return {
-    metadataBase: new URL(siteConfig.url),
+    metadataBase: new URL(origin),
     title: {
-      default: brand,
+      default: defaultTitle,
       template,
     },
     description,
     keywords: keywordsForMetadata(settings.seoKeywords),
     icons: settings.faviconUrl ? { icon: settings.faviconUrl } : undefined,
+    robots: {
+      index: !settings.seoDefaultNoIndex,
+      follow: !settings.seoDefaultNoFollow,
+    },
+    ...(facebookDomainVerification
+      ? {
+          other: {
+            "facebook-domain-verification": facebookDomainVerification,
+          },
+        }
+      : {}),
     openGraph: {
       type: "website",
-      title: brand,
-      description,
-      url: siteConfig.url,
+      title: ogTitle,
+      description: ogDescription,
+      url: origin,
       siteName: brand,
       images: image,
     },
     twitter: {
-      card: "summary_large_image",
-      title: brand,
-      description,
+      card:
+        settings.ogImageUrl && settings.seoTwitterCard !== "summary"
+          ? "summary_large_image"
+          : "summary",
+      title: ogTitle,
+      description: ogDescription,
       images: settings.ogImageUrl ? [settings.ogImageUrl] : undefined,
     },
   };

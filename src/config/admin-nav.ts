@@ -1,5 +1,5 @@
 import {
-  Plug,
+  Plug, Search,
   Award, BarChart3, Briefcase, FolderTree, Gift, Image as ImageIcon, LayoutDashboard, Mail, Megaphone,
   MessageCircleQuestion, MessageSquareText, Package, ShoppingBasket, Receipt, Settings, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Ticket,
   Truck, UserCog, Users, Wallet, Warehouse, type LucideIcon,
@@ -71,6 +71,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     ],
   },
   { id: "settings", label: "Settings", items: [{ href: "/admin/settings", label: "Store settings", icon: Settings },
+      { href: "/admin/seo", label: "SEO", icon: Search },
       { href: "/admin/integrations", label: "Integrations", icon: Plug }] },
 ];
 

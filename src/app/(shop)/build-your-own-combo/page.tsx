@@ -35,7 +35,7 @@ export default async function BuildYourOwnComboPage() {
         <p className="py-16 text-center text-muted-foreground">Custom combos are not available right now. Please check back soon.</p>
       ) : (
         details.map((d) => (
-          <section key={d!.product.id} aria-labelledby={`c-${d!.product.id}`} className="space-y-4 rounded-xl border border-border/70 bg-card p-5 sm:p-8">
+          <section key={d!.product.id} aria-labelledby={`c-${d!.product.id}`} className="space-y-4 rounded-[4px] border border-border/70 bg-card p-5 sm:p-8">
             <h2 id={`c-${d!.product.id}`} className="font-heading text-2xl">{d!.product.name}</h2>
             <ComboBuilder product={d!.product} />
           </section>

@@ -227,7 +227,7 @@ export class FakeDb {
     const names = new Set<string>([
       ...Object.keys(RELATIONS),
       ...Object.values(RELATIONS).flatMap((r) => Object.values(r).map((x) => x.target)),
-      "user", "address", "category", "orderTrackingEvent", "storeSettings", "wishlist", "wishlistItem", "coupon", "review", "stockAdjustment", "banner", "customerReward", "financialIncident", "payment", "marketplaceSettlement", "adminAuditEvent", "procurementReceipt", "productImage", "orderItemComponent", "notification", "courierCodEntry", "slugRedirect",
+      "user", "address", "category", "orderTrackingEvent", "storeSettings", "wishlist", "wishlistItem", "coupon", "review", "stockAdjustment", "banner", "customerReward", "financialIncident", "payment", "marketplaceSettlement", "adminAuditEvent", "procurementReceipt", "productImage", "orderItemComponent", "notification", "courierCodEntry", "slugRedirect", "pageSeo", "staticPage", "redirect",
     ]);
     for (const n of names) {
       this.tables[n] = [];
@@ -412,7 +412,13 @@ export class FakeDb {
           const vals = rows.map((r) => r[field]).filter((v) => v !== null && v !== undefined);
           sums[field] = vals.length === 0 ? null : vals.reduce((t: number, v: unknown) => t + Number(v), 0);
         }
-        return { _sum: sums };
+        // `_max` (used by the sitemap's lastModified): the latest value per field, or null when there are no rows.
+        const maxes: Row = {};
+        for (const field of Object.keys(a._max ?? {})) {
+          const vals = rows.map((r) => r[field]).filter((v) => v !== null && v !== undefined) as (Date | number | string)[];
+          maxes[field] = vals.length === 0 ? null : vals.reduce((m, v) => (new Date(v as string).getTime() > new Date(m as string).getTime() ? v : m));
+        }
+        return { _sum: sums, _max: maxes };
       },
       async count(a: Row = {}) {
         await y();

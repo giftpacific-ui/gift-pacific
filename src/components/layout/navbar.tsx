@@ -117,7 +117,7 @@ export async function Navbar() {
           )}
           <Link href="/boxes" className={linkClass}>Our Boxes</Link>
           <Link href="/build-your-own-combo" className={linkClass}>Build your combo</Link>
-          <Link href="/about-us" className={`${linkClass} hidden xl:inline-block`}>Our story</Link>
+          <Link href="/about-us" className={`${linkClass} hidden xl:inline-block`}>About us</Link>
           <Link href="/contact" className={`${linkClass} hidden xl:inline-block`}>Contact</Link>
         </nav>
 

@@ -41,9 +41,9 @@ export function Hero({
       ? slides
       : [
           {
-            title: "Gifts shaped by hand, given from the heart",
+            title: "Thoughtful gifts for every occasion",
             subtitle:
-              "Discover our exclusive handmade collection curated for your special moments.",
+              "Curated gifts, gift boxes, and custom combos for your special moments.",
             ctaLabel: "Shop Collection",
             ctaHref: "/shop",
             imageUrl: null,
@@ -130,7 +130,7 @@ export function Hero({
 
           {/* Right Image / Showcase Area */}
           <div className="relative flex justify-center lg:justify-end order-1 lg:order-2">
-            <div className="relative w-full max-w-[500px] aspect-[4/3] sm:aspect-[16/10] lg:aspect-square rounded-3xl overflow-hidden shadow-xl bg-muted border border-border/50">
+            <div className="relative w-full max-w-[500px] aspect-[4/3] sm:aspect-[16/10] lg:aspect-square rounded-[4px] overflow-hidden shadow-md bg-muted border border-border/50">
               {currentSlide.imageUrl ? (
                 <Image
                   src={currentSlide.imageUrl}

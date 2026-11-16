@@ -79,6 +79,8 @@ model Category {
   metaKeywords            String[]   @default([])
   // Phase 5: admin can keep a category out of search engines (it stays reachable and out of the sitemap).
   seoNoIndex              Boolean    @default(false)
+  seoImage                String?
+  seoCanonicalUrl         String?
   image                   String?
   imageCloudinaryPublicId String?
   isActive                Boolean    @default(true)
@@ -166,6 +168,7 @@ model Product {
   // Phase 5: image used for social sharing / search previews (falls back to the main product image) and an index switch.
   seoImage            String?
   seoNoIndex          Boolean                     @default(false)
+  seoCanonicalUrl     String?
   createdAt           DateTime                    @default(now())
   updatedAt           DateTime                    @updatedAt
   cartItems           CartItem[]
@@ -612,6 +615,17 @@ model StoreSettings {
   advancePolicyUpdatedAt     DateTime?
   advancePolicyUpdatedById   String?
   ogImageUrl                 String?
+  // P2 (SEO management). All optional/defaulted: existing rows behave exactly as before.
+  seoDefaultTitle            String?
+  seoOgTitle                 String?
+  seoOgDescription           String?
+  seoTwitterCard             String      @default("summary_large_image")
+  seoCanonicalBaseUrl        String?
+  seoDefaultNoIndex          Boolean     @default(false)
+  seoDefaultNoFollow         Boolean     @default(false)
+  seoRobotsExtra             String?
+  seoOrgSchemaEnabled        Boolean     @default(true)
+  seoWebsiteSchemaEnabled    Boolean     @default(true)
 }
 
 model Banner {
@@ -676,6 +690,9 @@ model Box {
   seoTitle          String?
   seoDescription    String?
   seoKeywords       String[] @default([])
+  seoImage          String?
+  seoNoIndex        Boolean  @default(false)
+  seoCanonicalUrl   String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   product           Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
@@ -1578,4 +1595,67 @@ model GatewayRefund {
   transaction           GatewayTransaction  @relation(fields: [transactionId], references: [id], onDelete: Restrict)
 
   @@index([transactionId])
+}
+
+// ---------------------------------------------------------------------------
+// P2: admin-controlled SEO + static page CMS + redirect manager (additive tables)
+// ---------------------------------------------------------------------------
+
+/// SEO overrides for a built-in public route, keyed by a stable system key (see lib/seo-pages.ts SYSTEM_PAGES).
+/// Every column is optional: a missing value falls back to the route's own default, then to the global SEO settings.
+model PageSeo {
+  id               String   @id @default(cuid())
+  key              String   @unique
+  title            String?
+  description      String?
+  keywords         String[] @default([])
+  canonicalUrl     String?
+  ogTitle          String?
+  ogDescription    String?
+  ogImage          String?
+  noIndex          Boolean  @default(false)
+  noFollow         Boolean  @default(false)
+  robotsDirectives String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// Admin-managed page. Normal pages are served at /pages/<slug>. A row with `systemKey` (about-us, privacy, terms,
+/// shipping-returns) replaces the built-in content of that existing route once it is published; until then (or when
+/// unpublished) the built-in content keeps rendering, so no existing page is ever lost. `content` is sanitized HTML.
+model StaticPage {
+  id               String    @id @default(cuid())
+  slug             String    @unique
+  systemKey        String?   @unique
+  title            String
+  content          String    @default("")
+  isPublished      Boolean   @default(false)
+  publishedAt      DateTime?
+  sortOrder        Int       @default(0)
+  showInFooter     Boolean   @default(false)
+  seoTitle         String?
+  seoDescription   String?
+  seoKeywords      String[]  @default([])
+  canonicalUrl     String?
+  ogImage          String?
+  noIndex          Boolean   @default(false)
+  noFollow         Boolean   @default(false)
+  robotsDirectives String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([isPublished, sortOrder])
+}
+
+/// Admin-managed path redirect (separate from SlugRedirect, which tracks renamed product/category slugs).
+model Redirect {
+  id         String   @id @default(cuid())
+  fromPath   String   @unique
+  toPath     String
+  statusCode Int      @default(301)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([isActive])
 }

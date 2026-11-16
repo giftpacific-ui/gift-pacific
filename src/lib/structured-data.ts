@@ -26,7 +26,8 @@ function httpOnly(url: string | null | undefined): string | undefined {
   }
 }
 
-export function organizationJsonLd(s: OrgSettings): Json {
+/** `origin` is the admin-configured canonical origin (defaults to the env site URL). */
+export function organizationJsonLd(s: OrgSettings, origin: string = siteOrigin()): Json {
   const sameAs = [s.facebookUrl, s.instagramUrl, s.tiktokUrl].map(httpOnly).filter((u): u is string => !!u);
   const logo = safeImageUrl(s.logoUrl) ?? safeImageUrl(siteConfig.logoUrl);
   const contact =
@@ -44,9 +45,9 @@ export function organizationJsonLd(s: OrgSettings): Json {
   return {
     "@context": "https://schema.org",
     "@type": "Organization",
-    "@id": `${siteOrigin()}/#organization`,
+    "@id": `${origin}/#organization`,
     name: s.storeName || siteConfig.name,
-    url: siteOrigin(),
+    url: origin,
     ...(logo ? { logo } : {}),
     ...(contact ? { contactPoint: contact } : {}),
     ...(s.storeAddress ? { address: { "@type": "PostalAddress", streetAddress: s.storeAddress, addressCountry: "BD" } } : {}),
@@ -55,17 +56,17 @@ export function organizationJsonLd(s: OrgSettings): Json {
 }
 
 /** Storefront search is `/search?q=…` (a GET form), so the SearchAction below is accurate. */
-export function websiteJsonLd(name: string): Json {
+export function websiteJsonLd(name: string, origin: string = siteOrigin()): Json {
   return {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "@id": `${siteOrigin()}/#website`,
+    "@id": `${origin}/#website`,
     name,
-    url: siteOrigin(),
-    publisher: { "@id": `${siteOrigin()}/#organization` },
+    url: origin,
+    publisher: { "@id": `${origin}/#organization` },
     potentialAction: {
       "@type": "SearchAction",
-      target: { "@type": "EntryPoint", urlTemplate: `${siteOrigin()}/search?q={search_term_string}` },
+      target: { "@type": "EntryPoint", urlTemplate: `${origin}/search?q={search_term_string}` },
       "query-input": "required name=search_term_string",
     },
   };
@@ -73,15 +74,32 @@ export function websiteJsonLd(name: string): Json {
 
 export type Crumb = { name: string; path: string };
 
-export function breadcrumbJsonLd(crumbs: Crumb[]): Json {
+export function breadcrumbJsonLd(crumbs: Crumb[], origin: string = siteOrigin()): Json {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
-    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: absoluteUrl(c.path) })),
+    itemListElement: crumbs.map((c, i) => ({ "@type": "ListItem", position: i + 1, name: c.name, item: absoluteUrl(c.path, origin) })),
+  };
+}
+
+/** Plain CMS page (About, policies, custom pages). Only real stored values; dates come from the database. */
+export function webPageJsonLd(i: { name: string; description?: string | null; path: string; datePublished?: Date | null; dateModified?: Date | null; origin?: string }): Json {
+  const origin = i.origin ?? siteOrigin();
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: i.name,
+    url: absoluteUrl(i.path, origin),
+    ...(i.description ? { description: clampText(i.description, 300) } : {}),
+    ...(i.datePublished ? { datePublished: i.datePublished.toISOString() } : {}),
+    ...(i.dateModified ? { dateModified: i.dateModified.toISOString() } : {}),
+    isPartOf: { "@id": `${origin}/#website` },
   };
 }
 
 export type ProductLd = {
+  /** Admin-configured canonical origin (defaults to the env site URL when omitted). */
+  origin?: string;
   name: string;
   description: string;
   path: string;
@@ -101,7 +119,7 @@ export type ProductLd = {
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
 
 export function productJsonLd(p: ProductLd): Json {
-  const url = absoluteUrl(p.path);
+  const url = absoluteUrl(p.path, p.origin);
   const images = p.images.map(safeImageUrl).filter((u): u is string => !!u);
   const multi = p.highPrice != null && p.highPrice > p.price;
   const offers: Json = multi
@@ -147,18 +165,18 @@ export function productJsonLd(p: ProductLd): Json {
 }
 
 /** For category / campaign listings. The ItemList mirrors products actually shown on the page. */
-export function collectionPageJsonLd(i: { name: string; description?: string | null; path: string; items?: { name: string; path: string }[] }): Json {
+export function collectionPageJsonLd(i: { name: string; description?: string | null; path: string; items?: { name: string; path: string }[]; origin?: string }): Json {
   return {
     "@context": "https://schema.org",
     "@type": "CollectionPage",
     name: i.name,
-    url: absoluteUrl(i.path),
+    url: absoluteUrl(i.path, i.origin),
     ...(i.description ? { description: clampText(i.description, 300) } : {}),
     ...(i.items && i.items.length > 0
       ? {
           mainEntity: {
             "@type": "ItemList",
-            itemListElement: i.items.map((it, n) => ({ "@type": "ListItem", position: n + 1, url: absoluteUrl(it.path), name: it.name })),
+            itemListElement: i.items.map((it, n) => ({ "@type": "ListItem", position: n + 1, url: absoluteUrl(it.path, i.origin), name: it.name })),
           },
         }
       : {}),

@@ -1,0 +1,43 @@
+import { launch, newPage, BASE, adminCookie } from "./lib.mjs";
+import { startSdkMock, installBrowserMock } from "./mock-cloudinary.mjs";
+import { execSync } from "node:child_process"; import fs from "node:fs";
+const sql = (q) => { fs.writeFileSync("/tmp/q.sql", q); return execSync(`su postgres -c "psql -h /tmp -p 5544 -d gp_e2e -At -f /tmp/q.sql"`, { stdio: ["ignore", "pipe", "pipe"] }).toString().trim(); };
+const res = []; const T = (n, ok, x = "") => { res.push(ok); console.log((ok ? "PASS " : "FAIL ") + n + (x ? "  [" + String(x).slice(0, 170) + "]" : "")); };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const sdk = await startSdkMock(); const b = await launch(); const { page } = await newPage(b, { width: 1366, height: 900, cookies: adminCookie() });
+await page.evaluateOnNewDocument(() => { window.__cld = []; const of = window.fetch; window.fetch = function (input, init) { try { const url = typeof input === "string" ? input : input.url; if (url.includes("api.cloudinary.com") && init && init.body instanceof FormData) { const f = init.body.get("file"); const fields = {}; for (const [k, v] of init.body.entries()) if (typeof v === "string") fields[k] = v; window.__cld.push({ fileSize: f && f.size, fileIsBlob: f instanceof Blob, fields }); } } catch {} return of.apply(this, arguments); }; });
+const mockLog = []; installBrowserMock(page, { limitBytes: null, log: mockLog, format: "png", page });
+const settle = () => page.waitForNetworkIdle({ idleTime: 900, timeout: 30000 }).catch(() => {});
+const toasts = () => page.$$eval("[role=status],[aria-live],[data-sonner-toast]", (els) => els.map((e) => e.textContent.trim()).filter(Boolean).join(" | "));
+const typeIn = async (sel, v) => { const ok = await page.evaluate((sel, v) => { const el = [...document.querySelectorAll(sel)].find((e) => e.offsetParent !== null) || document.querySelector(sel); if (!el) return false; el.scrollIntoView({ block: "center", behavior: "instant" }); const proto = el.tagName === "TEXTAREA" ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; Object.getOwnPropertyDescriptor(proto, "value").set.call(el, v); el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); return true; }, sel, v); if (!ok) console.log("   (field not found: " + sel + ")"); };
+sql(`delete from "Product" where slug='e2e-new-product'`);
+await page.goto(BASE + "/admin/products/new", { waitUntil: "networkidle0", timeout: 60000 });
+await typeIn('input[name="name"]', "E2E New Product"); await typeIn('input[name="price"]', "999"); await typeIn('input[name="stock"]', "25");
+await typeIn('[name="shortDescription"]', "A short description for the E2E product.");
+const ce = await page.$('[contenteditable="true"]'); if (ce) { await ce.evaluate((e) => e.scrollIntoView({ block: "center", behavior: "instant" })); await ce.focus(); await page.keyboard.type("A full description of the E2E product, long enough to pass validation."); }
+const files = await page.$$("input[type=file]"); T("product form has a single-image (thumbnail) uploader and a multi-image gallery uploader", files.length === 2 && await files[1].evaluate((e) => e.multiple));
+await page.evaluate(() => { window.__cld.length = 0; });
+await files[1].uploadFile("/tmp/e2efiles/small.png", "/tmp/e2efiles/photo.jpg", "/tmp/e2efiles/photo.webp");
+await sleep(5000); await settle();
+const calls = await page.evaluate(() => window.__cld.slice());
+T("multi-select of 3 files (PNG, JPEG, WebP) → 3 direct Cloudinary uploads, each a Blob of the exact file size", calls.length === 3 && calls.every((c) => c.fileIsBlob) && JSON.stringify(calls.map((c) => c.fileSize).sort()) === JSON.stringify([4012, 83779, 200004].sort()), calls.map((c) => c.fileSize).join(","));
+T("every gallery upload used the signed 'giftpacific/products' folder", calls.every((c) => c.fields.folder === "giftpacific/products" && c.fields.allowed_formats === "jpg,png,webp"), calls.map((c) => c.fields.folder).join(","));
+const previews = await page.$$eval("img", (imgs) => imgs.map((i) => i.currentSrc || i.src).filter((s) => s.includes("res.cloudinary.com") && s.includes("giftpacific")));
+T("3 gallery previews are shown", new Set(previews).size >= 3, `${new Set(previews).size} distinct previews`);
+const btns = await page.$$eval("button", (bs) => bs.map((b) => (b.textContent || "").trim()).filter((t) => /create|save|publish/i.test(t)));
+console.log("   save-like buttons:", JSON.stringify(btns));
+const posts = []; page.on("response", async (r) => { if (r.request().method() === "POST" && r.url().startsWith(BASE)) { let tx = ""; try { tx = (await r.text()).replace(/\s+/g, " "); } catch {} posts.push(r.status() + " " + (tx.match(/"(message|error|success)":[^,}]{0,150}/g) || [tx.slice(0, 100)]).join(" ")); } });
+console.log('   field values before publish:', JSON.stringify(await page.$$eval('input[name],textarea[name],select[name]', (els) => Object.fromEntries(els.filter((e) => ['name','price','compareAtPrice','costPrice','stock','sku','shortDescription'].includes(e.name)).map((e) => [e.name, e.value])))));
+const pubs = []; for (const h of await page.$$("button")) { const t = await h.evaluate((e) => (e.textContent || "").trim()); if (/^Publish Product/i.test(t)) pubs.push(h); }
+console.log("   publish buttons:", pubs.length); await pubs[pubs.length - 1].evaluate((e) => { e.scrollIntoView({ block: "center", behavior: "instant" }); e.click(); }); await sleep(3000); await settle(); console.log("   action POSTs:", JSON.stringify(posts));
+await sleep(3500); await settle(); const t = await toasts();
+console.log("   after save: url=" + page.url().replace(BASE, "") + " toasts=" + t.slice(0, 160));
+console.log("   validation text:", JSON.stringify(await page.evaluate(() => [...document.querySelectorAll("[role=alert],.text-destructive,.text-red-600,[aria-invalid=true]")].map((e) => (e.getAttribute("name") || e.textContent || "").trim().slice(0, 70)).filter(Boolean).slice(0, 8))));
+console.log("   required-looking empty fields:", JSON.stringify(await page.$$eval("input[required],select[required],textarea[required],[aria-required=true]", (els) => els.filter((e) => !e.value).map((e) => e.name || e.getAttribute("aria-label") || e.id).slice(0, 8))));
+const row = sql(`select p.slug||'|'||p.price||'|'||p.stock||'|'||(select count(*) from "ProductImage" i where i."productId"=p.id) from "Product" p where p.name='E2E New Product'`);
+console.log("   db row:", row || "(none)");
+T("product saved with price/stock and 3 gallery images persisted", /\|999(\.00)?\|25\|3$/.test(row), row);
+if (row) { const imgs = sql(`select "cloudinaryPublicId"||' '||url from "ProductImage" where "productId"=(select id from "Product" where name='E2E New Product') order by "sortOrder"`); T("gallery rows store Cloudinary url + public id under giftpacific/products/", imgs.split("\n").every((l) => /^giftpacific\/products\/.+ https:\/\/res\.cloudinary\.com\/demo\/image\/upload\/v1\/giftpacific\/products\//.test(l)), imgs.split("\n")[0]?.slice(0, 110)); }
+console.log(`SUMMARY product: ${res.filter(Boolean).length}/${res.length} passed`);
+sql(`delete from "Product" where name='E2E New Product'`);
+await b.close(); sdk.server.close(); process.exit(0);

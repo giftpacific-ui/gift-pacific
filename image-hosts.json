@@ -1,0 +1,13 @@
+{
+  "_comment": "Hosts the built-in /_next/image optimizer may fetch. Single source of truth: next.config.ts builds images.remotePatterns from this list and src/lib/cloudinary/image-loader.ts uses it to decide which https images are handed to the optimizer versus straight to the browser. Kept outside src/ on purpose (the storefront guard forbids stock/placeholder host names inside src). '*.' matches exactly one DNS label.",
+  "hosts": [
+    "picsum.photos",
+    "fastly.picsum.photos",
+    "res.cloudinary.com",
+    "*.supabase.co",
+    "images.unsplash.com",
+    "img.youtube.com",
+    "i.ytimg.com",
+    "*.fbcdn.net"
+  ]
+}

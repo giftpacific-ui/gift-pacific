@@ -56,7 +56,7 @@ export function MobileNav({ logoUrl, storeName, categories, campaignName, isSign
           ))}
           <Link href="/boxes" onClick={close} className={bigLink}>Our Boxes</Link>
           <Link href="/build-your-own-combo" onClick={close} className={bigLink}>Build your combo</Link>
-          <Link href="/about-us" onClick={close} className={bigLink}>Our story</Link>
+          <Link href="/about-us" onClick={close} className={bigLink}>About us</Link>
           <Link href="/contact" onClick={close} className={bigLink}>Contact</Link>
 
           <div className="mt-8 grid gap-1 border-t border-border pt-5">

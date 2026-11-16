@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import imageHosts from "./image-hosts.json";
 
 /**
  * Baseline response headers for every route (Phase "emergency release").
@@ -16,6 +17,12 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Don't advertise the framework ("X-Powered-By: Next.js"): no functional effect, slightly less fingerprinting.
+  poweredByHeader: false,
+  async rewrites() {
+    // /sitemap.xml is what robots.txt advertises; see src/app/sitemap-index/route.ts.
+    return { beforeFiles: [{ source: "/sitemap.xml", destination: "/sitemap-index" }], afterFiles: [], fallback: [] };
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
@@ -25,22 +32,8 @@ const nextConfig: NextConfig = {
     // "custom" would switch OFF the built-in /_next/image optimizer for all non-Cloudinary images.
     // See lib/cloudinary/image-loader.ts.
     loaderFile: "./src/lib/cloudinary/image-loader.ts",
-    remotePatterns: [
-      // Seed data uses placeholder images from picsum.photos.
-      { protocol: "https", hostname: "picsum.photos" },
-      { protocol: "https", hostname: "fastly.picsum.photos" },
-      // Common hosting targets for real product photography.
-      { protocol: "https", hostname: "res.cloudinary.com" },
-      { protocol: "https", hostname: "*.supabase.co" },
-      { protocol: "https", hostname: "images.unsplash.com" },
-      // YouTube image & thumbnail domains
-      { protocol: "https", hostname: "img.youtube.com" },
-      { protocol: "https", hostname: "i.ytimg.com" },
-      {
-        protocol: "https",
-        hostname: "*.fbcdn.net",
-      },
-    ],
+    // Allow-list lives in image-hosts.json (shared with src/lib/cloudinary/image-loader.ts). All entries are https.
+    remotePatterns: imageHosts.hosts.map((hostname) => ({ protocol: "https" as const, hostname })),
   },
 };
 

@@ -4,13 +4,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, permanentRedirect } from "next/navigation";
 import { categoryPath, firstText, noIndexMetadata } from "@/lib/seo";
-import { pageMetadata } from "@/server/services/seo.service";
+import { pageMetadata, getCanonicalOrigin } from "@/server/services/seo.service";
 import { resolveCategoryRedirect } from "@/server/services/slug-redirect.service";
 import { breadcrumbJsonLd, collectionPageJsonLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/json-ld";
 import { keywordsForMetadata } from "@/lib/seo-keywords";
 import { shopSeo } from "@/lib/seo-shop";
-import { siteConfig } from "@/config/site";
 import {
   getFilterableAttributes,
   resolveAttributeWhere,
@@ -50,7 +49,7 @@ export async function generateMetadata({
   // Canonical + index rules (pure, shared): filters/sort/search are noindex and point at the clean listing; real
   // pagination keeps its own canonical (?page=N) instead of collapsing onto page one.
   const seo = shopSeo({
-    siteUrl: siteConfig.url,
+    siteUrl: await getCanonicalOrigin(),
     path: match ? [match.slug] : [],
     query,
     categoryFound: true,
@@ -72,12 +71,26 @@ export async function generateMetadata({
     image: match?.image,
     imageAlt: match?.name,
     keywords: keywordsForMetadata(match?.metaKeywords),
-    noindex: !seo.robots.index || !!match?.seoNoIndex,
+    noindex: !seo.robots.index,
+  }, {
+    systemKey: match ? "category" : "shop",
+    // Category SEO fields; for "/shop" itself the Page SEO row with key "shop" applies.
+    override: match
+      ? { title: customTitle, description: firstText(match.metaDescription), ogImage: match.seoImage, canonicalUrl: match.seoCanonicalUrl, noIndex: match.seoNoIndex }
+      : undefined,
   });
+  // Clean category/shop URL → keep the canonical built by pageMetadata (it honours an admin canonical override).
+  // Filtered / sorted / searched / paginated variants always canonicalise to the clean listing via the shared rules.
+  const ownPath = match ? categoryPath(match.slug) : "/shop";
+  const canonicalUrl = new URL(seo.canonical);
+  const isCleanListing = canonicalUrl.pathname.replace(/\/+$/, "") === ownPath && !canonicalUrl.search;
+  if (isCleanListing) return base;
+  // Variant → clean listing (or "?page=N"), expressed on the configured canonical origin.
+  const canonical = `${await getCanonicalOrigin()}${canonicalUrl.pathname}${canonicalUrl.search}`;
   return {
     ...base,
-    alternates: { canonical: seo.canonical },
-    openGraph: { ...base.openGraph, url: seo.canonical },
+    alternates: { canonical },
+    openGraph: { ...base.openGraph, url: canonical },
   };
 }
 
@@ -208,6 +221,7 @@ export default async function ShopPage({
   );
 
   const listTitle = activeCategory?.name ?? "Shop all gifts";
+  const origin = await getCanonicalOrigin();
   const structuredData = [
     breadcrumbJsonLd([
       { name: "Home", path: "/" },
@@ -220,11 +234,12 @@ export default async function ShopPage({
             },
           ]
         : []),
-    ]),
+    ], origin),
     // Only the clean, unfiltered listing is described as a collection.
     ...(Object.keys(sp).every((k) => k === "page")
       ? [
           collectionPageJsonLd({
+            origin,
             name: listTitle,
             description:
               firstText(

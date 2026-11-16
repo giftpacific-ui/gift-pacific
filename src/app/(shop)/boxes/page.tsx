@@ -17,7 +17,7 @@ export default async function BoxesPage() {
     <div className="container-boutique space-y-10 px-4 py-16 sm:px-6">
       <header className="mx-auto max-w-2xl space-y-3 text-center">
         <h1 className="font-heading text-[clamp(2rem,4.5vw,3.2rem)] font-semibold">Our Boxes</h1>
-        <p className="text-sm text-muted-foreground">Choose a box for your handmade gifts, or{" "}
+        <p className="text-sm text-muted-foreground">Choose a gift box, or{" "}
           <Link href="/build-your-own-combo" className="underline underline-offset-4">build your own combo</Link>.</p>
       </header>
       {boxes.length === 0 ? (
@@ -25,7 +25,7 @@ export default async function BoxesPage() {
       ) : (
         <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {boxes.map((b) => (
-            <li key={b.id} className="overflow-hidden rounded-xl border border-border/70 bg-card">
+            <li key={b.id} className="overflow-hidden rounded-[4px] border border-border/70 bg-card">
               <Link href={`/boxes/${b.slug}`} className="block">
                 <div className="relative aspect-[4/3] bg-secondary">
                   {b.imageUrl && <Image src={b.imageUrl} alt={b.name} fill sizes="(min-width:1024px) 33vw, (min-width:640px) 50vw, 100vw" className="object-cover" />}

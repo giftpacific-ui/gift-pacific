@@ -2,7 +2,8 @@ import { schemaAvailability } from "@/lib/seo-availability";
 import { keywordsForMetadata } from "@/lib/seo-keywords";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
-import { buildPageMetadata, firstText, noIndexMetadata, productPath, categoryPath, clampText } from "@/lib/seo";
+import { pageMetadata, getCanonicalOrigin } from "@/server/services/seo.service";
+import { firstText, noIndexMetadata, productPath, categoryPath, clampText } from "@/lib/seo";
 import { breadcrumbJsonLd, productJsonLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/json-ld";
 import { resolveProductRedirect } from "@/server/services/slug-redirect.service";
@@ -50,18 +51,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { product } = data;
   const customTitle = firstText(seo?.metaTitle);
   const main = product.images[0];
-  return buildPageMetadata({
-    title: customTitle || product.name,
-    titleIsCustom: !!customTitle,
-    // Fallback order: SEO description → short description → start of the full description.
-    description: firstText(seo?.metaDescription, product.shortDescription, product.description),
-    path: productPath(product.slug),
-    image: seo?.seoImage || main?.url,
-    imageAlt: main?.altText || product.name,
-    keywords: keywordsForMetadata(seo?.metaKeywords),
-    // Admin switch, and a box's hidden backing product (its public page is /boxes/<slug>).
-    noindex: !!seo?.seoNoIndex || !!seo?.isBoxProduct,
-  });
+  return pageMetadata(
+    {
+      title: customTitle || product.name,
+      titleIsCustom: !!customTitle,
+      // Fallback order: SEO description → short description → start of the full description (real product data only).
+      description: firstText(product.shortDescription, product.description),
+      path: productPath(product.slug),
+      image: main?.url,
+      imageAlt: main?.altText || product.name,
+      keywords: keywordsForMetadata(seo?.metaKeywords),
+      // A box's hidden backing product is never indexed (its public page is /boxes/<slug>).
+      noindex: !!seo?.isBoxProduct,
+    },
+    {
+      override: {
+        title: customTitle,
+        description: firstText(seo?.metaDescription),
+        ogImage: seo?.seoImage,
+        canonicalUrl: seo?.seoCanonicalUrl,
+        noIndex: !!seo?.seoNoIndex,
+      },
+    },
+  );
 }
 
 export default async function ProductDetailPage({ params }: Props) {
@@ -94,8 +106,11 @@ export default async function ProductDetailPage({ params }: Props) {
       : null;
 
   const variantPrices = product.variants.map((v) => v.price);
+  // Same origin as the canonical tag / Open Graph URL (Admin → SEO → Global settings), never the env value on its own.
+  const origin = await getCanonicalOrigin();
   const structuredData = [
     productJsonLd({
+      origin,
       name: product.name,
       description: clampText(firstText(product.shortDescription, product.description), 500),
       path: productPath(product.slug),
@@ -117,7 +132,7 @@ export default async function ProductDetailPage({ params }: Props) {
       { name: "Shop", path: "/shop" },
       ...breadcrumb.map((c) => ({ name: c.name, path: categoryPath(c.slug) })),
       { name: product.name, path: productPath(product.slug) },
-    ]),
+    ], origin),
   ];
 
   const embedVideoUrl = getYouTubeGalleryEmbedUrl(product.videoUrl);

@@ -2,20 +2,20 @@ import { Banknote, Gift, Heart, Package } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { siteConfig } from "@/config/site";
 
-// Every statement here must be true of THIS store as built: brand copy from
-// the About page, plus the one payment method that actually exists.
+// Every statement here must be true of THIS store as built: general gifting
+// copy plus the one payment method that actually exists.
 const reasons = [
   {
     icon: Heart,
-    title: "Handmade with care",
+    title: "A gift for every occasion",
     description:
-      "Every piece is shaped, glazed, and finished by hand in small batches.",
+      "Browse gifts, boxes, and combos for birthdays, anniversaries, and everyday moments.",
   },
   {
     icon: Gift,
-    title: "Made to be personal",
+    title: "Personalize selected gifts",
     description:
-      "Add names, dates, and messages to turn a piece into a keepsake.",
+      "Where a product offers it, add names, dates, or messages to make it your own.",
   },
   {
     icon: Banknote,

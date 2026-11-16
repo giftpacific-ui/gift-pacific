@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
 import { isSafeImageUrl } from "@/lib/url-safety";
 import { stripHtml } from "@/lib/utils";
+import { buildRobotsMeta, joinOrigin, normalizeCanonicalOverride } from "@/lib/seo-rules";
 
 /**
  * The ONE place public-page metadata is assembled. Pages pass plain data; this file decides the title shape,
@@ -17,11 +18,11 @@ export function siteOrigin(): string {
 }
 
 /** Absolute URL on the configured production origin. Always a path: never an arbitrary external address. */
-export function absoluteUrl(path = "/"): string {
+export function absoluteUrl(path = "/", origin: string = siteOrigin()): string {
   const clean = path.startsWith("/") ? path : `/${path}`;
   // No trailing slash except the root, so one page never has two canonical spellings.
   const trimmed = clean.length > 1 ? clean.replace(/\/+$/, "") : clean;
-  return `${siteOrigin()}${trimmed === "/" ? "" : trimmed}` || siteOrigin();
+  return `${origin}${trimmed === "/" ? "" : trimmed}` || origin;
 }
 
 /** Collapses whitespace and cuts at a word boundary, adding an ellipsis only when something was removed. */
@@ -77,6 +78,16 @@ export type PageSeo = {
   /** When the admin typed the title, keep it exactly (only the site-name suffix logic applies). */
   titleIsCustom?: boolean;
   openGraphType?: "website" | "article";
+  /** P2 admin overrides (all optional; see lib/seo-rules.ts for validation and precedence). */
+  /** Canonical origin from Admin → SEO → Global settings; defaults to the env-configured site URL. */
+  origin?: string;
+  /** Validated on render: only a same-site path/URL is honoured, otherwise the page's own URL is used. */
+  canonicalOverride?: string | null;
+  ogTitle?: string | null;
+  ogDescription?: string | null;
+  twitterCard?: "summary" | "summary_large_image";
+  nofollow?: boolean;
+  robotsDirectives?: string | null;
 };
 
 function titleFor(seo: PageSeo): Metadata["title"] {
@@ -93,28 +104,33 @@ function titleText(seo: PageSeo): string {
 }
 
 export function buildPageMetadata(seo: PageSeo): Metadata {
-  const canonical = absoluteUrl(seo.path);
+  const origin = seo.origin ?? siteOrigin();
+  const override = seo.canonicalOverride ? normalizeCanonicalOverride(seo.canonicalOverride, origin) : null;
+  const canonical = override?.ok && override.value ? override.value : joinOrigin(origin, seo.path);
   const description = clampText(seo.description || siteConfig.description, DESCRIPTION_MAX) || undefined;
   const image = socialImageUrl(seo.image);
-  const ogTitle = titleText(seo);
+  const ogTitle = seo.ogTitle?.trim() || titleText(seo);
+  const ogDescription = clampText(seo.ogDescription || "", DESCRIPTION_MAX) || description;
   return {
     title: titleFor(seo),
     description,
     keywords: seo.keywords && seo.keywords.length > 0 ? seo.keywords : undefined,
     alternates: { canonical },
-    robots: seo.noindex ? { index: false, follow: true } : { index: true, follow: true },
+    // Default stays "noindex, follow" for a hidden page; an admin can additionally set nofollow and safe directives.
+    robots: buildRobotsMeta({ noindex: seo.noindex, nofollow: seo.nofollow, directives: seo.robotsDirectives }),
     openGraph: {
       type: seo.openGraphType ?? "website",
       title: ogTitle,
-      description,
+      description: ogDescription,
       url: canonical,
       siteName: siteConfig.name,
       images: image ? [{ url: image, alt: seo.imageAlt || seo.title }] : undefined,
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      // A large card needs an image; without one the card type falls back to "summary" whatever the setting says.
+      card: image ? (seo.twitterCard ?? "summary_large_image") : "summary",
       title: ogTitle,
-      description,
+      description: ogDescription,
       images: image ? [image] : undefined,
     },
   };

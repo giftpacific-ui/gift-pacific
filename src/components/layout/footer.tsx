@@ -3,6 +3,7 @@ import { getStoreSettings } from "@/server/services/admin-settings.service";
 import { getCategoryTree } from "@/server/services/product.service";
 import { getActiveCampaign } from "@/server/services/campaign.service";
 import { siteConfig } from "@/config/site";
+import { getFooterPages } from "@/server/services/static-page.service";
 import { isSafeHttpUrl } from "@/lib/url-safety";
 
 const colHeading = "mb-4 font-heading text-lg font-semibold";
@@ -15,7 +16,7 @@ const footLink = "text-[0.95rem] text-secondary transition-colors hover:text-pri
  * form (there is no subscription backend, so it would only pretend).
  */
 export async function Footer() {
-  const [settings, categories, campaign] = await Promise.all([getStoreSettings(), getCategoryTree(), getActiveCampaign()]);
+  const [settings, categories, campaign, cmsPages] = await Promise.all([getStoreSettings(), getCategoryTree(), getActiveCampaign(), getFooterPages()]);
   const storeName = settings?.storeName || siteConfig.name;
 
   const socials = [
@@ -73,10 +74,13 @@ export async function Footer() {
             <ul className="grid gap-2.5">
               <li><Link href="/boxes" className={footLink}>Our Boxes</Link></li>
               <li><Link href="/build-your-own-combo" className={footLink}>Build your own combo</Link></li>
-              <li><Link href="/about-us" className={footLink}>Our story</Link></li>
+              <li><Link href="/about-us" className={footLink}>About us</Link></li>
               <li><Link href="/shipping-returns" className={footLink}>Shipping &amp; returns</Link></li>
               <li><Link href="/terms" className={footLink}>Terms of service</Link></li>
               <li><Link href="/privacy" className={footLink}>Privacy policy</Link></li>
+              {cmsPages.map((p) => (
+                <li key={p.slug}><Link href={`/pages/${p.slug}`} className={footLink}>{p.title}</Link></li>
+              ))}
               <li><Link href="/contact" className={footLink}>Contact us</Link></li>
               <li><Link href="/career" className={footLink}>Careers</Link></li>
               <li><Link href="/account/orders" className={footLink}>Track an order</Link></li>

@@ -30,7 +30,7 @@ export default async function ContactPage() {
           We&apos;d love to hear from you
         </h1>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Questions about an order, a custom handmade piece, or anything else —
+          Questions about an order, a personalized gift, or anything else —
           drop us a message and we&apos;ll get back to you soon.
         </p>
       </div>

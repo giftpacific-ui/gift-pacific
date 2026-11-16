@@ -1,4 +1,5 @@
 import type { ImageLoaderProps } from "next/image";
+import imageHosts from "../../../image-hosts.json";
 
 /**
  * Global `next/image` loader (configured in next.config.ts).
@@ -12,8 +13,8 @@ import type { ImageLoaderProps } from "next/image";
  *   q_auto   automatic quality
  *   c_limit,w_<width>   resize down to the width Next asks for (responsive srcset widths); never upscales
  * The transformation is appended AFTER any transformation already present in a stored URL, so existing crop/resize
- * URLs keep working. Every other image (picsum, Unsplash, local files, ...) takes the normal Next.js optimizer path
- * exactly as before (`/_next/image?url=...&w=...&q=...`).
+ * URLs keep working. Every other image on an allow-listed host (other allow-listed hosts, local files, ...) takes the normal
+ * Next.js optimizer path exactly as before (`/_next/image?url=...&w=...&q=...`).
  */
 
 const CLOUDINARY_UPLOAD_URL = /^(https:\/\/res\.cloudinary\.com\/[^/]+\/image\/upload\/)(.+)$/;
@@ -35,9 +36,39 @@ export function cloudinaryDeliveryUrl(src: string, width: number): string | null
   return `${prefix}${[...existing, `${DELIVERY_TRANSFORMATION},w_${width}`, ...remainder].join("/")}`;
 }
 
+/**
+ * Hosts the built-in `/_next/image` optimizer is allowed to fetch: the SAME list next.config.ts uses for
+ * `images.remotePatterns` (image-hosts.json, outside src/). `*` matches exactly one DNS label, like Next.js.
+ */
+export const OPTIMIZER_HOSTS: readonly string[] = imageHosts.hosts;
+
+function hostMatches(host: string, pattern: string): boolean {
+  if (!pattern.startsWith("*.")) return host === pattern;
+  const suffix = pattern.slice(1); // ".supabase.co"
+  return host.endsWith(suffix) && host.slice(0, -suffix.length).length > 0 && !host.slice(0, -suffix.length).includes(".");
+}
+
+/**
+ * A legacy image URL (e.g. a campaign image typed in by hand) on a host that is NOT in the allow-list above would be
+ * rejected by the optimizer (HTTP 400) and render as a broken image. Such https URLs are handed straight to the
+ * browser instead: our server never fetches them, so the optimizer's allow-list (SSRF/bandwidth protection) is NOT
+ * widened. Relative paths and http(s) URLs on allowed hosts keep using the optimizer.
+ */
+export function isUnlistedExternalHttpsUrl(src: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(src);
+  } catch {
+    return false; // relative path (or garbage): normal path
+  }
+  if (url.protocol !== "https:") return false;
+  return !OPTIMIZER_HOSTS.some((pattern) => hostMatches(url.hostname.toLowerCase(), pattern));
+}
+
 export default function cloudinaryAwareLoader({ src, width, quality }: ImageLoaderProps): string {
   return (
     cloudinaryDeliveryUrl(src, width) ??
+    (isUnlistedExternalHttpsUrl(src) ? src : null) ??
     `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=${quality || 75}`
   );
 }

@@ -1,3 +1,5 @@
+import { getPublishedSystemPage } from "@/server/services/static-page.service";
+import { CmsSystemPage } from "@/components/layout/cms-system-page";
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
 import { pageMetadata } from "@/server/services/seo.service";
@@ -11,6 +13,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ShippingReturnsPage() {
+  // Admin-published replacement content wins; until then the built-in page below keeps rendering.
+  const cms = await getPublishedSystemPage("shipping-returns");
+  if (cms) return <CmsSystemPage page={cms} />;
   const [charges, settings] = await Promise.all([getAllDeliveryCharges(), getStoreSettings()]);
   const freeShippingThreshold = settings.freeShippingThreshold
     ? Number(settings.freeShippingThreshold)
@@ -28,7 +33,7 @@ export default async function ShippingReturnsPage() {
           <p className="text-muted-foreground">
             Delivery charges depend on where your order is being shipped within Bangladesh:
           </p>
-          <div className="overflow-hidden rounded-xl border border-border/70">
+          <div className="overflow-hidden rounded-[4px] border border-border/70">
             <table className="w-full text-sm">
               <tbody>
                 {zones.map((zone) => (
@@ -57,7 +62,7 @@ export default async function ShippingReturnsPage() {
         <section className="mt-10 space-y-4">
           <h2 className="font-heading text-xl">Returns &amp; exchanges</h2>
           <p className="text-muted-foreground">
-            Because most of our pieces are handmade or made to order, we handle returns on a
+            Because some items are personalized or made to order, we handle returns on a
             case-by-case basis:
           </p>
           <ul className="list-disc space-y-2 pl-5 text-muted-foreground">

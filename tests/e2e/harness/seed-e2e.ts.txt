@@ -1,0 +1,29 @@
+// Scratch-database seed used by the Phase 11 E2E/load runs (synthetic data; NEVER run against production).
+// Saved as .txt so it is not picked up by tsc/eslint; copy to a .ts file inside the scratch copy to run it.
+import { prisma } from "@/lib/db/prisma";
+import bcrypt from "bcryptjs";
+import { SignJWT } from "jose";
+async function main() {
+  const hash = await bcrypt.hash("E2eTest-Pass-1234", 4);
+  const admin = await prisma.user.create({ data: { name: "E2E Admin", email: "admin@e2e.test", passwordHash: hash, role: "ADMIN" } });
+  const cust = await prisma.user.create({ data: { name: "E2E Customer", email: "cust@e2e.test", passwordHash: hash, role: "CUSTOMER", phone: "01711111111" } });
+  const cats = [];
+  for (const n of ["Gifts", "Flowers", "Cakes", "Home Decor", "Jewellery", "Toys"]) cats.push(await prisma.category.create({ data: { name: n, slug: n.toLowerCase().replace(/\s+/g, "-") } }));
+  const products = [];
+  for (let i = 1; i <= 300; i++) {
+    const p = await prisma.product.create({ data: { name: `E2E Product ${i}`, slug: `e2e-product-${i}`, description: `Description for product ${i}. `.repeat(8), price: 200 + (i % 40) * 25, status: "ACTIVE", stock: 50, categoryId: cats[i % 6].id, isFeatured: i <= 12 } });
+    await prisma.productImage.create({ data: { productId: p.id, url: `https://picsum.photos/seed/p${i}/800/800`, isMain: true } });
+    products.push(p);
+  }
+  const camp = await prisma.collection.create({ data: { name: "Eid Sale", slug: "eid-sale", isCampaign: true, isActive: true, description: "E2E campaign", image: "https://res.cloudinary.com/demo/image/upload/v1/giftpacific/banners/eid-sale-a1b2c3d4.jpg" } });
+  for (const p of products.slice(0, 20)) await prisma.productCollection.create({ data: { productId: p.id, collectionId: camp.id } });
+  const boxProd = await prisma.product.create({ data: { name: "Premium Gift Box", slug: "premium-gift-box", description: "A box.", price: 1500, status: "ACTIVE", stock: 20, categoryId: cats[0].id } });
+  await prisma.box.create({ data: { name: "Premium Gift Box", slug: "premium-gift-box", price: 1500, isActive: true, productId: boxProd.id, description: "Box" } });
+  await prisma.coupon.create({ data: { code: "SAVE10", type: "PERCENTAGE", value: 10 } });
+  await prisma.banner.create({ data: { title: "E2E banner", imageUrl: "https://picsum.photos/seed/b/1600/600", placement: "HERO", isActive: true } });
+  const key = new TextEncoder().encode(process.env.AUTH_SECRET!);
+  const tok = (u: { id: string; role: string; email: string; name: string }) => new SignJWT({ sub: u.id, role: u.role, email: u.email, name: u.name }).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("1d").sign(key);
+  console.log("ADMIN_TOKEN=" + (await tok(admin))); console.log("CUST_TOKEN=" + (await tok(cust)));
+  await prisma.$disconnect();
+}
+main().catch((e) => { console.error("SEED FAILED:", e.message.slice(0, 600)); process.exit(1); });

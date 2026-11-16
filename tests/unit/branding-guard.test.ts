@@ -112,3 +112,22 @@ test("the retired asset fingerprint list is well-formed", () => {
   assert.equal(keys.length, 2);
   for (const k of keys) assert.match(k, /^[0-9a-f]{64}$/);
 });
+
+test("obsolete craft positioning is flagged in customer-facing code only; valid product attributes are not", () => {
+  const bad = repo({ "src/features/home/x.tsx": 'const t = "Handmade, with care & passion";\nconst u = "Our clay art";\n' });
+  try {
+    assert.equal(scan(bad.root).filter((v: { id: string }) => v.id === "obsolete-craft-positioning").length, 2);
+  } finally {
+    bad.done();
+  }
+  const ok = repo({
+    "src/features/products/product-card.tsx": 'const L = { HANDMADE: "Handmade" };\n',
+    "src/features/admin/product-form.tsx": "Highlight traits like handmade or clay art.\n",
+    "prisma/migrations/1/migration.sql": "ALTER TYPE \"ProductBadge\" ADD VALUE 'HANDMADE'; -- clay art\n",
+  });
+  try {
+    assert.deepEqual(scan(ok.root), []);
+  } finally {
+    ok.done();
+  }
+});

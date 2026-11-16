@@ -560,6 +560,7 @@ export function StoreSettingsForm({ settings }: { settings: StoreSettings }) {
 
         <section className="space-y-4" hidden={tab !== "seo"}>
           <h2 className="font-heading text-lg font-semibold">Site &amp; SEO</h2>
+          <p className="text-sm text-muted-foreground">These basics are shared with the full SEO manager (global defaults, page SEO, redirects, sitemap and robots) under <a className="underline underline-offset-4" href="/admin/seo/settings">Admin → SEO</a>.</p>
           <div className="grid gap-4">
             <FormField control={form.control} name="seoTitleTemplate" render={({ field }) => (
               <FormItem>

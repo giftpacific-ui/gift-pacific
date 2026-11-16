@@ -9,17 +9,19 @@ const isUniqueViolation = (e: unknown) => typeof e === "object" && e !== null &&
 export type PublicBox = {
   id: string; name: string; slug: string; description: string | null; imageUrl: string | null;
   price: number; productSlug: string | null; productId: string | null; inStock: boolean; seoTitle: string | null; seoDescription: string | null; seoKeywords: string[];
+  seoImage: string | null; seoNoIndex: boolean; seoCanonicalUrl: string | null;
 };
 
 const publicSelect = {
   id: true, name: true, slug: true, description: true, imageUrl: true, price: true,
-  seoTitle: true, seoDescription: true, seoKeywords: true,
+  seoTitle: true, seoDescription: true, seoKeywords: true, seoImage: true, seoNoIndex: true, seoCanonicalUrl: true,
   product: { select: { id: true, slug: true, status: true, stock: true, allowBackorder: true, trackInventory: true } },
 } as const;
 
 type Row = {
   id: string; name: string; slug: string; description: string | null; imageUrl: string | null; price: unknown;
   seoTitle: string | null; seoDescription: string | null; seoKeywords: string[];
+  seoImage: string | null; seoNoIndex: boolean; seoCanonicalUrl: string | null;
   product: { id: string; slug: string; status: string; stock: number; allowBackorder: boolean; trackInventory: boolean } | null;
 };
 const toPublic = (b: Row): PublicBox => ({
@@ -29,6 +31,7 @@ const toPublic = (b: Row): PublicBox => ({
   productId: b.product && b.product.status === "ACTIVE" ? b.product.id : null,
   inStock: Boolean(b.product && b.product.status === "ACTIVE" && (!b.product.trackInventory || b.product.stock > 0 || b.product.allowBackorder)),
   seoTitle: b.seoTitle, seoDescription: b.seoDescription, seoKeywords: b.seoKeywords ?? [],
+  seoImage: b.seoImage, seoNoIndex: b.seoNoIndex, seoCanonicalUrl: b.seoCanonicalUrl,
 });
 
 export async function getActiveBoxes(): Promise<PublicBox[]> {

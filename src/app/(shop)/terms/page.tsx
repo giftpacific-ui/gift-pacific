@@ -1,3 +1,5 @@
+import { getPublishedSystemPage } from "@/server/services/static-page.service";
+import { CmsSystemPage } from "@/components/layout/cms-system-page";
 import type { Metadata } from "next";
 import { siteConfig } from "@/config/site";
 import { pageMetadata } from "@/server/services/seo.service";
@@ -11,6 +13,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export const revalidate = 3600;
 
 export default async function TermsPage() {
+  // Admin-published replacement content wins; until then the built-in page below keeps rendering.
+  const cms = await getPublishedSystemPage("terms");
+  if (cms) return <CmsSystemPage page={cms} />;
   const s = await getStoreSettings();
   return (
     <LegalPage title="Terms of Service" updated="1 November 2026">

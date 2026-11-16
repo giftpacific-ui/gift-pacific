@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import loader, { cloudinaryDeliveryUrl } from "@/lib/cloudinary/image-loader";
+import loader, { OPTIMIZER_HOSTS, cloudinaryDeliveryUrl, isUnlistedExternalHttpsUrl } from "@/lib/cloudinary/image-loader";
+import nextConfig from "../../next.config";
 
 const BASE = "https://res.cloudinary.com/demo/image/upload";
 
@@ -53,4 +54,31 @@ test("next.config.ts wires the loader file and no longer carries the base64-uplo
   // `loader: "custom"` would make Next return 404 for /_next/image, silently un-optimising every non-Cloudinary image
   // (verified at runtime). Keep the default loader and supply only the loaderFile.
   assert.ok(!/^\s*loader\s*:/m.test(cfg), 'images.loader must not be set (setting it disables the built-in optimizer)');
+});
+
+test("legacy https images on hosts the optimizer does not allow are passed straight to the browser (no HTTP 400)", () => {
+  for (const src of ["https://example.com/legacy-banner.jpg", "https://cdn.some-shop.com/a/b.png", "https://a.b.supabase.co/x.png"]) { // two labels: "*" matches ONE label, as in Next.js
+    assert.equal(isUnlistedExternalHttpsUrl(src), true, src);
+    assert.equal(loader({ src, width: 640 }), src, src);
+  }
+});
+
+test("allow-listed hosts, local paths and non-https URLs keep the optimizer path; Cloudinary keeps its own", () => {
+  assert.equal(loader({ src: "https://images.unsplash.com/photo-1", width: 256 }), `/_next/image?url=${encodeURIComponent("https://images.unsplash.com/photo-1")}&w=256&q=75`);
+  assert.equal(loader({ src: "https://abc.supabase.co/storage/x.png", width: 256 }).startsWith("/_next/image?"), true);
+  assert.equal(loader({ src: "/img/login-bg.png", width: 640 }).startsWith("/_next/image?"), true);
+  assert.equal(loader({ src: "http://legacy.test/a.png", width: 640 }).startsWith("/_next/image?"), true);
+  assert.ok(loader({ src: "https://res.cloudinary.com/demo/image/upload/v1/x.jpg", width: 640 }).includes("f_auto,q_auto,c_limit,w_640"));
+  // a lookalike of an allowed host is NOT treated as allowed
+  assert.equal(isUnlistedExternalHttpsUrl("https://picsum.photos.evil.test/a.jpg"), true);
+  assert.equal(isUnlistedExternalHttpsUrl("https://evilpicsum.photos/a.jpg"), true);
+});
+
+test("the loader and next.config.ts share ONE allow-list (image-hosts.json); the optimizer allow-list is not widened", () => {
+  const patterns = (nextConfig.images?.remotePatterns ?? []) as { protocol?: string; hostname: string }[];
+  assert.deepEqual(patterns.map((p) => p.hostname), [...OPTIMIZER_HOSTS]);
+  assert.ok(patterns.every((p) => p.protocol === "https"));
+  assert.deepEqual([...OPTIMIZER_HOSTS], ["picsum.photos", "fastly.picsum.photos", "res.cloudinary.com", "*.supabase.co", "images.unsplash.com", "img.youtube.com", "i.ytimg.com", "*.fbcdn.net"]);
+  // no stock/placeholder host names are hard-coded anywhere in src (storefront guard)
+  assert.ok(!/picsum|unsplash/i.test(readFileSync("src/lib/cloudinary/image-loader.ts", "utf8")));
 });

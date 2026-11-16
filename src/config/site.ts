@@ -4,7 +4,7 @@ export const siteConfig = {
   version: "V1.0.0",
   release: "V1",
   description:
-    "বাংলাদেশের সেরা প্রিমিয়াম হ্যান্ডমেড ক্রাফট ও কাস্টমাইজড কম্বো গিফট বক্স। ভালোবাসা প্রকাশের প্রতিটি মুহূর্তকে নিখুঁত ও অবিস্মরণীয় করে তুলতে আমরা বদ্ধপরিকর।.",
+    "জন্মদিন, বার্ষিকী বা যেকোনো বিশেষ মুহূর্তের জন্য বাছাই করা উপহার, গিফট বক্স ও কাস্টমাইজড কম্বো। প্রিয়জনের জন্য সঠিক উপহারটি খুঁজে নিন Gift Pacific-এ।",
   // One production origin for canonicals, sitemaps, robots and Open Graph. Trailing slashes are removed so no URL gets "//".
   url: (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, ""),
   // No default logo: the previous logo asset belonged to the discontinued brand and was removed. Until a Gift Pacific

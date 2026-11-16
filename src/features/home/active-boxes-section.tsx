@@ -40,7 +40,7 @@ export function ActiveBoxesSection({ boxes }: ActiveBoxesSectionProps) {
           {boxes.map((box) => (
             <div
               key={box.id}
-              className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/70 bg-background transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+              className="group relative flex flex-col overflow-hidden rounded-[4px] border border-border/70 bg-background transition-all duration-300 hover:shadow-md"
             >
               <Link
                 href={`/boxes/${box.slug}`}

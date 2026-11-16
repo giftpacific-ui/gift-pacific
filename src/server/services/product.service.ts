@@ -398,7 +398,7 @@ export const getProductStockPolicy = cache(async (slug: string) => {
 export const getProductSeo = cache(async (slug: string) => {
   return prisma.product.findFirst({
     where: { slug, status: "ACTIVE" },
-    select: { metaTitle: true, metaDescription: true, metaKeywords: true, isBoxProduct: true, seoImage: true, seoNoIndex: true, brand: true, updatedAt: true },
+    select: { metaTitle: true, metaDescription: true, metaKeywords: true, isBoxProduct: true, seoImage: true, seoNoIndex: true, seoCanonicalUrl: true, brand: true, updatedAt: true },
   });
 });
 

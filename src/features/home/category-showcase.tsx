@@ -36,9 +36,6 @@ export function CategoryShowcase({ categories }: { categories: Category[] }) {
       floatRef.current.style.transform = `translate(${e.clientX + 26}px, ${e.clientY - 110}px)`;
   }
 
-  const parentCategories = categories.filter((c) => !c.parentId);
-
-
   return (
     <>
       <ul
@@ -46,7 +43,7 @@ export function CategoryShowcase({ categories }: { categories: Category[] }) {
         onMouseMove={canFloat ? onMove : undefined}
         onMouseLeave={() => setActive(null)}
       >
-        {parentCategories?.map((c, i) => (
+        {categories?.map((c, i) => (
           <li key={c.slug} className="border-b border-border">
             <Link
               href={`/shop/${c.slug}`}
@@ -76,7 +73,7 @@ export function CategoryShowcase({ categories }: { categories: Category[] }) {
           className="pointer-events-none fixed top-0 left-0 z-30"
         >
           <div
-            className={`relative aspect-[4/5] w-52 -rotate-2 overflow-hidden rounded-[4px] bg-secondary shadow-[0_18px_40px_-18px_rgba(38,23,34,0.45)] transition-[opacity,transform] duration-300 ${
+            className={`relative aspect-4/5 w-52 -rotate-2 overflow-hidden rounded-lg bg-secondary shadow-[0_18px_40px_-18px_rgba(38,23,34,0.45)] transition-[opacity,transform] duration-300 ${
               active ? "scale-100 opacity-100" : "scale-90 opacity-0"
             }`}
           >

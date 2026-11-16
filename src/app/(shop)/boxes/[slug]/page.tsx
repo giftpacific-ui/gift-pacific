@@ -26,6 +26,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     image: box.imageUrl,
     imageAlt: box.name,
     keywords: keywordsForMetadata(box.seoKeywords),
+  }, {
+    systemKey: "box",
+    override: { title: customTitle, description: firstText(box.seoDescription), ogImage: box.seoImage, canonicalUrl: box.seoCanonicalUrl, noIndex: box.seoNoIndex },
   });
 }
 
@@ -35,7 +38,7 @@ export default async function BoxDetailPage({ params }: Props) {
   if (!box) notFound();
   return (
     <div className="container-boutique grid gap-10 px-4 py-16 sm:px-6 md:grid-cols-2">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-secondary">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-[4px] bg-secondary">
         {box.imageUrl && <Image src={box.imageUrl} alt={box.name} fill priority sizes="(min-width:768px) 50vw, 100vw" className="object-cover" />}
       </div>
       <div className="space-y-4">

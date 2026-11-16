@@ -21,7 +21,7 @@ import { WhyChooseUs } from "@/features/home/trust-sections";
 import { CustomerReviews } from "@/features/home/customer-reviews";
 import { HelpBand } from "@/features/home/help-band";
 import { siteConfig } from "@/config/site";
-import { pageMetadata } from "@/server/services/seo.service";
+import { pageMetadata, getCanonicalOrigin } from "@/server/services/seo.service";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/json-ld";
 import { ActiveCampaignSection } from "@/features/home/active-campaign-section";
@@ -31,7 +31,7 @@ import { ActiveBoxesSection } from "@/features/home/active-boxes-section";
 export async function generateMetadata(): Promise<Metadata> {
   return pageMetadata({
     // Brand-first title for the home page (the brand in it makes the builder skip the "| Brand" suffix).
-    title: `${siteConfig.name} – Handmade gift boxes & custom combos in Bangladesh`,
+    title: `${siteConfig.name} – Gifts, gift boxes & custom combos in Bangladesh`,
     titleIsCustom: true,
     path: "/",
   });
@@ -39,9 +39,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 // Existing default hero copy, used only when no HERO banner is configured.
 const DEFAULT_HERO = {
-  title: "Gifts shaped by hand, given from the heart",
+  title: "Thoughtful gifts for every occasion",
   subtitle:
-    "Clay art, personalized keepsakes, and gift boxes crafted slowly — for birthdays, anniversaries, and quiet everyday moments.",
+    "Curated gifts, gift boxes, and custom combos — for birthdays, anniversaries, and everyday moments.",
   ctaLabel: "Shop the collection",
   ctaHref: "/shop",
 };
@@ -76,6 +76,7 @@ export default async function HomePage() {
   ]);
 
   const storeName = settings?.storeName || siteConfig.name;
+  const canonicalOrigin = await getCanonicalOrigin();
 
   // Real product photography for the hero: only products that actually have a photo.
   const withPhoto = [...featured, ...newArrivals].filter(
@@ -125,7 +126,12 @@ export default async function HomePage() {
   return (
     <>
       {/* Home page only: one Organization + one WebSite entity for the whole site (no duplicates elsewhere). */}
-      <JsonLd data={[organizationJsonLd(settings), websiteJsonLd(storeName)]} />
+      <JsonLd
+        data={[
+          ...(settings.seoOrgSchemaEnabled ? [organizationJsonLd(settings, canonicalOrigin)] : []),
+          ...(settings.seoWebsiteSchemaEnabled ? [websiteJsonLd(storeName, canonicalOrigin)] : []),
+        ]}
+      />
       <Hero slides={slides} spotlight={spotlight} storeName={storeName} />
       <CategoryMarquee names={featuredCategories.map((c) => c.name)} />
 

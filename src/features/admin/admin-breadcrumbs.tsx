@@ -14,6 +14,14 @@ const SEGMENT_LABELS: Record<string, string> = {
   cod: "COD reconciliation",
   bulk: "Bulk booking",
   payments: "Payment reconciliation",
+  settings: "Global settings",
+  pages: "Page SEO",
+  products: "Products",
+  categories: "Categories",
+  boxes: "Gift boxes",
+  "static-pages": "Static pages",
+  redirects: "Redirects",
+  technical: "Sitemap & robots",
 };
 
 /** Admin → Section → … trail derived from the central nav config. Unknown segments (record ids) read "Details". */

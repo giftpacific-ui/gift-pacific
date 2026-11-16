@@ -34,7 +34,7 @@ export default function CartPage() {
       ) : items.length === 0 ? (
         <EmptyState
           title="Your cart is empty"
-          description="Browse the shop to find something handmade and thoughtful."
+          description="Browse the shop to find a thoughtful gift."
           action={
             <Button asChild variant="ink">
               <Link href="/shop">Shop all products</Link>
