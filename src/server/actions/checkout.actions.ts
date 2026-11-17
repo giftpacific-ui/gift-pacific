@@ -9,10 +9,9 @@ import { validateCoupon } from "@/server/services/coupon.service";
 import { getCurrentCartDTO } from "@/server/services/cart.service";
 import { getAllDeliveryCharges } from "@/server/services/delivery.service";
 import { getStoreSettings } from "@/server/services/admin-settings.service";
-import { trackServerEvent } from "@/lib/analytics/server-events";
+import { snapshotOrderAttribution } from "@/server/services/order-attribution.service";
 import { toUserMessage } from "@/lib/errors";
 import { setConfirmationCookie } from "@/server/confirmation";
-import { purchaseEventId } from "@/lib/analytics/ids";
 
 export async function getDeliveryChargesAction() {
   return getAllDeliveryCharges();
@@ -60,18 +59,14 @@ export async function submitCheckout(input: CheckoutInput): Promise<CheckoutActi
 
     await setConfirmationCookie(order.orderNumber, order.confirmationToken);
 
-    // Optional server-side copy (only if a Conversions API token is set); the
-    // shared event id lets Meta count it together with the browser event once.
-            // The order already exists: nothing in this analytics block may turn a successful
-    // checkout into an error (a customer who sees one might order again).
+    // NO Purchase event here: creating an order is not a purchase. The server Purchase is queued when the merchant CONFIRMS the
+    // order (adminUpdateOrderStatus -> tracking-event.service; policy in lib/analytics/purchase-policy.ts).
+    // What IS recorded now is the visitor's attribution and consent state, snapshotted once from first-party cookies and
+    // re-validated on the server. The order already exists: nothing in this block may turn a successful checkout into an error
+    // (a customer who sees one might order again), and snapshotOrderAttribution never throws.
     try {
       const settings = await getStoreSettings();
-      await trackServerEvent(
-        "Purchase",
-        { value: Number(order.total), currency: order.currency, order_id: order.orderNumber },
-        purchaseEventId(order.orderNumber),
-        { pixelId: settings.metaPixelId, consentMode: settings.consentMode },
-      );
+      await snapshotOrderAttribution(order, settings.consentMode);
     } catch {
       // ignored on purpose
     }

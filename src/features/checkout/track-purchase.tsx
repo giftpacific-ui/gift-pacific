@@ -2,13 +2,16 @@
 
 import { useEffect, useRef } from "react";
 import { trackPurchase } from "@/lib/analytics/events";
+import type { PurchaseInput } from "@/lib/analytics/payloads";
 
 /**
- * Fires the Purchase event exactly once per order per browser: a ref guards
- * React re-renders / Strict Mode, and localStorage guards reloads and later
- * revisits of the confirmation page. Sends only order number, value and currency.
+ * Browser half of the Purchase event. The page renders this ONLY for an order that is already confirmed (see
+ * lib/analytics/purchase-policy.ts); an order that is merely placed produces no Purchase. Fires once per order per browser: a ref
+ * guards React re-renders / Strict Mode, and localStorage guards reloads and later revisits. Sends no customer data; the event id
+ * is purchase_<orderNumber>, identical to the server's, so Meta de-duplicates the pair.
  */
-export function TrackPurchase({ orderNumber, value, currency }: { orderNumber: string; value: number; currency: string }) {
+export function TrackPurchase({ order }: { order: PurchaseInput }) {
+  const { orderNumber } = order;
   const fired = useRef(false);
 
   useEffect(() => {
@@ -25,8 +28,9 @@ export function TrackPurchase({ orderNumber, value, currency }: { orderNumber: s
       // Storage unavailable: prefer a possible missed event over a duplicate on every reload.
       return;
     }
-    trackPurchase(orderNumber, value, currency);
-  }, [orderNumber, value, currency]);
+    trackPurchase(order);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderNumber]);
 
   return null;
 }

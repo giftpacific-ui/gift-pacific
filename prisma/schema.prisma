@@ -446,6 +446,9 @@ model Order {
   channel                 SalesChannel         @relation(fields: [channelId], references: [id])
   costLines               OrderCostLine[]
   settlements             MarketplaceSettlement[]
+  // Tracking (P3): server-side ad-platform event lifecycle + the attribution captured when the order was placed.
+  trackingEventLogs       TrackingEventLog[]
+  attribution             OrderAttribution?
 
   @@unique([channelId, externalOrderRef])
   @@index([userId])
@@ -1658,4 +1661,82 @@ model Redirect {
   updatedAt  DateTime @updatedAt
 
   @@index([isActive])
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Tracking (P3). Purchase events are derived from SERVER order state, never from the browser.
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+enum TrackingEventStatus {
+  PENDING // waiting for its first (or next retry) delivery attempt
+  SENDING // claimed by exactly one worker; treated as abandoned if it stays here (see tracking-event.service)
+  SENT // accepted by the destination
+  FAILED // permanent failure or retries exhausted; an admin may retry manually
+  SKIPPED // deliberately not sent (consent, order no longer eligible, not configured, too old) - see skipReason
+}
+
+enum TrackingConsentState {
+  GRANTED
+  DENIED
+  UNKNOWN
+  NOT_REQUIRED // the store runs with consentMode OFF
+}
+
+// One row per (destination, event, order): the unique key is what makes a Purchase impossible to send twice for the same order,
+// and the row itself is the audit trail (status, attempts, sanitized error). It holds NO customer data.
+model TrackingEventLog {
+  id            String              @id @default(cuid())
+  destination   String              @default("META_CAPI")
+  eventName     String
+  // Shared with the browser event so the destination can de-duplicate (purchase_<orderNumber>).
+  eventId       String
+  orderId       String
+  // Our public order number only (never an internal id in logs/UI).
+  orderNumber   String
+  status        TrackingEventStatus @default(PENDING)
+  skipReason    String?
+  attempts      Int                 @default(0)
+  // When the business event happened (order confirmation). Retries keep it; the destination rejects events older than 7 days.
+  eventTime     DateTime
+  nextAttemptAt DateTime?
+  lastAttemptAt DateTime?
+  sentAt        DateTime?
+  httpStatus    Int?
+  errorCode     String?
+  // Sanitized and truncated; never contains a token, an email or a phone number.
+  errorMessage  String?
+  fbtraceId     String?
+  apiVersion    String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  order         Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([destination, eventName, orderId])
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+}
+
+// Attribution captured at checkout, snapshotted ONCE per order. first/last touch are validated, size-capped JSON (see
+// src/lib/analytics/attribution.ts for the exact shape). The cookie it came from is client-controlled, so this is "reported by the
+// browser and sanity-checked", never proof; it never influences order totals or what is sent as value.
+model OrderAttribution {
+  id               String               @id @default(cuid())
+  orderId          String               @unique
+  userId           String?
+  firstTouch       Json?
+  lastTouch        Json?
+  // Meta browser/click ids, validated against their formats. Unhashed by design (Meta requires them raw).
+  fbc              String?
+  fbp              String?
+  // Needed ONLY so the server-side event can be matched after the visitor has left. Removed (set NULL) once the event is
+  // delivered or has permanently ended; see contactScrubbedAt.
+  clientIp         String?
+  clientUserAgent  String?
+  contactScrubbedAt DateTime?
+  consentState     TrackingConsentState @default(UNKNOWN)
+  createdAt        DateTime             @default(now())
+  order            Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
 }

@@ -30,6 +30,7 @@ import { releaseModeFor } from "@/lib/inventory-rules";
 import { UserFacingError } from "@/lib/errors";
 import { orderStatusNotification } from "@/lib/notification-rules";
 import { notifyUser } from "@/server/services/notification.service";
+import { trackOrderConfirmed } from "@/server/services/tracking-event.service";
 import {
   reserveStockForLine,
   outstandingProcurementForOrder,
@@ -751,7 +752,7 @@ export async function adminUpdateOrderStatus(
   if (!isOrderStatus(status))
     throw new UserFacingError("Invalid order status.");
 
-  return prisma.$transaction(async (tx) => {
+  const updated = await prisma.$transaction(async (tx) => {
     const existing = await tx.order.findUnique({
       where: { id: orderId },
       select: { id: true, status: true, userId: true, orderNumber: true },
@@ -815,5 +816,12 @@ export async function adminUpdateOrderStatus(
     }
     return tx.order.findUniqueOrThrow({ where: { id: orderId } });
   });
+
+  // Ad-platform Purchase (P3 policy, see lib/analytics/purchase-policy.ts): an order ENTERING "CONFIRMED" is the only trigger.
+  // This runs after the commit so a rolled-back change can never emit an event, it is idempotent (one row per order), and it
+  // never throws or blocks for long - tracking must not be able to fail an order operation.
+  if (status === "CONFIRMED") await trackOrderConfirmed(orderId);
+
+  return updated;
 }
 

@@ -25,6 +25,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_GTM_ID: z.string().optional(),
   NEXT_PUBLIC_META_PIXEL_ID: z.string().optional(),
   META_CONVERSIONS_API_TOKEN: z.string().optional(),
+  META_GRAPH_API_VERSION: z.string().optional(),
+  META_CAPI_TEST_EVENT_CODE: z.string().optional(),
 
   STRIPE_SECRET_KEY: z.string().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),

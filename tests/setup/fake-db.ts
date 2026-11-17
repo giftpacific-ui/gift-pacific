@@ -103,6 +103,7 @@ const RELATIONS: Record<string, Record<string, Rel>> = {
     channel: { kind: "one", target: "salesChannel", fk: "channelId" },
     payments: { kind: "many", target: "payment", fk: "orderId" },
     settlements: { kind: "many", target: "marketplaceSettlement", fk: "orderId" },
+    trackingEventLogs: { kind: "many", target: "trackingEventLog", fk: "orderId" },
   },
   payment: { order: { kind: "one", target: "order", fk: "orderId" } },
   gatewayTransaction: {
@@ -133,6 +134,8 @@ const UNIQUES: Record<string, (string | string[])[]> = {
   financialIncident: ["idempotencyKey"],
   procurementReceipt: ["idempotencyKey"],
   stockAdjustment: ["idempotencyKey"],
+  trackingEventLog: [["destination", "eventName", "orderId"]],
+  orderAttribution: ["orderId"],
   box: ["slug"],
   customerReward: ["orderId"],
   productVariant: ["sku"],
@@ -227,7 +230,7 @@ export class FakeDb {
     const names = new Set<string>([
       ...Object.keys(RELATIONS),
       ...Object.values(RELATIONS).flatMap((r) => Object.values(r).map((x) => x.target)),
-      "user", "address", "category", "orderTrackingEvent", "storeSettings", "wishlist", "wishlistItem", "coupon", "review", "stockAdjustment", "banner", "customerReward", "financialIncident", "payment", "marketplaceSettlement", "adminAuditEvent", "procurementReceipt", "productImage", "orderItemComponent", "notification", "courierCodEntry", "slugRedirect", "pageSeo", "staticPage", "redirect",
+      "user", "address", "category", "orderTrackingEvent", "storeSettings", "wishlist", "wishlistItem", "coupon", "review", "stockAdjustment", "banner", "customerReward", "financialIncident", "payment", "marketplaceSettlement", "adminAuditEvent", "procurementReceipt", "productImage", "orderItemComponent", "notification", "courierCodEntry", "slugRedirect", "pageSeo", "staticPage", "redirect", "trackingEventLog", "orderAttribution",
     ]);
     for (const n of names) {
       this.tables[n] = [];

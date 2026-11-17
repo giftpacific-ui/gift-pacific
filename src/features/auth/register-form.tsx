@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { trackCompleteRegistration } from "@/lib/analytics/events";
 import { siteConfig } from "@/config/site";
 import { registerSchema, type RegisterInput } from "@/lib/validations/auth";
 import { registerUser } from "@/server/actions/auth.actions";
@@ -45,6 +46,7 @@ export function RegisterForm() {
         }
         return;
       }
+      trackCompleteRegistration("email");
       toast.success(`Account created — welcome to ${siteConfig.name}!`);
       router.push("/account");
       router.refresh();

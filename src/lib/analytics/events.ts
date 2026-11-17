@@ -1,127 +1,85 @@
 "use client";
 
-import { pushToDataLayer } from "@/lib/analytics/gtm";
-import { firePixelEvent } from "@/lib/analytics/meta-pixel";
+import { emitCommerceEvent } from "@/lib/analytics/tracking-state";
 import { purchaseEventId } from "@/lib/analytics/ids";
-import { fireTikTokEvent } from "@/lib/analytics/tiktok-pixel";
-
-type ProductLike = {
-  id: string;
-  name: string;
-  price: number;
-  currency?: string;
-};
+import {
+  addPaymentInfoEvent,
+  addToCartEvent,
+  addToWishlistEvent,
+  completeRegistrationEvent,
+  initiateCheckoutEvent,
+  leadEvent,
+  purchaseEvent,
+  removeFromCartEvent,
+  searchEvent,
+  viewContentEvent,
+  type PurchaseInput,
+  type TrackedItem,
+} from "@/lib/analytics/payloads";
 
 /**
- * The only module the rest of the app should call into for tracking.
- * Every function fires both GTM (dataLayer) and Meta Pixel events with
- * consistent shapes, so product code never touches gtag/fbq directly.
+ * The only module the rest of the app calls for tracking. Each function builds one payload (src/lib/analytics/payloads.ts, unit
+ * tested) and hands it to the consent gate (tracking-state.ts), which delivers it to whichever of GA4/GTM, Meta Pixel and TikTok are
+ * configured - or drops it when consent is missing. Product code never touches gtag/fbq/dataLayer directly.
+ *
+ * PageView is NOT here: the Pixel and GA4 snippets send the first one on load and RouteChangeTracker sends later route changes.
+ * Purchase is fired only from the order confirmation page, and only for an order that is already confirmed (see TrackPurchase).
  */
 
-export function trackPageView() {
-  pushToDataLayer({ event: "page_view" });
-  firePixelEvent("PageView");
+type ProductLike = { id: string; name: string; price: number; currency?: string; variant?: string | null };
+
+/** Unique per occurrence. Shared by every destination so a server-side copy (if one existed) could be de-duplicated. */
+export function newEventId(prefix: string): string {
+  const rand =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+  return `${prefix}_${rand}`;
 }
 
+const item = (p: ProductLike, quantity = 1): TrackedItem => ({ id: p.id, name: p.name, price: p.price, quantity, variant: p.variant });
+
 export function trackViewContent(product: ProductLike) {
-  pushToDataLayer({
-    event: "view_item",
-    ecommerce: {
-      currency: product.currency ?? "BDT",
-      value: product.price,
-      items: [{ item_id: product.id, item_name: product.name, price: product.price }],
-    },
-  });
-    firePixelEvent("ViewContent", {
-    content_ids: [product.id],
-    content_name: product.name,
-    content_type: "product",
-    value: product.price,
-    currency: product.currency ?? "BDT",
-  });
-  fireTikTokEvent("ViewContent", {
-    contents: [{ content_id: product.id, content_name: product.name }],
-    content_type: "product",
-    value: product.price,
-    currency: product.currency ?? "BDT",
-  });
+  emitCommerceEvent(viewContentEvent(item(product), newEventId("vc"), product.currency));
 }
 
 export function trackSearch(query: string) {
-  pushToDataLayer({ event: "search", search_term: query });
-    firePixelEvent("Search", { search_string: query });
-  fireTikTokEvent("Search", { query });
+  if (!query.trim()) return;
+  emitCommerceEvent(searchEvent(query, newEventId("search")));
 }
 
 export function trackAddToCart(product: ProductLike, quantity: number) {
-  pushToDataLayer({
-    event: "add_to_cart",
-    ecommerce: {
-      currency: product.currency ?? "BDT",
-      value: product.price * quantity,
-      items: [
-        { item_id: product.id, item_name: product.name, price: product.price, quantity },
-      ],
-    },
-  });
-    firePixelEvent("AddToCart", {
-    content_ids: [product.id],
-    content_name: product.name,
-    content_type: "product",
-    value: product.price * quantity,
-    currency: product.currency ?? "BDT",
-  });
-  fireTikTokEvent("AddToCart", {
-    contents: [{ content_id: product.id, content_name: product.name, quantity }],
-    content_type: "product",
-    value: product.price * quantity,
-    currency: product.currency ?? "BDT",
-  });
+  emitCommerceEvent(addToCartEvent(item(product, quantity), newEventId("atc"), product.currency));
+}
+
+export function trackRemoveFromCart(product: ProductLike, quantity: number) {
+  emitCommerceEvent(removeFromCartEvent(item(product, quantity), newEventId("rfc"), product.currency));
 }
 
 export function trackAddToWishlist(product: ProductLike) {
-  pushToDataLayer({
-    event: "add_to_wishlist",
-    ecommerce: { items: [{ item_id: product.id, item_name: product.name }] },
-  });
-  firePixelEvent("AddToWishlist", {
-    content_ids: [product.id],
-    content_name: product.name,
-    value: product.price,
-    currency: product.currency ?? "BDT",
-  });
+  emitCommerceEvent(addToWishlistEvent(item(product), newEventId("wl"), product.currency));
 }
 
-export function trackInitiateCheckout(items: ProductLike[], value: number, currency = "BDT") {
-  pushToDataLayer({
-    event: "begin_checkout",
-    ecommerce: {
-      currency,
-      value,
-      items: items.map((p) => ({ item_id: p.id, item_name: p.name, price: p.price })),
-    },
-  });
-    firePixelEvent("InitiateCheckout", {
-    content_ids: items.map((p) => p.id),
-    value,
-    currency,
-    num_items: items.length,
-  });
-  fireTikTokEvent("InitiateCheckout", { contents: items.map((p) => ({ content_id: p.id, content_name: p.name })), content_type: "product", value, currency });
+export function trackInitiateCheckout(items: TrackedItem[], currency = "BDT") {
+  emitCommerceEvent(initiateCheckoutEvent(items, newEventId("ic"), currency));
 }
 
-export function trackAddPaymentInfo(paymentMethod: string) {
-  pushToDataLayer({ event: "add_payment_info", payment_type: paymentMethod });
-  firePixelEvent("AddPaymentInfo");
+export function trackAddPaymentInfo(items: TrackedItem[], paymentMethod: string, currency = "BDT") {
+  emitCommerceEvent(addPaymentInfoEvent(items, paymentMethod, newEventId("api"), currency));
 }
 
-/** Call at most once per order (see TrackPurchase). Sends no customer data — only the order number, value and currency. */
-export function trackPurchase(orderNumber: string, value: number, currency = "BDT") {
-  pushToDataLayer({
-    event: "purchase",
-    ecommerce: { transaction_id: orderNumber, value, currency },
-  });
-    firePixelEvent("Purchase", { value, currency }, purchaseEventId(orderNumber));
-  // TikTok's standard purchase event is CompletePayment. Sends no customer data.
-  fireTikTokEvent("CompletePayment", { value, currency, content_type: "product" });
+export function trackLead(source = "contact_form") {
+  emitCommerceEvent(leadEvent(newEventId("lead"), source));
+}
+
+export function trackCompleteRegistration(method = "email") {
+  emitCommerceEvent(completeRegistrationEvent(newEventId("reg"), method));
+}
+
+/**
+ * At most once per order (see TrackPurchase). Sends no customer data. The event id is purchase_<orderNumber> - the same id the
+ * server-side Conversions API event uses - so Meta counts the two as one.
+ */
+export function trackPurchase(order: PurchaseInput) {
+  emitCommerceEvent(purchaseEvent(order, purchaseEventId(order.orderNumber)));
 }

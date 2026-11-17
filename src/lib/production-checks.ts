@@ -58,6 +58,12 @@ export function findProductionConfigProblems(env: Env): ConfigProblem[] {
   if (env.COURIER_AUTO_BOOK?.trim().toLowerCase() === "true" && (env.CRON_SECRET?.trim().length ?? 0) < 24) {
     problems.push({ severity: "warning", message: "COURIER_AUTO_BOOK=true but CRON_SECRET is missing or shorter than 24 characters, so the scheduled reconcile cannot run safely." });
   }
+  if (env.META_CAPI_TEST_EVENT_CODE?.trim()) {
+    problems.push({ severity: "warning", message: "META_CAPI_TEST_EVENT_CODE is set in production: server Purchase events go to the Events Manager Test Events tab and are not used for ad optimisation. Remove it once testing is done." });
+  }
+  if (env.META_CONVERSIONS_API_TOKEN?.trim() && (env.CRON_SECRET?.trim().length ?? 0) < 24) {
+    problems.push({ severity: "warning", message: "META_CONVERSIONS_API_TOKEN is set but CRON_SECRET is missing or shorter than 24 characters, so failed server events cannot be retried automatically (/api/tracking/retry is disabled)." });
+  }
   if (env.BKASH_ENABLED?.trim().toLowerCase() === "true") {
     problems.push({ severity: "critical", message: "BKASH_ENABLED=true: the bKash integration is implemented from third-party documentation and has not passed official-contract review or a sandbox run. Do not accept real payments until both are done." });
     if (env.BKASH_ENV?.trim().toLowerCase() === "production") {

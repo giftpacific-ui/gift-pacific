@@ -98,4 +98,75 @@ Database checks NOT performed: `prisma validate`, `migrate deploy`, running the 
 ### Required before calling P2 verified
 `pnpm install && pnpm prisma generate && pnpm exec tsc --noEmit && pnpm lint && pnpm test`; on a disposable Postgres: `prisma migrate deploy`, then `prisma migrate diff --from-migrations prisma/migrations --to-schema-datamodel prisma/schema.prisma --shadow-database-url ...` (expect empty); `next build`; spot-check about-us/privacy/terms/shipping-returns metadata + `/sitemap/0.xml` with a published replacement set to noindex.
 
-## Next phase: P3 — Meta Pixel, Conversions API, GA4, GTM and complete ecommerce tracking
+## P3 — Tracking: Meta Pixel + Conversions API, GA4/GTM, attribution, consent (implemented; NOT type-checked in full / built / run against a database or Meta/Google)
+
+### What was found (existing system, extended not rebuilt)
+`src/lib/analytics/*` already loaded GTM/GA4, Meta Pixel, TikTok and LinkedIn behind an `OFF` / `OPT_IN` consent mode, and `submitCheckout` sent a server Purchase. Defects fixed:
+1. **Purchase fired on order creation** (server CAPI in `submitCheckout` AND browser on the confirmation page), whatever the order status.
+2. **GA4 direct mode (`G-…`) never received ecommerce events**: they were plain-object `dataLayer` pushes, which gtag.js ignores (only GTM reads them). Not verified live; confirm in GA4 DebugView.
+3. `pushToDataLayer` had **no consent check**: events pushed before consent would be replayed by GTM once it loaded.
+4. Graph API **`v20.0` hard-coded** (published deprecation 2026-09-24).
+5. `AddPaymentInfo` fired on page load with no items/value; `InitiateCheckout` omitted quantities; the order confirmation sent no items/tax/shipping/coupon.
+6. Server events under `OPT_IN` were never sent (the server could not see consent).
+
+### Purchase trigger policy (chosen from the existing workflow, not invented)
+A website order's Purchase is generated when the order **enters `CONFIRMED` through `adminUpdateOrderStatus`** (admin action or courier sync). `PENDING→CONFIRMED` is the only way into `CONFIRMED`, and that function already refuses to confirm an order whose required advance is not VERIFIED/waived or whose low-trust review is open. COD and prepaid follow the same rule. It does not wait for delivery.
+- Never a Purchase: PENDING orders; non-website channels (marketplace/external, which bypass checkout); orders CANCELLED / REFUND_REQUESTED / REFUNDED / FAILED_DELIVERY at delivery time (a waiting event is SKIPPED).
+- An already-accepted Purchase is **not reversed** if the order is later cancelled (no standard "un-purchase" event); the audit row shows what was sent.
+- Exactly once: unique `(destination, eventName, orderId)` row + `createMany skipDuplicates`; event id `purchase_<orderNumber>` (`ids.ts`, single definition) is shared by browser and server so Meta de-duplicates.
+- Browser Purchase fires only if the order is **already confirmed when the customer views the confirmation page** (`purchaseEligibility`); once per order per browser.
+
+### Architecture
+- `lib/analytics/purchase-policy.ts` eligibility, consent decisions, retry schedule (pure).
+- `lib/analytics/server-events.ts` (rewritten in place; `trackServerEvent` removed) CAPI client: normalise+SHA-256 hashing, payload, send with 5 s timeout, failure classification, redaction.
+- `server/services/tracking-event.service.ts` enqueue → claim → re-read order → checks → send → SENT / retry / FAILED / SKIPPED; maintenance job (back-fill, re-queue "not configured", deliver due, scrub); admin retry.
+- Hook: `adminUpdateOrderStatus` calls `trackOrderConfirmed` **after** the transaction commits (awaited for at most 6 s; never throws).
+- `lib/analytics/attribution.ts` + `attribution-capture.tsx` (cookie `gp_attr`) + `server/services/order-attribution.service.ts` (snapshot at checkout).
+- `lib/analytics/payloads.ts` (pure builders), `tracking-state.ts` (consent gate + GA4 mode routing), `events.ts` (public API; PageView stays with the snippets/RouteChangeTracker).
+- `server/services/tracking-diagnostics.service.ts`, `features/admin/tracking-diagnostics-panel.tsx` (on **Admin → Settings**), `server/actions/tracking.actions.ts`, `app/api/tracking/retry/route.ts`.
+- Removed (dead, un-gated): `meta-pixel.ts`, `pushToDataLayer`, `fireTikTokEvent`, unused `trackPageView`.
+
+### Events
+PageView (snippets + route changes), ViewContent, Search, AddToCart, RemoveFromCart (GA4 `remove_from_cart`; Meta **custom** event), AddToWishlist (needs the optional `tracking` prop on `WishlistButton`), InitiateCheckout, AddPaymentInfo (on valid submit), Lead (contact form), CompleteRegistration (register form), Purchase. Each carries a unique event id, BDT, value, `content_ids`, `content_type`, `contents[{id,quantity,item_price}]`; Purchase adds `order_id`/`transaction_id`, tax, shipping, coupon. GA4 purchase `value` = total − shipping − tax (items net of discount), a documented choice, not verified against GA4 requirements; Meta `value` = order total. Product id is used as content id / item id; if the Meta catalogue uses SKUs, change `itemId` in `payloads.ts`.
+CAPI server events cover **Purchase only**. `event_source_url` = `<origin>/checkout` (never contains the order number); `action_source` is `website` only when a user agent was captured, else `other`.
+
+### Attribution
+Captured on the first eligible landing (campaign signal or external referrer; a direct first visit is stored as a direct first touch): utm_source/medium/campaign/content/term, campaign_id, adset_id, ad_id, placement, fbclid (→ fbc), landing **path** (order numbers masked, no query), referrer **host**. `_fbp`/`_fbc` read at checkout. First touch is never overwritten; last touch updates on eligible landings only; unresolved `{{macros}}` are discarded. The cookie is client-controlled, so the server re-validates every field (numeric ids, fbc/fbp formats, sane timestamps, length caps, markup stripped) and stores a snapshot once per order (`OrderAttribution`, first/last touch JSON). Attribution is reporting/matching data only and never affects value or totals. No separate session/customer attribution table: association is order → userId. Under `OPT_IN` without a grant only the consent state is stored. IP and user agent are kept only for CAPI matching and set to NULL after delivery or 8 days.
+
+**Recommended Meta Ads URL parameters** (Ads Manager → ad → URL parameters):
+```
+utm_source={{site_source_name}}&utm_medium=paid_social&utm_campaign={{campaign.name}}&utm_content={{ad.name}}&utm_term={{adset.name}}&campaign_id={{campaign.id}}&adset_id={{adset.id}}&ad_id={{ad.id}}&placement={{placement}}
+```
+
+### Consent (policy documented, default NOT changed)
+`consentMode` default stays `OFF`: trackers load with no banner and the merchant carries the legal responsibility. Under `OPT_IN`: nothing loads or is sent until "granted"; events before consent are **dropped, never replayed**; the choice is mirrored to cookie `gp_consent` and snapshotted on the order. Server delivery: OFF → sent unless that order recorded an explicit denial; OPT_IN → sent only with a recorded grant (the **current** mode judges the stored snapshot). Withdrawal clears `_fbp`, `_fbc`, `_ga*`, `_gcl_*`, `_tt*` and `gp_attr` and stops further events. Behaviour change: under OPT_IN, server Purchases are now sent for orders placed with a grant (previously never). Limit: consent withdrawn *after* checkout is not linked to an already-placed guest order.
+
+### Database (additive migration `20261122000000_tracking_p3`)
+Enums `TrackingEventStatus`, `TrackingConsentState`; tables `TrackingEventLog` (no customer data: status, attempts, order number, sanitized error, fbtrace id; unique per order+event) and `OrderAttribution`. No existing table/column changed. Rollback documented in the file. Never applied to a database.
+
+### Environment
+`META_CONVERSIONS_API_TOKEN` (server only, existing), `NEXT_PUBLIC_META_PIXEL_ID` or the admin Pixel ID (existing), `NEXT_PUBLIC_GTM_ID` or admin Google ID (existing), `CRON_SECRET` (existing; ≥24 chars enables `/api/tracking/retry`), new optional `META_GRAPH_API_VERSION` (default `v25.0`, unverified against live Meta) and `META_CAPI_TEST_EVENT_CODE` (remove in production; production-checks and diagnostics warn).
+
+### Setup
+**Meta:** create the Pixel; Events Manager → Settings → Conversions API → generate an access token → `META_CONVERSIONS_API_TOKEN`; set the Pixel ID in Admin → Settings; schedule `POST /api/tracking/retry` every 5–15 min with `Authorization: Bearer $CRON_SECRET`; test with `META_CAPI_TEST_EVENT_CODE`, then remove it. **GA4/GTM:** put either a `G-…` id (direct gtag.js; ecommerce via `gtag('event')`) or a `GTM-…` id (events arrive as `{event, event_id, ecommerce}`; the container needs GA4 event tags on those custom events and, for SPA page views, a History Change trigger). Use only one: do not also load the same GA4 stream inside GTM.
+
+### Tests (executed with Node 22 + temporary loader and stand-ins outside the repo; zod 3.25 stand-in for 4.5.4)
+New: `tracking-payloads` (6), `tracking-attribution` (9), `tracking-capi` (14), `tracking-client-gate` (10), `tests/services/tracking-event` (18, real `placeOrder`→confirm flow), `tracking-settings` updated (6). All pass. Mutation checks (re-allow PENDING, drop dedupe, drop consent check) each made tests fail. Full suite: 778 pass / 28 fail vs original 680 / 30; **no test fails that did not already fail in the original** (all traced failures = packages missing in the sandbox: clsx, slugify, jose, bcryptjs). `advance-hardening` and `reviews` fail in the original but pass here for a reason not investigated. `node scripts/check-branding.mjs` passes. Strict `tsc` (TS 6.0.3) over the dependency-light changed files is clean (it caught one narrowing bug, fixed).
+**BLOCKED:** full `tsc` (TSX components and Prisma-typed services never type-checked), ESLint, `prisma validate`, `next build`, applying the migration, any call to Meta or Google, e2e.
+
+### Known limitations / remaining
+- **GA4 purchase is browser-only**: an order confirmed by an admin after the customer left produces a Meta Purchase but no GA4 purchase. Needs GA4 Measurement Protocol (`GA4_API_SECRET`, `_ga` client id capture), not built.
+- Server CAPI is Purchase-only; other events are browser-only.
+- The confirmation hook can make an admin click wait up to ~6 s if Meta is slow (otherwise the retry job finishes it).
+- Test-fixture changes: `fake-db` (2 tables, 1 relation, 2 uniques) and a `headers()` export in the `next/headers` stub.
+
+### Manual production verification
+1. `pnpm install && pnpm prisma generate && pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build`; on a disposable Postgres `prisma migrate deploy` then `prisma migrate diff` (expect empty).
+2. With `META_CAPI_TEST_EVENT_CODE`: place an order (nothing in Test Events), confirm it in admin (exactly one Purchase, `event_id` = `purchase_<orderNumber>`, matched by the browser event if the customer views the confirmation page, shown as deduplicated).
+3. Admin → Settings → Tracking diagnostics: statuses correct, no secrets; break the token and confirm a FAILED row with a safe message, then fix and Retry.
+4. GA4 DebugView: view_item, add_to_cart, remove_from_cart, begin_checkout, add_payment_info, purchase (items, transaction_id, tax, shipping).
+5. OPT_IN store: no tracker requests before consent; withdraw consent and check cookies are cleared.
+6. Open an ad URL with the template above and confirm `OrderAttribution` after an order.
+
+### Next phase
+Finish verification above; optionally P3.1 (GA4 Measurement Protocol). Fraud scoring, courier sync and confirmation automation remain separate phases and were not started.

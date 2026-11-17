@@ -9,3 +9,9 @@ export async function cookies() {
     delete: (name: string) => void jar.delete(name),
   };
 }
+
+// Request headers stand-in: tests set `globalThis.__TEST_HEADERS__ = { "user-agent": "...", "x-forwarded-for": "..." }`.
+export async function headers() {
+  const map = ((globalThis as any).__TEST_HEADERS__ ??= {}) as Record<string, string>;
+  return { get: (name: string) => map[name.toLowerCase()] ?? null };
+}

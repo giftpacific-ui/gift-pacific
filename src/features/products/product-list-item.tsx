@@ -45,7 +45,7 @@ export function ProductListItem({ product }: { product: PublicProductCard }) {
                 <h3 className="font-heading text-lg font-semibold transition-colors hover:text-primary sm:text-xl">{product.name}</h3>
               </Link>
             </div>
-            <WishlistButton productId={product.id} />
+            <WishlistButton productId={product.id} tracking={{ name: product.name, price: displayPrice, currency: product.currency }} />
           </div>
           {product.shortDescription && (
             <p className="mt-1 hidden max-w-md text-sm text-muted-foreground sm:block">

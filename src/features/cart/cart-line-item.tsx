@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Minus, Plus, X } from "lucide-react";
 import type { CartItemDTO } from "@/features/cart/cart.types";
+import { trackRemoveFromCart } from "@/lib/analytics/events";
 import { useRemoveCartItem, useUpdateCartItemQuantity } from "@/features/cart/use-cart";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
@@ -35,7 +36,13 @@ export function CartLineItem({ item }: { item: CartItemDTO }) {
           </Link>
           <button
             type="button"
-            onClick={() => removeItem.mutate(item.id)}
+            onClick={() =>
+              removeItem.mutate(item.id, {
+                onSuccess: (result) => {
+                  if (result.success) trackRemoveFromCart({ id: item.productId, name: item.productName, price: item.unitPrice }, item.quantity);
+                },
+              })
+            }
             aria-label={`Remove ${item.productName} from your cart`}
             className="-mt-1 -mr-1 grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:text-destructive"
           >

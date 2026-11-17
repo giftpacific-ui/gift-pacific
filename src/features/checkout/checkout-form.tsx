@@ -153,19 +153,9 @@ export function CheckoutForm({
   const sentInitiateCheckout = useRef(false);
 
   useEffect(() => {
-    if (sentPaymentInfo.current) return;
-    sentPaymentInfo.current = true;
-    trackAddPaymentInfo(paymentMethod);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
     if (items.length > 0 && !sentInitiateCheckout.current) {
       sentInitiateCheckout.current = true;
-      trackInitiateCheckout(
-        items.map((i) => ({ id: i.productId, name: i.productName, price: i.unitPrice })),
-        subtotal,
-      );
+      trackInitiateCheckout(trackedItems());
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length]);
@@ -186,7 +176,16 @@ export function CheckoutForm({
     toast.success("Coupon applied");
   }
 
+  function trackedItems() {
+    return items.map((i) => ({ id: i.productId, name: i.productName, price: i.unitPrice, quantity: i.quantity }));
+  }
+
   function onSubmit(values: CheckoutInput) {
+    // The customer has passed validation with a chosen payment method: that is "payment info added" (once per visit).
+    if (!sentPaymentInfo.current) {
+      sentPaymentInfo.current = true;
+      trackAddPaymentInfo(trackedItems(), values.paymentMethod);
+    }
     startTransition(async () => {
       const result = await submitCheckout(values);
       if (!result.success) {

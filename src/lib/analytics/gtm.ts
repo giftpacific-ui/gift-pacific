@@ -1,13 +1,9 @@
-"use client";
-
+// Global typing for the GTM / gtag data layer. Events are NOT pushed from here any more: every event goes through
+// tracking-state.ts, which applies the consent gate and picks the right GA4 delivery mode.
 declare global {
   interface Window {
-    dataLayer?: Record<string, unknown>[];
+    dataLayer?: unknown[];
   }
 }
 
-export function pushToDataLayer(event: Record<string, unknown>) {
-  if (typeof window === "undefined") return;
-  window.dataLayer = window.dataLayer ?? [];
-  window.dataLayer.push(event);
-}
+export {};

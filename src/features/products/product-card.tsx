@@ -110,7 +110,7 @@ export function ProductCard({ product, index, priority = false }: { product: Pub
         </div>
 
         <div className="absolute top-2.5 right-2.5 z-10 sm:top-3 sm:right-3 lg:translate-y-[-6px] lg:opacity-0 lg:transition-all lg:duration-300 lg:group-focus-within:translate-y-0 lg:group-focus-within:opacity-100 lg:group-hover:translate-y-0 lg:group-hover:opacity-100">
-          <WishlistButton productId={product.id} />
+          <WishlistButton productId={product.id} tracking={{ name: product.name, price: displayPrice, currency: product.currency }} />
         </div>
 
         <div className="pointer-events-none absolute inset-x-2.5 bottom-2.5 z-10 sm:inset-x-3 sm:bottom-3 lg:translate-y-[130%] lg:transition-transform lg:duration-300 lg:group-focus-within:translate-y-0 lg:group-hover:translate-y-0">

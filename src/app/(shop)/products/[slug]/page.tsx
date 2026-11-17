@@ -170,7 +170,7 @@ export default async function ProductDetailPage({ params }: Props) {
                 )}
                 <h1 className="font-heading text-[clamp(1.9rem,3.4vw,2.7rem)] leading-tight font-semibold">{product.name}</h1>
               </div>
-              <WishlistButton productId={product.id} />
+              <WishlistButton productId={product.id} tracking={{ name: product.name, price: product.price, currency: product.currency }} />
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-3">

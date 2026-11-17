@@ -7,6 +7,7 @@ import { OrderDetailView } from "@/features/orders/order-detail-view";
 import { Button } from "@/components/ui/button";
 import { readConfirmationToken } from "@/server/confirmation";
 import { TrackPurchase } from "@/features/checkout/track-purchase";
+import { purchaseEligibility } from "@/lib/analytics/purchase-policy";
 
 export const metadata: Metadata = { title: "Order Confirmed", robots: { index: false, follow: false } };
 
@@ -36,7 +37,19 @@ export default async function OrderConfirmationPage({
         </Button>
       </div>
 
-      <TrackPurchase orderNumber={order.orderNumber} value={Number(order.total)} currency={order.currency} />
+      {purchaseEligibility({ status: order.status, channelId: order.channelId }).eligible && (
+        <TrackPurchase
+          order={{
+            orderNumber: order.orderNumber,
+            total: Number(order.total),
+            shipping: Number(order.shippingTotal),
+            tax: Number(order.taxTotal),
+            coupon: order.coupon?.code ?? null,
+            currency: order.currency,
+            items: order.items.map((i) => ({ id: i.productId, name: i.productName, price: Number(i.unitPrice), quantity: i.quantity, variant: i.variantName })),
+          }}
+        />
+      )}
 
       <OrderDetailView
         order={order}

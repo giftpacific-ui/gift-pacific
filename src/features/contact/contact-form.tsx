@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
+import { trackLead } from "@/lib/analytics/events";
 import { contactFormSchema, type ContactFormInput } from "@/lib/validations/contact";
 import { submitContactMessageAction } from "@/server/actions/contact.actions";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ export function ContactForm() {
         }
         return;
       }
+      trackLead("contact_form");
       toast.success("Message sent — we'll get back to you soon.");
       form.reset();
     });

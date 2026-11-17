@@ -4,7 +4,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { isValidLinkedInId, isValidTikTokId } from "@/lib/analytics/ids";
 import { storeSettingsFormSchema } from "@/lib/validations/admin";
-import { trackServerEvent } from "@/lib/analytics/server-events";
+import { buildPurchaseEvent, resolveMetaConfig, sendMetaEvents } from "@/lib/analytics/server-events";
 
 test("TikTok and LinkedIn ids: real-looking ids pass; anything that could break out of an inline script fails", () => {
   for (const ok of ["C1A2B3C4D5E6F7G8H9I0", "CABCDEFGHIJ1234567"]) assert.equal(isValidTikTokId(ok), true, ok);
@@ -43,35 +43,40 @@ function spyFetch() {
   return calls;
 }
 
+const sampleEvent = () =>
+  buildPurchaseEvent({
+    order: { orderNumber: "AP-1", total: 10, currency: "BDT", email: null, phone: "01712345678", userId: null, shipping: {}, items: [{ productId: "p1", quantity: 1, unitPrice: 10 }] },
+    eventId: "purchase_AP-1",
+    eventTime: new Date(),
+    sourceUrl: "https://shop.test/checkout",
+    attribution: { userAgent: "UA" },
+  });
+
 test("server-side Purchase: uses the pixel configured in Admin (not only the env var), and never sends the access token in the URL", async () => {
-  process.env.META_CONVERSIONS_API_TOKEN = "TOKEN-123";
-  process.env.NEXT_PUBLIC_META_PIXEL_ID = "111111";
+  const env = { META_CONVERSIONS_API_TOKEN: "TOKEN-123", NEXT_PUBLIC_META_PIXEL_ID: "111111" };
+  const admin = resolveMetaConfig("222222", env);
+  assert.ok(admin.ok);
   const calls = spyFetch();
-  await trackServerEvent("Purchase", { value: 10, currency: "BDT", order_id: "AP-1" }, "purchase_AP-1", { pixelId: "222222", consentMode: "OFF", pageUrl: "https://shop.test/checkout" });
-  assert.equal(calls.length, 1);
+  await sendMetaEvents(admin.config, [sampleEvent()]);
   assert.match(calls[0].url, /\/222222\/events$/);                        // the admin pixel wins over the env var
   assert.ok(!calls[0].url.includes("TOKEN-123"));
   assert.match(calls[0].body, /"event_source_url":"https:\/\/shop.test\/checkout"/);
-  await trackServerEvent("Purchase", { value: 1 }, undefined, { pixelId: null });
-  assert.match(calls[1].url, /\/111111\/events$/);                        // falls back to the env var
+  const fallback = resolveMetaConfig(null, env);
+  assert.ok(fallback.ok && fallback.config.pixelId === "111111");            // falls back to the env var
 });
 
-test("server-side Purchase: nothing is sent under opt-in consent, without a token, or with a malformed pixel id", async () => {
-  process.env.META_CONVERSIONS_API_TOKEN = "TOKEN-123";
-  const calls = spyFetch();
-  await trackServerEvent("Purchase", { value: 10 }, "e", { pixelId: "222222", consentMode: "OPT_IN" });
-  await trackServerEvent("Purchase", { value: 10 }, "e", { pixelId: "../../evil?x=" });
-  delete process.env.NEXT_PUBLIC_META_PIXEL_ID;
-  await trackServerEvent("Purchase", { value: 10 }, "e", {});
-  delete process.env.META_CONVERSIONS_API_TOKEN;
-  await trackServerEvent("Purchase", { value: 10 }, "e", { pixelId: "222222" });
-  assert.equal(calls.length, 0);
+test("server-side Purchase: no configuration is produced without a token or with a malformed pixel id", () => {
+  assert.deepEqual(resolveMetaConfig("../../evil?x=", { META_CONVERSIONS_API_TOKEN: "T" }), { ok: false, reason: "invalid_pixel" });
+  assert.deepEqual(resolveMetaConfig("222222", {}), { ok: false, reason: "no_token" });
+  assert.deepEqual(resolveMetaConfig(null, { META_CONVERSIONS_API_TOKEN: "T" }), { ok: false, reason: "no_pixel" });
 });
 
 test("server-side tracking failures never throw (they must not break checkout)", async () => {
-  process.env.META_CONVERSIONS_API_TOKEN = "T";
   globalThis.fetch = (async () => { throw new Error("network down"); }) as never;
-  await trackServerEvent("Purchase", { value: 1 }, "e", { pixelId: "222222" });
+  const cfg = resolveMetaConfig("222222", { META_CONVERSIONS_API_TOKEN: "T" });
+  assert.ok(cfg.ok);
+  const result = await sendMetaEvents(cfg.config, [sampleEvent()]);
+  assert.equal(result.ok, false);
 });
 
 function walk(dir: string, out: string[] = []): string[] {

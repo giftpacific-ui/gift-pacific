@@ -4,7 +4,8 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { GA4_ID_PATTERN, GTM_ID_PATTERN, isValidLinkedInId, isValidPixelId, isValidTikTokId } from "@/lib/analytics/ids";
-import { CONSENT_EVENT, readConsent, writeConsent, type ConsentState } from "@/lib/analytics/consent";
+import { readConsent, subscribeConsent, writeConsent, type ConsentState } from "@/lib/analytics/consent";
+import { configureTracking } from "@/lib/analytics/tracking-state";
 import { analyticsPath, isTrackablePath, shouldSendPageView } from "@/lib/analytics/privacy";
 
 declare global {
@@ -79,6 +80,14 @@ export function AnalyticsScripts({
   const tiktok = isValidTikTokId(tiktokId) ? tiktokId : null;
   const linkedin = isValidLinkedInId(linkedinId) ? linkedinId : null;
   // A GTM container normally contains its own GA4 tag: never ALSO load gtag.js for the same site.
+
+  const hasPixel = Boolean(pixelId);
+  const hasTikTok = Boolean(tiktok);
+  const ga4Mode = isGa4 ? "gtag" : isGtm ? "gtm" : null;
+  // These scripts only render when tracking is permitted: tell the event gate which destinations are live.
+  useEffect(() => {
+    configureTracking({ permitted: true, ga4: ga4Mode, meta: hasPixel, tiktok: hasTikTok });
+  }, [ga4Mode, hasPixel, hasTikTok]);
 
   if (!isTrackablePath(pathname)) return null;
 
@@ -184,15 +193,6 @@ export function AnalyticsScripts({
   );
 }
 
-function subscribeConsent(onChange: () => void) {
-  window.addEventListener(CONSENT_EVENT, onChange);
-  window.addEventListener("storage", onChange);
-  return () => {
-    window.removeEventListener(CONSENT_EVENT, onChange);
-    window.removeEventListener("storage", onChange);
-  };
-}
-
 /**
  * The single entry point used by the root layout.
  *  - consentMode "OFF": scripts load as before (no banner).
@@ -219,6 +219,15 @@ export function AnalyticsRoot({
   );
 
   const anyTracker = Boolean(ids.trackingId || ids.pixelId || ids.tiktokId || ids.linkedinId);
+  const trackable = isTrackablePath(pathname);
+  const permitted = anyTracker && trackable && (consentMode === "OFF" || consent === "granted");
+  // Not permitted (no consent yet, consent withdrawn, nothing configured): tell the event gate to DROP events instead of holding them.
+  // "loading" is only the hydration instant, so nothing is decided yet. When permitted, AnalyticsScripts configures the gate itself.
+  useEffect(() => {
+    if (consent === "loading" || permitted) return;
+    configureTracking({ permitted: false, ga4: null, meta: false, tiktok: false });
+  }, [consent, permitted]);
+
   if (!anyTracker || !isTrackablePath(pathname)) return null;
   if (consentMode === "OFF") return <AnalyticsScripts {...ids} />;
   if (consent === "loading") return null;
