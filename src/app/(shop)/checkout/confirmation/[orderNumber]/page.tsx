@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { readConfirmationToken } from "@/server/confirmation";
 import { TrackPurchase } from "@/features/checkout/track-purchase";
 import { purchaseEligibility } from "@/lib/analytics/purchase-policy";
+import { isGa4ServerPurchaseActive } from "@/server/services/tracking-event.service";
 
 export const metadata: Metadata = { title: "Order Confirmed", robots: { index: false, follow: false } };
 
@@ -39,6 +40,7 @@ export default async function OrderConfirmationPage({
 
       {purchaseEligibility({ status: order.status, channelId: order.channelId }).eligible && (
         <TrackPurchase
+          serverSendsGa4={await isGa4ServerPurchaseActive()}
           order={{
             orderNumber: order.orderNumber,
             total: Number(order.total),

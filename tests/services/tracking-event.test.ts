@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { emptyCheckout, freshDb, runAs, seedCatalog, seedAdmins, TEST_ADMIN } from "../setup/helpers";
+import { discardAfter, drainAfter, emptyCheckout, freshDb, runAs, seedCatalog, seedAdmins, TEST_ADMIN } from "../setup/helpers";
 import type { FakeDb } from "../setup/fake-db";
 import { addItemToCart } from "@/server/services/cart.service";
 import { adminUpdateOrderStatus, placeOrder } from "@/server/services/order.service";
@@ -31,7 +31,7 @@ beforeEach(() => {
   delete process.env.META_CAPI_TEST_EVENT_CODE;
   (globalThis as any).__TEST_COOKIES__.clear();
   (globalThis as any).__TEST_HEADERS__ = {};
-  calls = []; respond = ok;
+  calls = []; respond = ok; discardAfter();
   globalThis.fetch = (async (url: string, init: RequestInit) => { calls.push({ url: String(url), body: JSON.parse(String(init.body)) }); return respond(); }) as never;
 });
 afterEach(() => { globalThis.fetch = realFetch; process.env = { ...realEnv }; });
@@ -41,7 +41,13 @@ const orderOf = async (productId = "p-standard", quantity = 1) => {
   await runAs({ sub: "cust" }, () => addItemToCart({ productId, variantId: null, quantity }));
   return runAs({ sub: "cust" }, () => placeOrder(emptyCheckout));
 };
-const move = (id: string, to: string) => adminUpdateOrderStatus(id, to as never, undefined, TEST_ADMIN);
+// Confirming only PERSISTS the event and schedules delivery with after(); drainAfter() plays the platform running it after the response.
+// (tracking-p31.test.ts covers the background-first behaviour itself: nothing sent during the confirm, recovery when after() never runs.)
+const move = async (id: string, to: string) => {
+  const result = await adminUpdateOrderStatus(id, to as never, undefined, TEST_ADMIN);
+  await drainAfter();
+  return result;
+};
 const attribution = (id: string, over: Record<string, unknown> = {}) =>
   db.insert("orderAttribution", { id: `attr-${id}`, orderId: id, userId: "cust", consentState: "NOT_REQUIRED", fbc: null, fbp: "fb.1.1700000000000.1234567890", clientIp: "203.0.113.7", clientUserAgent: "Mozilla/5.0", contactScrubbedAt: null, createdAt: new Date(), ...over });
 
@@ -50,7 +56,7 @@ test("CREATING an order is not a Purchase: no event row, no request to Meta", as
   assert.equal(db.get("order", o.id).status, "PENDING");
   assert.equal(logs().length, 0);
   assert.equal(calls.length, 0);
-  assert.deepEqual(await enqueuePurchaseEvent(o.id), { logId: null, reason: "order_not_eligible" }); // even asking for it explicitly
+  assert.deepEqual(await enqueuePurchaseEvent(o.id), { logId: null, logIds: [], reason: "order_not_eligible" }); // even asking for it explicitly
   assert.equal(logs().length, 0);
 });
 
@@ -149,7 +155,7 @@ test("marketplace / non-website orders never produce a Purchase, even if they ca
   await move(o.id, "CONFIRMED");
   calls.length = 0; db.remove("trackingEventLog", () => true);
   db.patch("order", o.id, { channelId: "channel_amazon" });
-  assert.deepEqual(await enqueuePurchaseEvent(o.id), { logId: null, reason: "not_website_order" });
+  assert.deepEqual(await enqueuePurchaseEvent(o.id), { logId: null, logIds: [], reason: "not_website_order" });
   await runTrackingMaintenance();
   assert.equal(logs().length, 0);
   assert.equal(calls.length, 0);

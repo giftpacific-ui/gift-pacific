@@ -80,6 +80,6 @@ export function trackCompleteRegistration(method = "email") {
  * At most once per order (see TrackPurchase). Sends no customer data. The event id is purchase_<orderNumber> - the same id the
  * server-side Conversions API event uses - so Meta counts the two as one.
  */
-export function trackPurchase(order: PurchaseInput) {
-  emitCommerceEvent(purchaseEvent(order, purchaseEventId(order.orderNumber)));
+export function trackPurchase(order: PurchaseInput, options: { includeGa4?: boolean } = {}) {
+  emitCommerceEvent(purchaseEvent(order, purchaseEventId(order.orderNumber), options));
 }

@@ -46,6 +46,15 @@ export function TrackingDiagnosticsPanel({ data }: { data: TrackingDiagnostics }
         <Row label="Meta Conversions API (server)" ok={meta.capiState === "ready"} value={CAPI_LABEL[meta.capiState]} />
         <Row label="Graph API version" value={meta.apiVersion} />
         <Row label="Google" ok={google.configured} value={google.configured ? `${google.kind === "GA4" ? "GA4 (gtag.js)" : "Tag Manager"} (${google.source})` : "Not configured"} />
+        <Row
+          label="GA4 server purchase (Measurement Protocol)"
+          ok={data.ga4Server.state === "ready" && !data.ga4Server.validationOnly}
+          value={
+            data.ga4Server.state === "ready"
+              ? `${data.ga4Server.validationOnly ? "Validation mode (not recorded)" : "Ready"} · ${data.ga4Server.measurementId}`
+              : { no_measurement_id: "Not configured (no GA4 measurement id)", invalid_measurement_id: "Not configured (measurement id invalid)", no_secret: "Not configured (API secret not set on the server)" }[data.ga4Server.state]
+          }
+        />
         <Row label="TikTok pixel" ok={data.tiktok.configured} value={data.tiktok.configured ? "Configured" : "Not configured"} />
         <Row label="Consent mode" value={data.consentMode === "OPT_IN" ? "Opt-in (trackers wait for consent)" : "Off (trackers load without a banner)"} />
         <Row label="Retry job (CRON_SECRET)" ok={data.retryJobEnabled} value={data.retryJobEnabled ? "Enabled" : "Disabled (CRON_SECRET missing or too short)"} />
@@ -62,13 +71,14 @@ export function TrackingDiagnosticsPanel({ data }: { data: TrackingDiagnostics }
       <p className="mt-1 text-sm text-muted-foreground">
         Sent {events.counts.sent} · Pending {events.counts.pending} · Failed {events.counts.failed} · Skipped {events.counts.skipped}
         {events.lastSentAt ? ` · Last delivered ${events.lastSentAt.toLocaleString()}` : ""}
+        {events.oldestPendingAt ? ` · Oldest waiting since ${events.oldestPendingAt.toLocaleString()}` : ""}
       </p>
       {events.recent.length > 0 && (
         <ul className="mt-3 divide-y divide-border/60 text-sm">
           {events.recent.map((e) => (
             <li key={e.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <span>
-                <span className="font-medium">{e.orderNumber}</span> · {e.eventName} · {e.status.toLowerCase()}
+                <span className="font-medium">{e.orderNumber}</span> · {e.destination === "GA4_MP" ? "GA4" : "Meta"} {e.eventName} · {e.status.toLowerCase()}
                 {e.skipReason ? ` (${e.skipReason.replace(/_/g, " ")})` : ""} · attempts {e.attempts}
                 {e.errorMessage ? <span className="block text-xs text-muted-foreground">{e.errorCode ? `${e.errorCode}: ` : ""}{e.errorMessage}</span> : null}
               </span>

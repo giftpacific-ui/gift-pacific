@@ -2,7 +2,9 @@ import "server-only";
 import { cookies, headers } from "next/headers";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { ATTRIBUTION_COOKIE, buildOrderAttributionRecord, clientIpFromHeaders } from "@/lib/analytics/attribution";
+import { ATTRIBUTION_COOKIE, buildOrderAttributionRecord, clientIpFromHeaders, gaSessionCookieName } from "@/lib/analytics/attribution";
+import { CONSENT_REF_COOKIE } from "@/lib/analytics/consent-ref";
+import { resolveGa4Config } from "@/lib/analytics/ga4-mp";
 import { CONSENT_COOKIE, consentSnapshotFor, type ConsentMode } from "@/lib/analytics/purchase-policy";
 
 /**
@@ -16,11 +18,17 @@ export async function snapshotOrderAttribution(order: { id: string; userId: stri
   try {
     const jar = await cookies();
     const h = await headers();
+    // The GA client/session id is read only when the server GA4 purchase can actually use it (data minimisation).
+    const settings = await prisma.storeSettings.findFirst({ select: { gtmId: true } });
+    const ga4 = resolveGa4Config(settings?.gtmId);
     const record = buildOrderAttributionRecord({
       consentState: consentSnapshotFor(consentMode, jar.get(CONSENT_COOKIE)?.value),
       attributionCookie: jar.get(ATTRIBUTION_COOKIE)?.value,
       fbcCookie: jar.get("_fbc")?.value,
       fbpCookie: jar.get("_fbp")?.value,
+      gaCookie: ga4.ok ? jar.get("_ga")?.value : undefined,
+      gaSessionCookie: ga4.ok ? jar.get(gaSessionCookieName(ga4.config.measurementId))?.value : undefined,
+      consentRefCookie: jar.get(CONSENT_REF_COOKIE)?.value,
       ip: clientIpFromHeaders((n) => h.get(n)),
       userAgent: h.get("user-agent"),
     });
@@ -35,6 +43,9 @@ export async function snapshotOrderAttribution(order: { id: string; userId: stri
           fbp: record.fbp,
           clientIp: record.clientIp,
           clientUserAgent: record.clientUserAgent,
+          gaClientId: record.gaClientId,
+          gaSessionId: record.gaSessionId,
+          consentRef: record.consentRef,
           consentState: record.consentState,
         },
       ],

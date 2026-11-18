@@ -11,7 +11,7 @@ import {
   touchFromLocation,
 } from "@/lib/analytics/attribution";
 import { readCookie, writeCookie } from "@/lib/analytics/cookie";
-import { readConsent, subscribeConsent, syncConsentCookie, type ConsentState } from "@/lib/analytics/consent";
+import { flushPendingWithdrawal, readConsent, subscribeConsent, syncConsentCookie, type ConsentState } from "@/lib/analytics/consent";
 
 /**
  * Captures first-touch / last-touch attribution into a first-party cookie (gp_attr) on an eligible landing; the checkout copies it
@@ -28,6 +28,7 @@ export function AttributionCapture({ consentMode }: { consentMode: "OFF" | "OPT_
   useEffect(() => {
     if (consent === "loading") return;
     syncConsentCookie(consent);
+    flushPendingWithdrawal(); // a withdrawal the server has not acknowledged yet (offline, reload, error) is retried here
     if (!allowed) return;
     try {
       const touch = touchFromLocation({ pathname, search: window.location.search, referrer: document.referrer, ownHost: window.location.host });

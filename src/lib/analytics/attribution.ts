@@ -15,6 +15,7 @@
  * only - it never changes an order's total or what value is sent to an ad platform.
  */
 import { analyticsPath, isTrackablePath } from "@/lib/analytics/privacy";
+import { isValidConsentRef } from "@/lib/analytics/consent-ref";
 
 export const ATTRIBUTION_COOKIE = "gp_attr";
 export const ATTRIBUTION_MAX_AGE_SECONDS = 60 * 60 * 24 * 90;
@@ -235,6 +236,30 @@ export function resolveFbc(cookieFbc: string | undefined, attribution: Attributi
   return t?.fbclid ? fbcFromFbclid(t.fbclid, t.at) : undefined;
 }
 
+// ---------------------------------------------------------------------------------------------------------------- GA4 identifiers
+
+/**
+ * GA client id from the `_ga` cookie (`GA1.<n>.<random>.<timestamp>` -> `<random>.<timestamp>`). The cookie is client-controlled,
+ * so only the two numeric parts in their real shape are accepted; anything else is dropped rather than guessed or repaired.
+ */
+export function gaClientIdFromCookie(raw: string | null | undefined): string | undefined {
+  if (typeof raw !== "string" || raw.length > 64) return undefined;
+  const parts = raw.trim().split(".");
+  if (parts.length < 4 || !/^GA\d$/.test(parts[0]) || !/^\d$/.test(parts[1])) return undefined;
+  const id = `${parts[2]}.${parts[3]}`;
+  return /^\d{3,12}\.\d{9,11}$/.test(id) ? id : undefined;
+}
+
+/** Session id from the `_ga_<MEASUREMENT>` cookie, in either the GS1 (`GS1.1.<id>.…`) or GS2 (`GS2.1.s<id>$o…`) format. */
+export function gaSessionIdFromCookie(raw: string | null | undefined): string | undefined {
+  if (typeof raw !== "string" || raw.length > 200) return undefined;
+  const m = /^GS1\.\d\.(\d{9,11})\./.exec(raw) ?? /^GS2\.\d\.s(\d{9,11})\$/.exec(raw);
+  return m?.[1];
+}
+
+/** `G-ABC123` -> `_ga_ABC123`: the name of the session cookie for that measurement id. */
+export const gaSessionCookieName = (measurementId: string): string => `_ga_${measurementId.replace(/^G-/i, "")}`;
+
 // ---------------------------------------------------------------------------------------------------------------- order snapshot
 
 /** Syntactic IP check (no node:net so this file stays usable in the browser bundle). */
@@ -266,6 +291,9 @@ export type OrderAttributionRecord = {
   fbp: string | null;
   clientIp: string | null;
   clientUserAgent: string | null;
+  gaClientId: string | null;
+  gaSessionId: string | null;
+  consentRef: string | null;
   consentState: "GRANTED" | "DENIED" | "UNKNOWN" | "NOT_REQUIRED";
 };
 
@@ -278,6 +306,10 @@ export function buildOrderAttributionRecord(args: {
   attributionCookie?: string | null;
   fbcCookie?: string | null;
   fbpCookie?: string | null;
+  /** Raw `_ga` / `_ga_<id>` cookies. Pass them only when the server GA4 purchase is configured (data minimisation). */
+  gaCookie?: string | null;
+  gaSessionCookie?: string | null;
+  consentRefCookie?: string | null;
   ip?: string | null;
   userAgent?: string | null;
   now?: number;
@@ -285,7 +317,7 @@ export function buildOrderAttributionRecord(args: {
   const now = args.now ?? Date.now();
   const permitted = args.consentState === "GRANTED" || args.consentState === "NOT_REQUIRED";
   if (!permitted) {
-    return { firstTouch: null, lastTouch: null, fbc: null, fbp: null, clientIp: null, clientUserAgent: null, consentState: args.consentState };
+    return { firstTouch: null, lastTouch: null, fbc: null, fbp: null, clientIp: null, clientUserAgent: null, gaClientId: null, gaSessionId: null, consentRef: null, consentState: args.consentState };
   }
   const attribution = parseAttributionCookie(args.attributionCookie, now);
   return {
@@ -295,6 +327,9 @@ export function buildOrderAttributionRecord(args: {
     fbp: isValidFbp(args.fbpCookie, now) ? (args.fbpCookie as string) : null,
     clientIp: cleanIp(args.ip) ?? null,
     clientUserAgent: cleanUserAgent(args.userAgent) ?? null,
+    gaClientId: gaClientIdFromCookie(args.gaCookie) ?? null,
+    gaSessionId: gaSessionIdFromCookie(args.gaSessionCookie) ?? null,
+    consentRef: isValidConsentRef(args.consentRefCookie) ? args.consentRefCookie : null,
     consentState: args.consentState,
   };
 }

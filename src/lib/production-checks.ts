@@ -64,6 +64,12 @@ export function findProductionConfigProblems(env: Env): ConfigProblem[] {
   if (env.META_CONVERSIONS_API_TOKEN?.trim() && (env.CRON_SECRET?.trim().length ?? 0) < 24) {
     problems.push({ severity: "warning", message: "META_CONVERSIONS_API_TOKEN is set but CRON_SECRET is missing or shorter than 24 characters, so failed server events cannot be retried automatically (/api/tracking/retry is disabled)." });
   }
+  if (env.GA4_API_SECRET?.trim() && (env.CRON_SECRET?.trim().length ?? 0) < 24) {
+    problems.push({ severity: "warning", message: "GA4_API_SECRET is set but CRON_SECRET is missing or shorter than 24 characters, so failed server events cannot be retried automatically (/api/tracking/retry is disabled)." });
+  }
+  if (env.GA4_MP_DEBUG?.trim().toLowerCase() === "true") {
+    problems.push({ severity: "warning", message: "GA4_MP_DEBUG is true in production: server purchases are only validated by Google, not recorded. Remove it once testing is done." });
+  }
   if (env.BKASH_ENABLED?.trim().toLowerCase() === "true") {
     problems.push({ severity: "critical", message: "BKASH_ENABLED=true: the bKash integration is implemented from third-party documentation and has not passed official-contract review or a sandbox run. Do not accept real payments until both are done." });
     if (env.BKASH_ENV?.trim().toLowerCase() === "production") {

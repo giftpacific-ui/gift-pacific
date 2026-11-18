@@ -14,6 +14,15 @@
  * (re)delivered. A Purchase that was already accepted before a later cancellation is NOT reversed (ad platforms have no standard
  * "un-purchase" event); the audit row shows what was sent and when.
  *
+ * ## Where it is sent (one sender per destination)
+ * Meta: browser Pixel (only if the order is already confirmed when the page is viewed) AND server CAPI, de-duplicated by the shared event id.
+ * GA4: the SERVER (Measurement Protocol) when GA4_API_SECRET is configured, and then the browser does NOT send a GA4 purchase; if it is not
+ * configured the browser sends it as before. GA4 documents no browser/server de-duplication, so exactly one sender is the only safe policy.
+ *
+ * ## Consent withdrawal
+ * Withdrawal (reference cookie and/or the signed-in account) turns every not-yet-delivered event of the affected orders into SKIPPED
+ * `consent_withdrawn` and erases their stored marketing identifiers. An event that was already SENT cannot be recalled from Meta or Google.
+ *
  * ## Exactly once
  * One TrackingEventLog row per (destination, event, order) is enforced by a unique index; the event id is derived from the order
  * number, so the browser and the server always agree.
@@ -34,7 +43,10 @@ export type SkipReason =
   | "order_not_eligible"
   | "consent_not_granted"
   | "event_too_old"
-  | "not_configured";
+  | "not_configured"
+  | "consent_withdrawn"
+  | "no_client_id"
+  | "validation_only";
 
 export function purchaseEligibility(order: { status: string; channelId: string }): { eligible: true } | { eligible: false; reason: SkipReason } {
   if (order.channelId !== WEBSITE_CHANNEL_ID) return { eligible: false, reason: "not_website_order" };
@@ -66,6 +78,16 @@ export function mayDeliverServerEvent(mode: ConsentMode, snapshot: ConsentSnapsh
 
 /** Meta rejects server events whose event_time is more than 7 days old. A safety margin is kept. */
 export const META_MAX_EVENT_AGE_MS = 7 * 86_400_000 - 3_600_000;
+/**
+ * GA4 Measurement Protocol accepts events at most 72 hours old. An older one is NOT rejected: it is accepted and silently re-dated to
+ * "72 hours ago", which would put the revenue on the wrong day, so such events are skipped instead. 1 hour of margin.
+ */
+export const GA4_MAX_EVENT_AGE_MS = 72 * 3_600_000 - 3_600_000;
+
+export const TRACKING_DESTINATIONS = ["META_CAPI", "GA4_MP"] as const;
+export type TrackingDestination = (typeof TRACKING_DESTINATIONS)[number];
+
+export const maxEventAgeMs = (destination: string): number => (destination === "GA4_MP" ? GA4_MAX_EVENT_AGE_MS : META_MAX_EVENT_AGE_MS);
 export const MAX_DELIVERY_ATTEMPTS = 6;
 /** A claim (SENDING) older than this is assumed abandoned (crashed worker) and may be re-claimed. */
 export const SENDING_STALE_MS = 2 * 60_000;
@@ -77,7 +99,7 @@ export function nextRetryDelayMs(attempt: number): number | null {
   return BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length) - 1] ?? BACKOFF_MS[BACKOFF_MS.length - 1];
 }
 
-export const isEventTooOld = (eventTime: Date, now: number): boolean => now - eventTime.getTime() > META_MAX_EVENT_AGE_MS;
+export const isEventTooOld = (eventTime: Date, now: number, maxAgeMs: number = META_MAX_EVENT_AGE_MS): boolean => now - eventTime.getTime() > maxAgeMs;
 
 /** The browser Purchase and the server event share this id (defined once, in ids.ts) so the destination can de-duplicate them. */
 export { purchaseEventId } from "@/lib/analytics/ids";

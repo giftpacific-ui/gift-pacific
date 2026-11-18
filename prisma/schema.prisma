@@ -1733,10 +1733,19 @@ model OrderAttribution {
   clientIp         String?
   clientUserAgent  String?
   contactScrubbedAt DateTime?
+  // GA4 Measurement Protocol: the visitor's GA client id (from the _ga cookie) and session id. Pseudonymous identifiers; captured only
+  // when consent permits and the server GA4 purchase is configured; removed together with ip/userAgent once every event of the order is settled.
+  gaClientId       String?
+  gaSessionId      String?
+  // Opaque random first-party reference (cookie gp_cref) minted when the visitor grants consent. NOT derived from any personal data. It lets a
+  // later consent withdrawal find this order's undelivered events without an email, phone or order id.
+  consentRef       String?
+  consentWithdrawnAt DateTime?
   consentState     TrackingConsentState @default(UNKNOWN)
   createdAt        DateTime             @default(now())
   order            Order                @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([consentRef])
   @@index([createdAt])
 }

@@ -79,3 +79,13 @@ export function seedAdmins(db: FakeDb, ids: string[] = ["a1", "a2", "admin-1", "
 
 /** An active ADMIN present in `seedAdmins(db)` defaults. Service operations now authorise their actor inside the service, so tests that drive them must say who acts. */
 export const TEST_ADMIN = { adminId: "a1" } as const;
+
+/** Runs (and clears) everything the code under test scheduled with next/server `after()`: the platform running it post-response. */
+export async function drainAfter(): Promise<void> {
+  const queue: (() => unknown)[] = ((globalThis as any).__TEST_AFTER__ ??= []);
+  while (queue.length) await queue.shift()!();
+}
+/** Drops scheduled callbacks without running them: a worker that died before delivering. */
+export function discardAfter(): void {
+  ((globalThis as any).__TEST_AFTER__ ??= []).length = 0;
+}

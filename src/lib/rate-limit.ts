@@ -32,6 +32,8 @@ export const RATE_LIMITS = {
   jobApplication: { name: "job-application-ip", limit: 5, windowSeconds: 60 * 60 },
   oauthStart: { name: "oauth-ip", limit: 30, windowSeconds: 15 * 60 },
   fraudRecheck: { name: "fraud-recheck-admin", limit: 20, windowSeconds: 60 * 60 },
+  // Withdrawing tracking consent must essentially never be refused (it is the fail-closed direction), so this is generous.
+  consentWithdraw: { name: "consent-withdraw-ip", limit: 60, windowSeconds: 10 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /** Start of the fixed window containing `nowMs`. Pure. */

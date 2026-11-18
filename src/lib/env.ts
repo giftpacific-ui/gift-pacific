@@ -27,6 +27,9 @@ const envSchema = z.object({
   META_CONVERSIONS_API_TOKEN: z.string().optional(),
   META_GRAPH_API_VERSION: z.string().optional(),
   META_CAPI_TEST_EVENT_CODE: z.string().optional(),
+  GA4_API_SECRET: z.string().optional(),
+  GA4_MEASUREMENT_ID: z.string().optional(),
+  GA4_MP_DEBUG: z.string().optional(),
 
   STRIPE_SECRET_KEY: z.string().optional(),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),

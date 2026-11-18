@@ -120,7 +120,7 @@ test("order snapshot: consent OFF stores everything validated; OPT_IN without a 
 
   for (const state of ["UNKNOWN", "DENIED"] as const) {
     assert.deepEqual(buildOrderAttributionRecord({ ...base, consentState: state }), {
-      firstTouch: null, lastTouch: null, fbc: null, fbp: null, clientIp: null, clientUserAgent: null, consentState: state,
+      firstTouch: null, lastTouch: null, fbc: null, fbp: null, clientIp: null, clientUserAgent: null, gaClientId: null, gaSessionId: null, consentRef: null, consentState: state,
     });
   }
   const granted = buildOrderAttributionRecord({ ...base, consentState: "GRANTED" });

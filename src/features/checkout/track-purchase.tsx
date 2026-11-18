@@ -10,7 +10,7 @@ import type { PurchaseInput } from "@/lib/analytics/payloads";
  * guards React re-renders / Strict Mode, and localStorage guards reloads and later revisits. Sends no customer data; the event id
  * is purchase_<orderNumber>, identical to the server's, so Meta de-duplicates the pair.
  */
-export function TrackPurchase({ order }: { order: PurchaseInput }) {
+export function TrackPurchase({ order, serverSendsGa4 = false }: { order: PurchaseInput; /** The server delivers the GA4 purchase (Measurement Protocol), so the browser must not. */ serverSendsGa4?: boolean }) {
   const { orderNumber } = order;
   const fired = useRef(false);
 
@@ -28,7 +28,7 @@ export function TrackPurchase({ order }: { order: PurchaseInput }) {
       // Storage unavailable: prefer a possible missed event over a duplicate on every reload.
       return;
     }
-    trackPurchase(order);
+    trackPurchase(order, { includeGa4: !serverSendsGa4 });
       // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderNumber]);
 

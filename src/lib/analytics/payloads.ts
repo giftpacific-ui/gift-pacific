@@ -184,13 +184,13 @@ export type PurchaseInput = {
 };
 
 /**
- * Browser Purchase. The event id is the SAME one the server uses (purchase_<orderNumber>) so Meta de-duplicates, and the GA4
- * transaction_id is the order number, which GA4 de-duplicates on.
+ * Browser Purchase. The event id is the SAME one the server uses (purchase_<orderNumber>) so Meta de-duplicates. For GA4 there is ONE
+ * sender: the server (Measurement Protocol) when it is configured, otherwise the browser (`includeGa4` true).
  */
-export function purchaseEvent(order: PurchaseInput, eventId: string): CommerceEvent {
+export function purchaseEvent(order: PurchaseInput, eventId: string, options: { includeGa4?: boolean } = {}): CommerceEvent {
   const currency = order.currency || DEFAULT_CURRENCY;
   const itemRevenue = round2(order.total - order.shipping - order.tax);
-  return {
+  const event: CommerceEvent = {
     eventId,
     ga4: {
       name: "purchase",
@@ -208,4 +208,7 @@ export function purchaseEvent(order: PurchaseInput, eventId: string): CommerceEv
     meta: { name: "Purchase", custom: false, params: { ...metaCommerce(order.items, order.total, currency), order_id: order.orderNumber } },
     tiktok: { name: "CompletePayment", params: tiktokCommerce(order.items, order.total, currency) },
   };
+  // When the server sends the GA4 purchase (Measurement Protocol) the browser must NOT: GA4 documents no de-duplication between the two.
+  if (options.includeGa4 === false) delete event.ga4;
+  return event;
 }

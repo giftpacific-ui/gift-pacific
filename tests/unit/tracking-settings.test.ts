@@ -89,7 +89,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 test("REPO GUARD: no server secret is referenced by any client component (only public tracking ids reach the browser)", () => {
-  const secrets = /(META_CONVERSIONS_API_TOKEN|GOOGLE_CLIENT_SECRET|FACEBOOK_APP_SECRET|COURIER_API_SECRET|COURIER_API_KEY|COURIER_WEBHOOK_SECRET|AUTH_SECRET|CLOUDINARY_API_SECRET|process\.env\.DATABASE_URL)/;
+  const secrets = /(META_CONVERSIONS_API_TOKEN|GA4_API_SECRET|GOOGLE_CLIENT_SECRET|FACEBOOK_APP_SECRET|COURIER_API_SECRET|COURIER_API_KEY|COURIER_WEBHOOK_SECRET|AUTH_SECRET|CLOUDINARY_API_SECRET|process\.env\.DATABASE_URL)/;
   const offenders = walk(path.join(process.cwd(), "src"))
     .filter((f) => /^\s*["']use client["']/m.test(readFileSync(f, "utf8").slice(0, 400)))
     .filter((f) => secrets.test(readFileSync(f, "utf8")));
