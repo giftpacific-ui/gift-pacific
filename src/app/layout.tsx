@@ -102,7 +102,8 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const settings = await getStoreSettings();
-  const trackingId = settings.gtmId || process.env.NEXT_PUBLIC_GTM_ID || null;
+  const ga4Id = settings.gtmId || null;
+  const gtmId = process.env.NEXT_PUBLIC_GTM_ID || null;
   const pixelId =
     settings.metaPixelId || process.env.NEXT_PUBLIC_META_PIXEL_ID || null;
   const tiktokId = settings.tiktokPixelId || null;
@@ -134,7 +135,8 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AnalyticsRoot
           consentMode={settings.consentMode}
-          trackingId={trackingId}
+          ga4Id={ga4Id}
+          gtmId={gtmId}
           pixelId={pixelId}
           tiktokId={tiktokId}
           linkedinId={linkedinId}
