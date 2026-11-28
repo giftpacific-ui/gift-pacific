@@ -1,8 +1,8 @@
 import {
-  Plug, Search,
-  Award, BarChart3, Briefcase, FolderTree, Gift, Image as ImageIcon, LayoutDashboard, Mail, Megaphone,
-  MessageCircleQuestion, MessageSquareText, Package, ShoppingBasket, Receipt, Settings, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Ticket,
-  Truck, UserCog, Users, Wallet, Warehouse, type LucideIcon,
+  Inbox, Plug, Search, SearchCheck,
+  Award, BarChart3, ClipboardList, Briefcase, FolderTree, Gift, Image as ImageIcon, LayoutDashboard, LayoutTemplate, Mail, Megaphone,
+  MessageCircleQuestion, MessageSquareText, Package, ShoppingBasket, Receipt, Settings, ShieldAlert, ShieldCheck, ShoppingCart, SlidersHorizontal, Store, Ticket,
+  Send, Truck, UserCog, Users, Wallet, Warehouse, type LucideIcon,
 } from "lucide-react";
 
 export type AdminNavItem = { href: string; label: string; icon: LucideIcon };
@@ -28,6 +28,7 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
       { href: "/admin/customers", label: "Customers", icon: Users },
       { href: "/admin/abandoned-carts", label: "Abandoned carts", icon: ShoppingBasket },
+      { href: "/admin/incomplete-checkouts", label: "Incomplete checkouts", icon: ClipboardList },
       { href: "/admin/coupons", label: "Coupons", icon: Ticket },
       { href: "/admin/rewards", label: "Delivery reward", icon: Award },
     ],
@@ -47,6 +48,8 @@ export const ADMIN_NAV: AdminNavGroup[] = [
     items: [
       { href: "/admin/accounts", label: "Accounts", icon: Wallet },
       { href: "/admin/advance", label: "Advance & trust", icon: ShieldCheck },
+      { href: "/admin/fraud", label: "Fraud review", icon: ShieldAlert },
+      { href: "/admin/fraud-check", label: "Courier fraud check", icon: SearchCheck },
       { href: "/admin/expenses", label: "Expenses", icon: Receipt },
       { href: "/admin/reports", label: "Reports", icon: BarChart3 },
     ],
@@ -59,6 +62,16 @@ export const ADMIN_NAV: AdminNavGroup[] = [
       { href: "/admin/banners", label: "Banners", icon: ImageIcon },
       { href: "/admin/reviews", label: "Reviews", icon: MessageSquareText },
       { href: "/admin/questions", label: "Product questions", icon: MessageCircleQuestion },
+    ],
+  },
+  {
+    id: "email-marketing",
+    label: "Email marketing",
+    items: [
+      { href: "/admin/email-marketing/campaigns", label: "Campaigns", icon: Send },
+      { href: "/admin/email-marketing/contacts", label: "Contacts", icon: Mail },
+      { href: "/admin/email-marketing/templates", label: "Templates", icon: LayoutTemplate },
+      { href: "/admin/email-marketing/queue", label: "Send queue", icon: Inbox },
     ],
   },
   {

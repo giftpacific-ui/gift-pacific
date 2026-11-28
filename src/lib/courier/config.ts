@@ -10,6 +10,9 @@
  *   COURIER_WEBHOOK_SECRET       shared secret the provider sends to our webhook
  *   COURIER_TIMEOUT_MS           per-request timeout (default 10000, 1000–30000)
  *   COURIER_TRACKING_URL_TEMPLATE optional, e.g. https://courier.example/track/{id}
+ *   STEADFAST_INVOICE_LOOKUP     "true" enables the reference (invoice) lookup used to settle UNCERTAIN bookings. Off by default:
+ *                                that endpoint is documented by Steadfast's own client package but is not in the current official
+ *                                Postman collection, so it must be confirmed on staging first.
  */
 export const SUPPORTED_COURIERS = ["steadfast"] as const;
 export type SupportedCourier = (typeof SUPPORTED_COURIERS)[number];
@@ -22,6 +25,8 @@ export type CourierConfig = {
   webhookSecret: string | null;
   timeoutMs: number;
   trackingUrlTemplate: string | null;
+  /** Reference lookup for uncertain-booking recovery is explicitly switched on (never by default). */
+  invoiceLookup: boolean;
   /** Human-readable reason booking is unavailable (admin-facing), or null if it's usable. */
   problem: string | null;
 };
@@ -71,10 +76,10 @@ export function getCourierProviderConfig(key: SupportedCourier, env: Env = proce
     webhookSecret: get("WEBHOOK_SECRET"),
     timeoutMs: Number.isFinite(timeout) && timeout >= 1000 && timeout <= 30000 ? Math.floor(timeout) : 10000,
     trackingUrlTemplate: null,
+    invoiceLookup: (get("INVOICE_LOOKUP") ?? "").toLowerCase() === "true",
     problem: null,
   };
-  const template = get("TRACKING_URL_TEMPLATE");
-  if (template && template.includes("{id}") && /^https:\/\//i.test(template)) base.trackingUrlTemplate = template;
+  base.trackingUrlTemplate = parseTrackingUrlTemplate(get("TRACKING_URL_TEMPLATE"));
 
   if (clean(env[`${prefix}_ENABLED`])?.toLowerCase() === "false") return { ...base, problem: `Switched off (${prefix}_ENABLED=false).` };
   if (!base.apiKey && !base.apiSecret && !legacyOn && !newStyle) return { ...base, provider: null, problem: "Not configured." };
@@ -83,25 +88,90 @@ export function getCourierProviderConfig(key: SupportedCourier, env: Env = proce
   return base;
 }
 
+/** True when the courier was deliberately switched off (<PREFIX>_ENABLED=false), as opposed to merely not configured. */
+export function isCourierSwitchedOff(key: SupportedCourier, env: Env = process.env): boolean {
+  return clean(env[`${PREFIX[key]}_ENABLED`])?.toLowerCase() === "false";
+}
+
+export type DefaultCourierChoice =
+  | { key: SupportedCourier; reason: "explicit" | "only_configured" | "first_configured"; message: string }
+  | { key: null; reason: "none_configured" | "explicit_unavailable" | "explicit_unsupported"; message: string };
+
 /**
- * The courier used when nothing else is chosen: COURIER_DEFAULT_PROVIDER, else the legacy COURIER_PROVIDER, else the first
- * courier that is fully configured. With only the legacy variables set this behaves exactly as it always did.
+ * Which courier is used when the admin does not pick one, and WHY (the admin screens show the reason).
+ *  1. COURIER_DEFAULT_PROVIDER, else the legacy COURIER_PROVIDER, when it names a courier: that courier, and only that one. If it is not
+ *     usable (missing credentials, switched off) or has no adapter, there is NO automatic courier: parcels are never silently routed to a
+ *     different courier than the one the owner named.
+ *  2. Nothing named (unset or "none"): the only fully configured courier, or the first one in registry order when several are.
+ *  3. Nothing configured: no default (manual booking only).
  */
-export function getCourierConfig(env: Env = process.env): CourierConfig {
+export function describeDefaultCourier(env: Env = process.env): DefaultCourierChoice {
   const raw = (clean(env.COURIER_DEFAULT_PROVIDER) ?? clean(env.COURIER_PROVIDER) ?? "none").toLowerCase();
-  if (isSupported(raw)) return getCourierProviderConfig(raw, env);
-  const usable = SUPPORTED_COURIERS.map((k) => getCourierProviderConfig(k, env)).find((c) => c.provider !== null && c.problem === null);
-  if (usable) return usable;
-  const empty: CourierConfig = { provider: null, apiKey: null, apiSecret: null, baseUrl: null, webhookSecret: null, timeoutMs: 10000, trackingUrlTemplate: null, problem: null };
-  return { ...empty, problem: raw === "none" ? "No courier provider is configured (COURIER_PROVIDER)." : `Unsupported COURIER_PROVIDER "${raw}".` };
+  if (raw === "none") {
+    const usable = SUPPORTED_COURIERS.filter((k) => isCourierUsable(getCourierProviderConfig(k, env)));
+    if (usable.length === 0) return { key: null, reason: "none_configured", message: "No courier provider is configured (COURIER_PROVIDER)." };
+    return usable.length === 1
+      ? { key: usable[0], reason: "only_configured", message: `${usable[0]} is the only configured courier, so it is used automatically.` }
+      : { key: usable[0], reason: "first_configured", message: `Several couriers are configured and none is named as the default, so ${usable[0]} is used automatically.` };
+  }
+  if (isSupported(raw)) {
+    const cfg = getCourierProviderConfig(raw, env);
+    return isCourierUsable(cfg)
+      ? { key: raw, reason: "explicit", message: `${raw} is the configured default courier.` }
+      : { key: null, reason: "explicit_unavailable", message: cfg.problem ?? `${raw} is not usable.` };
+  }
+  return {
+    key: null,
+    reason: "explicit_unsupported",
+    message: `Unsupported COURIER_PROVIDER "${raw}": no API adapter exists for it (supported: ${SUPPORTED_COURIERS.join(", ")}). Leave it unset for automatic selection, or record bookings by hand.`,
+  };
+}
+
+/** The courier configuration used when nothing else is chosen (see describeDefaultCourier). Behaves exactly as before when only the legacy variables are set. */
+export function getCourierConfig(env: Env = process.env): CourierConfig {
+  const choice = describeDefaultCourier(env);
+  if (choice.key) return getCourierProviderConfig(choice.key, env);
+  const raw = (clean(env.COURIER_DEFAULT_PROVIDER) ?? clean(env.COURIER_PROVIDER) ?? "none").toLowerCase();
+  // The named courier exists but is not usable: surface ITS problem (as always), with its key, so the admin sees what to fix.
+  if (choice.reason === "explicit_unavailable" && isSupported(raw)) return getCourierProviderConfig(raw, env);
+  const empty: CourierConfig = { provider: null, apiKey: null, apiSecret: null, baseUrl: null, webhookSecret: null, timeoutMs: 10000, trackingUrlTemplate: null, invoiceLookup: false, problem: null };
+  return { ...empty, problem: choice.message };
 }
 
 export function isCourierUsable(cfg: CourierConfig): boolean {
   return cfg.provider !== null && cfg.problem === null;
 }
 
-/** Builds a tracking URL from the optional template; never invents one. */
-export function buildTrackingUrl(cfg: CourierConfig, id: string | null): string | null {
-  if (!cfg.trackingUrlTemplate || !id) return null;
-  return cfg.trackingUrlTemplate.replace("{id}", encodeURIComponent(id));
+/**
+ * Accepts a tracking URL template only if it is an https URL, contains {id}, and the placeholder is NOT part of the host
+ * (so a tracking ID can never choose which site the link points to). Anything else is treated as "no template" (null).
+ * The template is operator-supplied configuration: this app does not know or assume any official courier URL.
+ */
+export function parseTrackingUrlTemplate(raw: string | null | undefined): string | null {
+  const template = raw?.trim();
+  if (!template || !template.includes("{id}")) return null;
+  // https://<host without braces>/...  — braces (the placeholder) may appear only after the host.
+  if (!/^https:\/\/[^\s/?#{}]+(?=[/?#])/i.test(template)) return null;
+  if (/\s/.test(template)) return null;
+  const withoutPlaceholder = template.replaceAll("{id}", "x");
+  if (/[{}]/.test(withoutPlaceholder)) return null; // some other placeholder we don't understand
+  try {
+    const u = new URL(withoutPlaceholder);
+    if (u.protocol !== "https:" || !u.hostname || u.username || u.password) return null;
+  } catch {
+    return null;
+  }
+  return template;
+}
+
+/**
+ * Builds a tracking URL from the optional template. Returns null (never a broken or invented URL) when there is no valid
+ * template or no usable ID. The ID is URL-encoded, so it cannot add path segments, query parameters or fragments.
+ */
+export function buildTrackingUrl(cfg: CourierConfig, id: string | null | undefined): string | null {
+  const template = parseTrackingUrlTemplate(cfg.trackingUrlTemplate);
+  const trimmed = typeof id === "string" ? id.trim() : "";
+  if (!template || !trimmed || trimmed.length > 200) return null;
+  const url = template.replaceAll("{id}", encodeURIComponent(trimmed));
+  return url.length <= 500 ? url : null; // 500 = the limit the manual-entry path already applies to trackingUrl
 }

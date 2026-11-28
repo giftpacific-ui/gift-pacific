@@ -37,6 +37,7 @@ export async function completeOAuthLogin(provider: OAuthProviderName, profile: O
     linkedUser: linkedAccount ? { id: linkedAccount.user.id, role: linkedAccount.user.role, isActive: linkedAccount.user.isActive } : null,
     emailUser: emailUser ? { id: emailUser.id, role: emailUser.role, isActive: emailUser.isActive, hasPassword: emailUser.passwordHash !== null } : null,
     profile: { email, emailVerified: profile.emailVerified },
+    requireVerifiedEmail: provider === "GOOGLE",
   });
 
   try {

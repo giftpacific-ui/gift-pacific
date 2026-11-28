@@ -32,8 +32,26 @@ export const RATE_LIMITS = {
   jobApplication: { name: "job-application-ip", limit: 5, windowSeconds: 60 * 60 },
   oauthStart: { name: "oauth-ip", limit: 30, windowSeconds: 15 * 60 },
   fraudRecheck: { name: "fraud-recheck-admin", limit: 20, windowSeconds: 60 * 60 },
+  // P6: manual courier-history lookups from the admin Fraud Check page (each courier asked counts once). Protects the couriers' quota from a script or a stuck button.
+  courierLookupAdmin: { name: "courier-lookup-admin", limit: 90, windowSeconds: 60 * 60 },
+  // Fraud Check page: a customer-risk lookup reads stored data only (no courier is called), so it is generous; it exists to stop a script enumerating phone numbers.
+  riskLookupAdmin: { name: "risk-lookup-admin", limit: 180, windowSeconds: 60 * 60 },
+  // Fraud Check page: asking the same courier about the same phone AGAIN, past the saved result ("Refresh from the couriers"). One refresh per admin, courier and phone every 30 s.
+  courierRefreshPhone: { name: "courier-refresh-phone", limit: 1, windowSeconds: 30 },
   // Withdrawing tracking consent must essentially never be refused (it is the fail-closed direction), so this is generous.
   consentWithdraw: { name: "consent-withdraw-ip", limit: 60, windowSeconds: 10 * 60 },
+  // P7.3.2: admin SMTP tools. The test e-mail is the only action that makes the server send mail to an address an admin typed, so it is the tight one.
+  smtpTestEmailAdmin: { name: "smtp-test-email-admin", limit: 10, windowSeconds: 60 * 60 },
+  // P12-UI-02: "Send test email" from the template designer (rendered template to ONE typed address). Tighter than nothing, looser than the fixed SMTP test because designers iterate.
+  templateTestEmailAdmin: { name: "template-test-email-admin", limit: 20, windowSeconds: 60 * 60 },
+  smtpCheckAdmin: { name: "smtp-check-admin", limit: 30, windowSeconds: 60 * 60 },
+  // Checkout abuse brakes (P4). Generous on purpose: a household or office legitimately shares one IP; the per-phone limit is the tighter one because
+  // a real customer rarely places more than a couple of orders in ten minutes. Retries of the SAME checkout (idempotency key) are never counted.
+  checkoutIp: { name: "checkout-ip", limit: 20, windowSeconds: 10 * 60 },
+  checkoutPhone: { name: "checkout-phone", limit: 6, windowSeconds: 10 * 60 },
+  // P7.2: checkout progress autosave (the browser debounces to ~1 save / 2 s while typing). Over the limit = the save is silently skipped.
+  checkoutProgressIp: { name: "checkout-progress-ip", limit: 120, windowSeconds: 10 * 60 },
+  checkoutProgressOwner: { name: "checkout-progress-owner", limit: 60, windowSeconds: 10 * 60 },
 } as const satisfies Record<string, RateLimitRule>;
 
 /** Start of the fixed window containing `nowMs`. Pure. */

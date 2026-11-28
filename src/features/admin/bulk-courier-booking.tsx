@@ -8,15 +8,19 @@ import { Button } from "@/components/ui/button";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { bulkBookCourierAction } from "@/server/actions/admin-courier.actions";
 import type { BulkBookingResult } from "@/server/services/courier.service";
+import { courierPickerOptions, initialPickerValue } from "@/lib/courier/provider-picker";
+import type { CourierChoiceView } from "@/lib/courier/provider-state";
 
 type Row = { id: string; orderNumber: string; status: string; total: number; paymentMethod: string; courierBookingStatus: string; lastError: string | null; createdAt: string };
 
-export function BulkCourierBooking({ rows, limit, ready, providers }: { rows: Row[]; limit: number; ready: boolean; providers: { key: string; label: string }[] }) {
+export function BulkCourierBooking({ rows, limit, ready, choices, automatic }: { rows: Row[]; limit: number; ready: boolean; choices: CourierChoiceView[]; automatic: { key: string | null; message: string } }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<BulkBookingResult[] | null>(null);
   const [pending, startTransition] = useTransition();
-  const [provider, setProvider] = useState(providers[0]?.key ?? "");
+  // Starts on "Automatic" (the server's default courier), never on whichever courier happens to be first in a list.
+  const options = courierPickerOptions(choices, automatic);
+  const [provider, setProvider] = useState(initialPickerValue(options));
 
   const toggle = (id: string) =>
     setSelected((cur) => {
@@ -40,16 +44,15 @@ export function BulkCourierBooking({ rows, limit, ready, providers }: { rows: Ro
 
   return (
     <div className="space-y-4">
-      {!ready && <p className="rounded-xl border border-amber-300/60 bg-amber-50 p-3 text-sm">Courier API booking is not configured, so bookings below will be refused. Set the courier environment variables first.</p>}
+      {!ready && <p className="rounded-xl border border-amber-300/60 bg-amber-50 p-3 text-sm">No courier can be booked through its API, so bookings below will be refused. Configure a courier first, or record each parcel by hand on its order page.</p>}
+      {ready && provider === "" && <p className="text-xs text-muted-foreground">{automatic.message}</p>}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted-foreground" aria-live="polite">{selected.size} selected (max {limit} at a time)</p>
         <div className="flex flex-wrap items-center gap-2">
-          {providers.length > 1 && (
-            <select aria-label="Courier" value={provider} onChange={(e) => setProvider(e.target.value)} className="rounded-md border border-input bg-background px-3 py-2 text-sm">
-              {providers.map((p) => <option key={p.key} value={p.key}>{p.label}</option>)}
-            </select>
-          )}
-          <Button type="button" disabled={pending || selected.size === 0} onClick={run}>{pending ? "Booking…" : "Book selected with courier"}</Button>
+          <select aria-label="Courier" value={provider} onChange={(e) => setProvider(e.target.value)} className="rounded-md border border-input bg-background px-3 py-2 text-sm">
+            {options.map((o) => <option key={o.value || "auto"} value={o.value} disabled={o.disabled}>{o.label}</option>)}
+          </select>
+          <Button type="button" disabled={pending || selected.size === 0 || !ready} onClick={run}>{pending ? "Booking…" : "Book selected with courier"}</Button>
         </div>
       </div>
 

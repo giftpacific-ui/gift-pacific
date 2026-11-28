@@ -29,6 +29,8 @@ model User {
   stockAdjustments    StockAdjustment[]
   wishlist            Wishlist?
   oauthAccounts       OAuthAccount[]
+  incompleteCheckouts IncompleteCheckout[]
+  emailContacts       EmailContact[]
 
   @@index([role])
   @@index([email])
@@ -326,6 +328,7 @@ model Cart {
   updatedAt  DateTime   @updatedAt
   user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   items      CartItem[]
+  recoveryEmails RecoveryEmail[]
 }
 
 model CartItem {
@@ -401,6 +404,28 @@ model Order {
   trustReviewedById       String?
   trustReviewedAt         DateTime?
   trustReviewNote         String?
+
+  // Fraud risk (P4). The three keys are NORMALISED copies of what the customer typed, used only to match history across orders; they are never
+  // shown to customers. `checkoutKey` is the browser's one-per-attempt idempotency key (UNIQUE: a retry or double click can never create a second order).
+  phoneNorm               String?
+  emailNorm               String?
+  addressKey              String?
+  checkoutKey             String?              @unique
+  // Latest risk assessment (the full history is in OrderRiskAssessment). Server-computed only: nothing the browser sends can set these.
+  riskScore               Int?
+  riskLevel               RiskLevel?
+  riskAssessedAt          DateTime?
+  riskAssessmentId        String?
+  // Fraud-review gate. While required, the order cannot be confirmed/shipped/booked unless a recorded APPROVED review covers the CURRENT level.
+  // This sits AFTER the advance-payment and low-trust checks in lib/advance-policy's gate and can never satisfy either of them.
+  riskReviewRequired      Boolean              @default(false)
+  riskReviewDecision      RiskReviewDecision?
+  riskReviewedLevel       RiskLevel?
+  riskReviewedById        String?
+  riskReviewedAt          DateTime?
+  riskReviewReason        String?
+  riskAssessments         OrderRiskAssessment[]
+  incompleteCheckout      IncompleteCheckout?
   // Marketplace/third-party payout tracking (NOT_APPLICABLE for website orders).
   settlementStatus        SettlementStatus     @default(NOT_APPLICABLE)
   settledAt               DateTime?
@@ -424,6 +449,17 @@ model Order {
   courierLastEventAt      DateTime?
   // Admin-only, sanitized & truncated. Never shown to customers.
   courierLastError        String?
+  // P5 courier sync. Admin-only; none of these reach customers (see ORDER_INTERNAL_FIELDS).
+  // The provider's own time of the newest APPLIED event (only a zone-carrying provider time is trusted; null otherwise).
+  courierEventAt           DateTime?
+  // Last time the courier state was successfully read or pushed (webhook / poll / recovery).
+  courierLastSyncAt        DateTime?
+  // COD amount the courier holds for the consignment (booking echo / webhook). A consignment figure, NOT proof of collection.
+  courierCodAmount         Decimal?             @db.Decimal(10, 2)
+  // Set only when the provider POSITIVELY confirmed it holds a parcel for this order while the booking was UNCERTAIN: blocks a blind re-booking.
+  courierRemoteConfirmedAt DateTime?
+  // Short lease so two scheduled runs never process the same order at once; it expires by itself if a run crashes.
+  courierSyncLeaseUntil    DateTime?
   customerNote            String?
   adminNote               String?
   createdAt               DateTime             @default(now())
@@ -435,6 +471,8 @@ model Order {
   items                   OrderItem[]
   trackingEvents          OrderTrackingEvent[]
   codEntries              CourierCodEntry[]
+  shipmentEvents          CourierShipmentEvent[]
+  codResolutions          CourierCodResolution[]
   payments                Payment[]
   gatewayTransactions     GatewayTransaction[]
   channelId               String               @default("channel_website")
@@ -457,7 +495,14 @@ model Order {
   @@index([createdAt])
   @@index([orderNumber])
   @@index([courierProvider, courierConsignmentId])
+  /// One consignment belongs to one order (migration 20261130000000_courier_consignment_unique; NULLs never conflict). Created only when no duplicates exist yet.
+  @@unique([courierProvider, courierConsignmentId])
+  @@index([courierBookingStatus, courierLastEventAt])
   @@index([channelId, createdAt])
+  @@index([phoneNorm])
+  @@index([emailNorm])
+  @@index([addressKey])
+  @@index([riskLevel, riskReviewRequired])
 }
 
 model OrderItem {
@@ -615,6 +660,12 @@ model StoreSettings {
   advanceInstructions        String?
   // Low-trust orders need a staff review before dispatch (the review itself is enforced per order; see Order.trustReviewRequired).
   trustReviewEnabled         Boolean     @default(true)
+  // P6 courier-history evidence policy (see lib/courier-intelligence/trust.ts). Conservative defaults: no reduction unless explicitly enabled.
+  trustMinSample             Int         @default(5)
+  trustMinProviders          Int         @default(1)
+  trustMaxAgeSeconds         Int         @default(3600)
+  trustRewardEnabled         Boolean     @default(false)
+  trustCreditUnverifiedPhone Boolean     @default(false)
   advancePolicyUpdatedAt     DateTime?
   advancePolicyUpdatedById   String?
   ogImageUrl                 String?
@@ -629,6 +680,8 @@ model StoreSettings {
   seoRobotsExtra             String?
   seoOrgSchemaEnabled        Boolean     @default(true)
   seoWebsiteSchemaEnabled    Boolean     @default(true)
+  // Fraud-risk policy (P4): thresholds, signal weights, windows, retention. Validated JSON (see lib/fraud/policy.ts); NULL = built-in defaults.
+  fraudPolicy                Json?
 }
 
 model Banner {
@@ -1497,6 +1550,112 @@ model CourierCodEntry {
 }
 
 // ---------------------------------------------------------------------------
+// P5: courier shipment events and COD discrepancy resolutions
+// ---------------------------------------------------------------------------
+
+/// Append-only log of every courier status the system saw for an order (booking, webhook, poll, recovery): the raw provider status,
+/// what it mapped to, and what we did with it. Holds NO customer data and no request body. `dedupeKey` is set only for notifications that
+/// carry a trusted provider time, making an exact replay a no-op; a database trigger refuses UPDATE and DELETE.
+model CourierShipmentEvent {
+  id              String   @id @default(cuid())
+  orderId         String
+  provider        String
+  consignmentId   String?
+  /// BOOKING (created) | BOOKING_FAILED (rejected) | BOOKING_UNCERTAIN | MANUAL (entered by hand) | WEBHOOK | POLL | RECOVERY
+  source          String
+  /// Raw provider status, lower-cased and truncated to 64 characters.
+  rawStatus       String
+  /// CourierEvent name (PENDING, DELIVERED, PARTIAL_DELIVERED, ...).
+  mappedEvent     String
+  providerEventAt DateTime?
+  codAmount       Decimal? @db.Decimal(10, 2)
+  /// APPLIED | RECORDED | STALE | DUPLICATE
+  outcome         String
+  dedupeKey       String?  @unique
+  /// Short, sanitised human note for the status timeline (booking refusal reason, what was entered by hand). Never a secret or customer data. At most 300 characters.
+  note            String?
+  createdAt       DateTime @default(now())
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+}
+
+/// The newest REAL connection check (a read-only credential probe) per courier: one row per provider. "Connected" is only ever shown from a
+/// successful row whose fingerprint matches the CURRENT credentials and that is recent enough (see lib/courier/provider-state.ts).
+model CourierConnectionCheck {
+  provider      String    @id
+  ok            Boolean
+  /// auth | unreachable | unexpected (null when ok)
+  failureKind   String?
+  /// Sanitised, bounded provider message. Never a secret.
+  message       String?
+  /// Non-reversible fingerprint of the credentials the check used: rotating a key makes an older "connected" stop applying.
+  fingerprint   String
+  lastSuccessAt DateTime?
+  checkedAt     DateTime
+  checkedById   String?
+}
+
+/// An admin's recorded decision on one COD discrepancy (a flag plus its exact amount). Append-only; the reason is mandatory. It never edits
+/// CourierCodEntry rows or Payment rows: it only marks that exact discrepancy as reviewed. A changed amount produces a new, open flag.
+model CourierCodResolution {
+  id           String   @id @default(cuid())
+  orderId      String
+  flagCode     String
+  amount       Decimal  @db.Decimal(10, 2)
+  amountCents  Int
+  /// ACCEPTED_DIFFERENCE | WRITTEN_OFF
+  action       String
+  reason       String
+  resolvedById String
+  createdAt    DateTime @default(now())
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, flagCode, amountCents])
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------------------
+// P6: courier intelligence (customer delivery history by phone)
+// ---------------------------------------------------------------------------
+
+/// One answer from one courier about one phone number. APPEND-ONLY history that doubles as the shared cache: the cache is "the newest row per
+/// (phoneHash, provider) that has not expired", so a manual recheck stores a NEW row and the previous check stays for audit.
+/// Holds NO raw phone number (a keyed hash and a masked form), NO raw provider payload and NO credentials: only the normalised counts.
+model CourierIntelligenceSnapshot {
+  id                       String   @id @default(cuid())
+  /// HMAC-SHA256 of the normalised phone with the app secret. Not reversible without the secret.
+  phoneHash                String
+  /// For display only, e.g. 017*****678.
+  phoneMasked              String
+  /// steadfast | pathao | redx
+  provider                 String
+  /// ok | no_history | unavailable
+  status                   String
+  /// Failure reason code when status is unavailable.
+  reason                   String?
+  delivered                Int?
+  cancelled                Int?
+  returned                 Int?
+  failed                   Int?
+  total                    Int?
+  reportedDeliveryRate     Decimal? @db.Decimal(5, 2)
+  reportedCancellationRate Decimal? @db.Decimal(5, 2)
+  /// Only the COUNT of fraud reports the courier lists; never their content.
+  fraudReports             Int?
+  /// CHECKOUT | ADMIN | ORDER_RECHECK
+  source                   String
+  checkedAt                DateTime @default(now())
+  /// Until when this row may be served as a cache hit.
+  expiresAt                DateTime
+
+  @@unique([phoneHash, provider, checkedAt])
+  @@index([phoneHash, provider, checkedAt])
+  @@index([provider, checkedAt])
+  @@index([checkedAt])
+}
+
+// ---------------------------------------------------------------------------
 // Phase 7.1: online wallet gateway transactions
 // ---------------------------------------------------------------------------
 
@@ -1748,4 +1907,423 @@ model OrderAttribution {
   @@index([userId])
   @@index([consentRef])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Fraud prevention (P4). Risk is EVIDENCE for a human decision, never an automatic verdict.
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum RiskReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+enum RiskListType {
+  BLOCK
+  ALLOW
+}
+
+enum RiskListKind {
+  PHONE
+  EMAIL
+  IP
+}
+
+// One row per DISTINCT evaluation of an order (an identical re-evaluation only refreshes Order.riskAssessedAt). This is the score history.
+// `signals` is the explainable breakdown: every detected signal with its reason and exact point contribution. `policy` freezes the weights and
+// thresholds used, so a later policy change never rewrites why an old order scored as it did. `evidence` holds counts and window sizes only.
+model OrderRiskAssessment {
+  id             String    @id @default(cuid())
+  orderId        String
+  score          Int
+  level          RiskLevel
+  // CHECKOUT | CONFIRM | MANUAL | RECALC
+  trigger        String
+  signals        Json
+  policy         Json
+  evidence       Json
+  // Kept only for the retention period (default 30 days), then set to NULL by the maintenance job. Admin-only; used to spot many orders from one IP.
+  clientIp       String?
+  calculatedById String?
+  createdAt      DateTime  @default(now())
+  order          Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([clientIp, createdAt])
+  @@index([level, createdAt])
+}
+
+// Admin-managed block / allow list. `value` is the NORMALISED form used for matching (Bangladesh mobile as 01XXXXXXXXX, lower-cased e-mail,
+// IPv4 as-is or IPv6 /64); `displayValue` is what the admin typed. A reason is mandatory, entries can expire and be disabled, and every change is
+// written to AdminAuditEvent. Entries are never deleted, so the history stays complete.
+model RiskListEntry {
+  id             String       @id @default(cuid())
+  listType       RiskListType
+  kind           RiskListKind
+  value          String
+  displayValue   String
+  reason         String
+  createdById    String
+  createdAt      DateTime     @default(now())
+  expiresAt      DateTime?
+  disabledAt     DateTime?
+  disabledById   String?
+  disabledReason String?
+
+  @@index([kind, value])
+  @@index([listType, disabledAt])
+}
+
+
+// P7.2: incomplete checkout recovery. One ACTIVE row per visitor (signed-in customer or guest cart cookie) is created/updated as the customer fills in
+// checkout, only after they gave a valid contact AND agreed to progress saving. Never holds passwords, OTPs, card/payment data or advance references.
+enum IncompleteCheckoutStatus {
+  ACTIVE // still being filled in / not ordered
+  CONVERTED // an order was placed; linked through orderId, kept for audit
+  EXPIRED // idle past the retention window: personal details scrubbed, row kept briefly then purged
+}
+
+model IncompleteCheckout {
+  id             String                   @id @default(cuid())
+  // "u:<userId>" for a signed-in customer, "g:<HMAC of the guest cart cookie>" for a guest. The raw cookie is never stored. Together with the partial unique
+  // index in the migration (ownerKey WHERE status = 'ACTIVE') this is the de-duplication key.
+  ownerKey       String
+  userId         String?
+  status         IncompleteCheckoutStatus @default(ACTIVE)
+  email          String?
+  phone          String?
+  phoneNorm      String?
+  customerName   String?
+  shippingAddress Json?
+  deliveryZone   DeliveryZone?
+  couponCode     String?
+  // Server-built snapshot of the cart lines (names, quantities, server prices). Never taken from the browser.
+  items          Json
+  itemCount      Int
+  subtotal       Decimal                  @db.Decimal(10, 2)
+  estimatedTotal Decimal                  @db.Decimal(10, 2) // subtotal + delivery charge of the chosen zone; discounts/tax not applied
+  currency       String                   @default("BDT")
+  checkoutKey    String?
+  consentAt      DateTime
+  orderId        String?                  @unique
+  convertedAt    DateTime?
+  expiredAt      DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  lastActivityAt DateTime                 @default(now())
+  user           User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order          Order?                   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  recoveryEmails RecoveryEmail[]
+
+  @@index([status, lastActivityAt])
+  @@index([ownerKey, status])
+  @@index([userId])
+  @@index([phoneNorm])
+  @@index([email])
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// E-mail queue foundation (P7.3.3). A small PostgreSQL-backed job queue (same pattern as TrackingEventLog): no Redis, no new service.
+// Rows are drained by POST /api/email/queue (external scheduler, Bearer CRON_SECRET) and, for single e-mails, a best-effort after() kick.
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+enum EmailJobStatus {
+  PENDING // waiting for its first (or next retry) attempt
+  PROCESSING // claimed by exactly one worker; treated as abandoned if it stays here (see email-queue.service)
+  SENT // the SMTP server accepted the message (not proof of inbox delivery); body removed
+  FAILED // permanent failure, retries exhausted, or expired; kept for review until the retention window ends
+}
+
+// One row per e-mail to ONE recipient. `dedupeKey` is the unique key that makes the same logical e-mail impossible to queue twice. It is a hash
+// (kind + caller-chosen parts), never a raw address. The body is needed until the mail is sent, so it is cleared on SENT and the whole row is purged later.
+model EmailJob {
+  id            String         @id @default(cuid())
+  // Short label for logs/reports ("order-confirmation", "campaign"). Lower-case slug; no personal data.
+  kind          String
+  dedupeKey     String         @unique
+  // 0 = individual/transactional, 1 = bulk. Lower numbers are drained first, so a campaign never starves an order e-mail's retry.
+  priority      Int            @default(0)
+  toEmail       String
+  subject       String
+  text          String
+  html          String?
+  status        EmailJobStatus @default(PENDING)
+  attempts      Int            @default(0)
+  nextAttemptAt DateTime       @default(now())
+  // Set while PROCESSING; a claim older than the stale window (crashed worker) can be taken over.
+  lockedAt      DateTime?
+  lastAttemptAt DateTime?
+  sentAt        DateTime?
+  // Fixed vocabulary from lib/email/smtp.ts (auth_failed, timeout, ...) plus expired / attempts_exhausted / internal. Never a raw server reply.
+  errorCode     String?
+  errorMessage  String?
+  messageId     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  // Prompt 07: optional back-references. The FK columns live on the marketing tables; this table is unchanged in the database.
+  campaignRecipient EmailCampaignRecipient?
+  recoveryEmail     RecoveryEmail?
+
+  @@index([status, priority, nextAttemptAt])
+  @@index([status, sentAt])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Email marketing database architecture (Prompt 07). SCHEMA ONLY: no UI, import workflow, sending or unsubscribe page lives here.
+// Everything below is additive. EmailJob is NOT altered (the marketing tables point AT it); transactional e-mail keeps working unchanged.
+//
+// Rules the design enforces:
+//  - e-mail addresses are stored NORMALISED (trimmed + lower-case) and are UNIQUE per table (CHECK constraints in the migration back this up);
+//  - marketing consent is its own record. IncompleteCheckout.consentAt (consent to SAVE checkout progress) is NEVER a marketing consent;
+//  - a suppressed address must not receive marketing/recovery e-mail (see lib/email/marketing.ts + email-marketing-eligibility.service.ts);
+//  - unsubscribe tokens are stored only as SHA-256 hashes;
+//  - history is preserved: contacts, consents, campaigns and recipients are RESTRICTed, never cascaded away.
+// Actor columns (createdById, recordedById, ...) are plain ids without a foreign key, like CourierConnectionCheck.checkedById: an admin account
+// being removed must not erase or block the history it wrote.
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+enum EmailContactSource {
+  MANUAL // typed in by an admin
+  CSV_IMPORT // arrived through a (future) CSV import
+  CUSTOMER // belongs to a registered customer (userId set)
+}
+
+// Where an explicit marketing opt-in came from. There is deliberately NO value for "checkout progress saving" or any other non-marketing consent.
+enum MarketingConsentSource {
+  ADMIN_RECORDED // an admin recorded consent obtained outside the site (note it in `evidence`)
+  CSV_IMPORT // an import the admin attested was opted-in
+  CUSTOMER_ACCOUNT // the customer ticked it in their account
+  CHECKOUT_MARKETING // a dedicated marketing tick-box at checkout (separate from "save my progress")
+  SIGNUP_FORM // a public sign-up form
+}
+
+enum MarketingUnsubscribeSource {
+  LINK // the unsubscribe link in an e-mail
+  ADMIN
+  CUSTOMER_ACCOUNT
+  BOUNCE
+  COMPLAINT
+}
+
+enum EmailSuppressionReason {
+  UNSUBSCRIBED
+  BOUNCED
+  COMPLAINED
+  ADMIN
+}
+
+enum EmailTemplateCategory {
+  MARKETING
+  NEWSLETTER
+  RECOVERY
+  OTHER
+}
+
+enum EmailCampaignStatus {
+  DRAFT
+  SCHEDULED
+  SENDING
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+// Shared by campaign recipients and recovery e-mails.
+enum EmailDeliveryStatus {
+  PENDING // chosen, nothing queued yet
+  QUEUED // an EmailJob exists
+  SENT // the EmailJob was accepted by the SMTP server
+  FAILED
+  SKIPPED // deliberately not sent; `skipReason` says why (suppressed, no_consent, ...)
+}
+
+enum RecoveryEmailKind {
+  ABANDONED_CART // a Cart idle past the abandoned-cart threshold (see abandoned-cart.service)
+  INCOMPLETE_CHECKOUT // an IncompleteCheckout record (see incomplete-checkout.service)
+}
+
+// One row per distinct e-mail address that may be mailed. Created manually, from a CSV import, or for a customer. Never deleted by the app
+// (history points at it); deactivate with isActive = false. The unique `email` is the normalised address (trim + lower-case).
+model EmailContact {
+  id                   String                   @id @default(cuid())
+  email                String                   @unique
+  name                 String?
+  source               EmailContactSource
+  userId               String?
+  isActive             Boolean                  @default(true)
+  // SHA-256 (hex) of the current unsubscribe token. The token itself is never stored; rotate by writing a new hash.
+  unsubscribeTokenHash String?                  @unique
+  createdById          String?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  user                 User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  consents             MarketingConsent[]
+  suppressions         EmailSuppression[]
+  campaignRecipients   EmailCampaignRecipient[]
+  recoveryEmails       RecoveryEmail[]
+
+  @@index([userId])
+  @@index([isActive, createdAt])
+}
+
+// Consent HISTORY: one row per opt-in period. Opting in again after an unsubscribe adds a NEW row; old rows are never rewritten except to stamp
+// `unsubscribedAt`. The migration allows at most ONE row per contact with unsubscribedAt IS NULL (partial unique index; Prisma cannot express it, so
+// `prisma migrate diff` lists it as drift: keep it, same as IncompleteCheckout's partial index).
+model MarketingConsent {
+  id                String                      @id @default(cuid())
+  contactId         String
+  source            MarketingConsentSource
+  grantedAt         DateTime                    @default(now())
+  // Short note on how consent was obtained (wording/version shown, import file name, ...). No IP address or other personal data.
+  evidence          String?
+  recordedById      String?
+  unsubscribedAt    DateTime?
+  unsubscribeSource MarketingUnsubscribeSource?
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+  contact           EmailContact                @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  campaignRecipients EmailCampaignRecipient[]
+  recoveryEmails    RecoveryEmail[]
+
+  @@index([contactId, grantedAt])
+}
+
+// Addresses that must not receive marketing/recovery e-mail. Keyed by the normalised address (not by contact) so it survives a contact change.
+// One row per address; `liftedAt` ends a suppression without losing its history. (Policy for lifting BOUNCED/COMPLAINED belongs to a later prompt.)
+model EmailSuppression {
+  id          String                 @id @default(cuid())
+  email       String                 @unique
+  reason      EmailSuppressionReason
+  contactId   String?
+  note        String?
+  createdById String?
+  liftedAt    DateTime?
+  liftedById  String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  contact     EmailContact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@index([reason])
+  @@index([contactId])
+}
+
+model EmailTemplate {
+  id          String                @id @default(cuid())
+  name        String                @unique
+  category    EmailTemplateCategory @default(MARKETING)
+  subject     String
+  textBody    String
+  htmlBody    String?
+  isActive    Boolean               @default(true)
+  createdById String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  campaigns   EmailCampaign[]
+
+  @@index([category, isActive])
+}
+
+// A campaign keeps its OWN copy of subject/body (a snapshot taken from a template), so editing or deactivating a template never changes a
+// campaign that was already sent. Sender fields are optional: empty = the SMTP default sender.
+model EmailCampaign {
+  id             String                   @id @default(cuid())
+  name           String
+  description    String?
+  status         EmailCampaignStatus      @default(DRAFT)
+  templateId     String?
+  subject        String
+  textBody       String
+  htmlBody       String?
+  senderName     String?
+  senderEmail    String?
+  scheduledAt    DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  cancelledAt    DateTime?
+  failureReason  String?
+  recipientCount Int                      @default(0)
+  sentCount      Int                      @default(0)
+  failedCount    Int                      @default(0)
+  skippedCount   Int                      @default(0)
+  createdById    String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  template       EmailTemplate?           @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  recipients     EmailCampaignRecipient[]
+
+  @@index([status, scheduledAt])
+  @@index([createdAt])
+  @@index([templateId])
+}
+
+// Campaign <-> contact, with the delivery outcome. (campaignId, contactId) is unique: a contact is a recipient of a campaign at most once.
+// `emailJobId` links the queued EmailJob (unique: one job = one recipient). The EmailJob row is purged by the queue after 30/60 days; the link is
+// then cleared (SetNull) and this row keeps the history. `consentId` records which consent allowed the send.
+model EmailCampaignRecipient {
+  id         String              @id @default(cuid())
+  campaignId String
+  contactId  String
+  status     EmailDeliveryStatus @default(PENDING)
+  skipReason String?
+  emailJobId String?             @unique
+  consentId  String?
+  queuedAt   DateTime?
+  sentAt     DateTime?
+  errorCode  String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  campaign   EmailCampaign       @relation(fields: [campaignId], references: [id], onDelete: Restrict)
+  contact    EmailContact        @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  emailJob   EmailJob?           @relation(fields: [emailJobId], references: [id], onDelete: SetNull)
+  consent    MarketingConsent?   @relation(fields: [consentId], references: [id], onDelete: Restrict)
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId, status])
+  @@index([contactId])
+  @@index([consentId])
+}
+
+// One row per recovery reminder for ONE recovery event and step. `eventKey` identifies the event deterministically (lib/email/marketing.ts):
+//   INCOMPLETE_CHECKOUT -> "ic:<IncompleteCheckout.id>"
+//   ABANDONED_CART      -> "ac:<Cart.id>:<last cart activity as epoch ms>"   (new activity = a new abandonment = a new event)
+// (eventKey, step) is unique, so the same reminder can be recorded only once even when two workers race; step 1 is the first reminder, 2 the second...
+// The FKs are for joins and are cleared (SetNull) when the cart/checkout row is removed; eventKey keeps the identity. contactId is required: a
+// recovery e-mail can only go to an EmailContact, so consent and suppression are always checked against a real record.
+model RecoveryEmail {
+  id                   String              @id @default(cuid())
+  kind                 RecoveryEmailKind
+  eventKey             String
+  step                 Int                 @default(1)
+  contactId            String
+  incompleteCheckoutId String?
+  cartId               String?
+  status               EmailDeliveryStatus @default(PENDING)
+  skipReason           String?
+  emailJobId           String?             @unique
+  consentId            String?
+  queuedAt             DateTime?
+  sentAt               DateTime?
+  errorCode            String?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  contact              EmailContact        @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  incompleteCheckout   IncompleteCheckout? @relation(fields: [incompleteCheckoutId], references: [id], onDelete: SetNull)
+  cart                 Cart?               @relation(fields: [cartId], references: [id], onDelete: SetNull)
+  emailJob             EmailJob?           @relation(fields: [emailJobId], references: [id], onDelete: SetNull)
+  consent              MarketingConsent?   @relation(fields: [consentId], references: [id], onDelete: Restrict)
+
+  @@unique([eventKey, step])
+  @@index([contactId])
+  @@index([status, createdAt])
+  @@index([incompleteCheckoutId])
+  @@index([cartId])
+  @@index([consentId])
 }

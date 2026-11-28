@@ -19,9 +19,14 @@ export type LinkingInput = {
   /** The user whose email equals the provider's email, if any. */
   emailUser: { id: string; role: string; isActive: boolean; hasPassword: boolean } | null;
   profile: { email: string | null; emailVerified: boolean };
+  /**
+   * Google only: a NEW identity (not yet linked) whose email Google does not vouch for is refused outright. Without it, an
+   * unverified address could create an account that locks the real owner out of registering that email.
+   */
+  requireVerifiedEmail?: boolean;
 };
 
-export type RefuseReason = "inactive" | "admin_email" | "no_email" | "use_other_method";
+export type RefuseReason = "inactive" | "admin_email" | "no_email" | "email_unverified" | "use_other_method";
 
 export type LinkingDecision =
   | { type: "login"; userId: string }
@@ -40,6 +45,7 @@ export function decideLinking(input: LinkingInput): LinkingDecision {
   }
 
   if (!profile.email) return { type: "refuse", reason: "no_email" };
+  if (input.requireVerifiedEmail && !profile.emailVerified) return { type: "refuse", reason: "email_unverified" };
 
   if (!emailUser) return { type: "create" };
 
@@ -59,5 +65,6 @@ export const REFUSE_MESSAGES: Record<RefuseReason, string> = {
   inactive: "This account is not active. Please contact the store.",
   admin_email: "This email can't be used with social sign-in. Please use the regular sign-in form.",
   no_email: "Your provider did not share an email address with us. Please allow email access, or register with email.",
+  email_unverified: "Your Google email address is not verified, so we can't use it. Please verify it with Google, or register with email.",
   use_other_method: "An account with this email already exists. Please sign in the way you did before.",
 };

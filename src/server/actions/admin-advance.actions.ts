@@ -48,6 +48,7 @@ export async function reviewTrustAction(input: { orderId: string; note: string }
 export async function saveAdvanceSettingsAction(input: {
   enabled: boolean; zones: string[]; standardAmount: number; reducedAmount: number; zeroAtFullTrust: boolean;
   lowBelow: number; reducedFrom: number; fullAt: number; instructions: string; reviewEnabled?: boolean;
+  minSample?: number; minProviders?: number; maxAgeSeconds?: number; rewardEnabled?: boolean; creditUnverifiedPhone?: boolean;
 }): Promise<Result> {
   const admin = await requireAdmin();
   try {
@@ -55,6 +56,8 @@ export async function saveAdvanceSettingsAction(input: {
       enabled: Boolean(input?.enabled), zones: (input?.zones ?? []) as never, standardAmount: Number(input?.standardAmount), reducedAmount: Number(input?.reducedAmount),
       zeroAtFullTrust: Boolean(input?.zeroAtFullTrust), lowBelow: Number(input?.lowBelow), reducedFrom: Number(input?.reducedFrom), fullAt: Number(input?.fullAt),
       instructions: String(input?.instructions ?? ""), reviewEnabled: input?.reviewEnabled !== false,
+      minSample: Number(input?.minSample ?? 5), minProviders: Number(input?.minProviders ?? 1), maxAgeSeconds: Number(input?.maxAgeSeconds ?? 3600),
+      rewardEnabled: input?.rewardEnabled === true, creditUnverifiedPhone: input?.creditUnverifiedPhone === true,
     }, admin.id);
     revalidatePath("/admin/advance");
     return { success: true };

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { expectedCod, summarizeCod, validateCodEntry } from "../../src/lib/courier/cod-reconciliation";
+import { expectedCod, expectedCourierCod, summarizeCod, validateCodEntry } from "../../src/lib/courier/cod-reconciliation";
 import { remainingBalance } from "../../src/lib/advance-policy";
 
 const cod = (total: number, advancePaid: number) => expectedCod({ paymentMethod: "COD", total, advancePaid });
@@ -53,4 +53,14 @@ test("a COD entry is validated: kind, amount, decimals, sign, size, and a note f
   assert.equal(validateCodEntry({ kind: "ADJUSTMENT", amount: -50, note: "x" }).ok, false);
   assert.deepEqual(validateCodEntry({ kind: "ADJUSTMENT", amount: -50, note: "courier typo fixed" }), { ok: true, kind: "ADJUSTMENT", amount: -50, reference: null, note: "courier typo fixed" });
   assert.deepEqual(validateCodEntry({ kind: "COLLECTION_REPORTED", amount: "1300.50", reference: "  ST-77 " }), { ok: true, kind: "COLLECTION_REPORTED", amount: 1300.5, reference: "ST-77", note: null });
+});
+
+test("expectedCourierCod mirrors what a booking asks the courier to collect (COD and self-shipped marketplace orders)", () => {
+  assert.equal(expectedCourierCod({ paymentMethod: "COD", paymentStatus: "PENDING", total: 1500, advancePaid: 500 }), 1000);
+  // an unpaid marketplace order is booked with the unpaid total: expectedCod alone says 0 and caused a false "COD amount mismatch"
+  assert.equal(expectedCod({ paymentMethod: "MARKETPLACE", total: 1500, advancePaid: 0 }), 0);
+  assert.equal(expectedCourierCod({ paymentMethod: "MARKETPLACE", paymentStatus: "PENDING", total: 1500, advancePaid: 0 }), 1500);
+  assert.equal(expectedCourierCod({ paymentMethod: "MARKETPLACE", paymentStatus: "PENDING", total: 1500, advancePaid: 400.5 }), 1099.5);
+  assert.equal(expectedCourierCod({ paymentMethod: "MARKETPLACE", paymentStatus: "PAID", total: 1500, advancePaid: 0 }), 0);
+  assert.equal(expectedCourierCod({ paymentMethod: "BKASH", paymentStatus: "PAID", total: 1500, advancePaid: 1500 }), 0);
 });

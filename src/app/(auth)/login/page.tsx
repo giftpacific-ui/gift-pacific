@@ -9,10 +9,15 @@ import { safeRedirectPath } from "@/lib/url-safety";
 
 export const metadata: Metadata = { title: "Sign In" };
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; link?: string; redirect?: string }> }) {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; link?: string; redirect?: string }>;
+}) {
   const sp = await searchParams;
   // Signed-in customers are sent on to where they were going (safe internal paths only) instead of seeing the login form.
-  if (await getCurrentUser()) redirect(safeRedirectPath(sp.redirect, "/account"));
+  if (await getCurrentUser())
+    redirect(safeRedirectPath(sp.redirect, "/account"));
   return (
     <div className="space-y-6">
       <div className="space-y-1 text-center">
@@ -20,14 +25,21 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <p className="text-sm text-muted-foreground">
           Sign in to track orders, manage your wishlist, and check out faster.
         </p>
-      </div>
-            <SocialLoginButtons error={sp.error} link={sp.link} redirectTo={sp.redirect} />
+      </div>{" "}
       <Suspense>
         <LoginForm />
       </Suspense>
+      <SocialLoginButtons
+        error={sp.error}
+        link={sp.link}
+        redirectTo={sp.redirect}
+      />
       <p className="text-center text-sm text-muted-foreground">
         New here?{" "}
-        <Link href="/register" className="text-foreground underline-offset-4 hover:underline">
+        <Link
+          href="/register"
+          className="text-foreground underline-offset-4 hover:underline"
+        >
           Create an account
         </Link>
       </p>

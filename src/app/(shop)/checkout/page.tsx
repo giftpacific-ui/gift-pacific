@@ -3,6 +3,8 @@ import { CheckoutForm } from "@/features/checkout/checkout-form";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { getAddressesForCurrentUser } from "@/server/services/address.service";
 import { listRewardsForUser } from "@/server/services/reward.service";
+import { getStoreSettings } from "@/server/services/admin-settings.service";
+import { recoveryConfig } from "@/lib/checkout-recovery";
 
 export const metadata: Metadata = { title: "Checkout", robots: { index: false, follow: false } };
 
@@ -12,6 +14,10 @@ export default async function CheckoutPage() {
   // Only the signed-in customer's OWN, currently usable rewards are ever sent to the browser.
   const rewards = user ? (await listRewardsForUser(user.id)).filter((r) => r.status === "AVAILABLE") : [];
 
+  // Progress saving is announced next to the contact fields. Under an opt-in consent mode the box starts unticked.
+  const settings = await getStoreSettings();
+  const recovery = { enabled: recoveryConfig().enabled, defaultOn: settings.consentMode !== "OPT_IN" };
+
   return (
     <div className="container-boutique pt-10 pb-8 sm:pt-16">
       <p className="eyebrow">Almost there</p>
@@ -19,6 +25,7 @@ export default async function CheckoutPage() {
       <CheckoutForm
         savedProfile={user ? { email: user.email, phone: user.phone ?? "" } : null}
         savedAddresses={addresses}
+        recovery={recovery}
         rewards={rewards.map((r) => ({ id: r.id, percent: r.percent, maxDiscount: r.maxDiscount, minOrderAmount: r.minOrderAmount, stackable: r.stackable }))}
       />
     </div>

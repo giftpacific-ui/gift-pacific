@@ -137,3 +137,12 @@ test("config: defaults to no provider; validates provider, credentials, https ba
   assert.equal(buildTrackingUrl(t, "A B/1"), "https://track.example/t/A%20B%2F1");
   assert.equal(getCourierConfig({ ...base, COURIER_TRACKING_URL_TEMPLATE: "javascript:{id}" }).trackingUrlTemplate, null);
 });
+
+test("STEADFAST_ENABLED=false keeps the credentials but makes the courier unusable (the admin page must go by isCourierUsable, not by key presence)", async () => {
+  const { getCourierProviderConfig, isCourierUsable } = await import("../../src/lib/courier/config");
+  const off = getCourierProviderConfig("steadfast", { STEADFAST_API_KEY: "k", STEADFAST_API_SECRET: "s", STEADFAST_ENABLED: "false" });
+  assert.ok(off.apiKey && off.apiSecret);
+  assert.equal(isCourierUsable(off), false);
+  assert.match(String(off.problem), /STEADFAST_ENABLED=false/);
+  assert.equal(isCourierUsable(getCourierProviderConfig("steadfast", { STEADFAST_API_KEY: "k", STEADFAST_API_SECRET: "s" })), true);
+});

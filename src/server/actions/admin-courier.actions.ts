@@ -7,7 +7,11 @@ import {
   bookOrderWithCourier,
   bulkBookOrders,
   type BulkBookingResult,
+  recoverUncertainBooking,
   refreshCourierStatus,
+  testAllCourierConnections,
+  testCourierConnection,
+  type ConnectionTestAllEntry,
 } from "@/server/services/courier.service";
 import type { AdminActionResult } from "@/server/actions/admin-product.actions";
 
@@ -48,7 +52,9 @@ export async function refreshCourierStatusAction(orderId: string): Promise<Couri
       note:
         result.reason === "duplicate"
           ? "Courier status is unchanged."
-          : "Courier status recorded; no order status change was needed.",
+          : result.reason === "stale"
+            ? "The courier sent an older status than the one already recorded; it was kept for diagnostics and changed nothing."
+            : "Courier status recorded; no order status change was needed.",
     };
   } catch (error) {
     return { success: false, message: toUserMessage(error, "Could not refresh the courier status.", "courier.refresh") };
@@ -67,5 +73,42 @@ export async function bulkBookCourierAction(orderIds: string[], provider?: strin
     return { success: true, results };
   } catch (error) {
     return { success: false, message: toUserMessage(error, "Bulk booking failed.") };
+  }
+}
+
+/** Admin-only: asks the courier whether it already holds a parcel for an unconfirmed booking. Never books. */
+export async function recoverUncertainBookingAction(orderId: string): Promise<CourierActionResult> {
+  const admin = await requireAdmin();
+  try {
+    const r = await recoverUncertainBooking(orderId, { actor: { adminId: admin.id } });
+    revalidatePath(`/admin/orders/${orderId}`);
+    revalidatePath("/admin/courier");
+    return r.outcome === "confirmed_exists" ? { success: true, note: r.message } : { success: true, note: r.message };
+  } catch (error) {
+    return { success: false, message: toUserMessage(error, "Could not check with the courier.", "courier.recover") };
+  }
+}
+
+/** Admin-only: read-only credential check. Returns a short message; never a secret or account figure. The outcome is stored (see the service). */
+export async function testCourierConnectionAction(providerKey: string): Promise<{ success: boolean; message: string }> {
+  const admin = await requireAdmin();
+  try {
+    const r = await testCourierConnection(typeof providerKey === "string" ? providerKey : "", { adminId: admin.id });
+    revalidatePath("/admin/courier");
+    return { success: r.ok, message: r.message };
+  } catch (error) {
+    return { success: false, message: toUserMessage(error, "Could not test the connection.", "courier.test") };
+  }
+}
+
+/** Admin-only: runs the read-only check for every courier. One entry per courier; a failure in one never affects the others. */
+export async function testAllCourierConnectionsAction(): Promise<{ success: true; results: ConnectionTestAllEntry[] } | { success: false; message: string }> {
+  const admin = await requireAdmin();
+  try {
+    const results = await testAllCourierConnections({ adminId: admin.id });
+    revalidatePath("/admin/courier");
+    return { success: true, results };
+  } catch (error) {
+    return { success: false, message: toUserMessage(error, "Could not test the connections.", "courier.test-all") };
   }
 }

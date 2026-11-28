@@ -1,5 +1,6 @@
 import { enabledProviders } from "@/lib/oauth/config";
 import { REFUSE_MESSAGES } from "@/lib/oauth/linking";
+import { SocialLoginLinks } from "@/features/auth/social-login-links";
 
 const LABEL = { GOOGLE: "Google", FACEBOOK: "Facebook" } as const;
 
@@ -12,6 +13,7 @@ const ERRORS: Record<string, string> = {
   oauth_inactive: REFUSE_MESSAGES.inactive,
   oauth_admin_email: REFUSE_MESSAGES.admin_email,
   oauth_no_email: REFUSE_MESSAGES.no_email,
+  oauth_email_unverified: REFUSE_MESSAGES.email_unverified,
   oauth_use_other_method: REFUSE_MESSAGES.use_other_method,
 };
 
@@ -36,14 +38,7 @@ export function SocialLoginButtons({ redirectTo, error, link }: { redirectTo?: s
       )}
       {providers.length > 0 && (
         <>
-          <div className="grid gap-2">
-            {providers.map((p) => (
-              // A plain link: the whole flow is server-side redirects (no provider script on our pages).
-              <a key={p} href={`/api/auth/oauth/${p.toLowerCase()}/start${qs}`} className="flex h-11 items-center justify-center rounded-[4px] border border-border text-sm font-medium hover:border-foreground">
-                Continue with {LABEL[p]}
-              </a>
-            ))}
-          </div>
+          <SocialLoginLinks providers={providers} query={qs} />
           <p className="text-center text-xs text-muted-foreground">or use your email</p>
         </>
       )}

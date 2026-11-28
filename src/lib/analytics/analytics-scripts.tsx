@@ -63,21 +63,19 @@ function RouteChangeTracker({ hasGa4, hasPixel, hasTikTok }: { hasGa4: boolean; 
  * Nothing is loaded on admin, account or authentication pages.
  */
 export function AnalyticsScripts({
-  gtmId,
-  ga4Id,
+  trackingId,
   pixelId,
   tiktokId,
   linkedinId,
 }: {
-  gtmId?: string | null;
-  ga4Id?: string | null;
+  trackingId?: string | null;
   pixelId?: string | null;
   tiktokId?: string | null;
   linkedinId?: string | null;
 }) {
   const pathname = usePathname();
-  const isGa4 = !!ga4Id && GA4_ID_PATTERN.test(ga4Id);
-  const isGtm = !!gtmId && GTM_ID_PATTERN.test(gtmId);
+  const isGa4 = !!trackingId && GA4_ID_PATTERN.test(trackingId);
+  const isGtm = !!trackingId && GTM_ID_PATTERN.test(trackingId);
     if (!isValidPixelId(pixelId)) pixelId = null;
   const tiktok = isValidTikTokId(tiktokId) ? tiktokId : null;
   const linkedin = isValidLinkedInId(linkedinId) ? linkedinId : null;
@@ -95,33 +93,33 @@ export function AnalyticsScripts({
 
   return (
     <>
-      {ga4Id && isGa4 && (
+      {trackingId && isGa4 && (
         <>
-          <Script src={`https://www.googletagmanager.com/gtag/js?id=${ga4Id}`} strategy="afterInteractive" />
+          <Script src={`https://www.googletagmanager.com/gtag/js?id=${trackingId}`} strategy="afterInteractive" />
           <Script id="ga4-init" strategy="afterInteractive">
             {`
               window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
               gtag('js', new Date());
-              gtag('config', '${ga4Id}', { page_location: window.location.origin + window.location.pathname });
+              gtag('config', '${trackingId}', { page_location: window.location.origin + window.location.pathname });
             `}
           </Script>
         </>
       )}
 
-      {gtmId && isGtm && (
+      {trackingId && isGtm && (
         <>
           <Script id="gtm-init" strategy="afterInteractive">
             {`
               (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start': new Date().getTime(),event:'gtm.js'});
               var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';
               j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-              })(window,document,'script','dataLayer','${gtmId}');
+              })(window,document,'script','dataLayer','${trackingId}');
             `}
           </Script>
           <noscript>
             <iframe
-              src={`https://www.googletagmanager.com/ns.html?id=${gtmId}`}
+              src={`https://www.googletagmanager.com/ns.html?id=${trackingId}`}
               height="0"
               width="0"
               style={{ display: "none", visibility: "hidden" }}
@@ -206,8 +204,7 @@ export function AnalyticsRoot({
   ...ids
 }: {
   consentMode: "OFF" | "OPT_IN";
-  gtmId?: string | null;
-  ga4Id?: string | null;
+  trackingId?: string | null;
   pixelId?: string | null;
   tiktokId?: string | null;
   linkedinId?: string | null;
@@ -221,7 +218,7 @@ export function AnalyticsRoot({
     () => "loading",
   );
 
-  const anyTracker = Boolean(ids.gtmId || ids.ga4Id || ids.pixelId || ids.tiktokId || ids.linkedinId);
+  const anyTracker = Boolean(ids.trackingId || ids.pixelId || ids.tiktokId || ids.linkedinId);
   const trackable = isTrackablePath(pathname);
   const permitted = anyTracker && trackable && (consentMode === "OFF" || consent === "granted");
   // Not permitted (no consent yet, consent withdrawn, nothing configured): tell the event gate to DROP events instead of holding them.

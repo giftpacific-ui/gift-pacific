@@ -4,6 +4,14 @@ export class NextResponse extends Response {
   static json(body: unknown, init?: ResponseInit) {
     return Response.json(body, init);
   }
+  // Redirect + response cookies, enough for route handlers: cookies are recorded on `.setCookies` and as Set-Cookie headers.
+  static redirect(url: string | URL, status = 307) {
+    return new NextResponse(null, { status, headers: { location: String(url) } });
+  }
+  setCookies: { name: string; value: string; options: any }[] = [];
+  get cookies() {
+    return { set: (name: string, value: string, options: any = {}) => { this.setCookies.push({ name, value, options }); } };
+  }
 }
 
 // next/server `after()` stand-in: callbacks are queued, never run implicitly. Tests call `await drainAfter()` to play the part of the

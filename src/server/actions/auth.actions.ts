@@ -19,6 +19,8 @@ import {
 export type AuthActionState = {
   success: boolean;
   message?: string;
+  /** Set when this password sign-in also connected a waiting Google/Facebook identity (drives the success message). */
+  linkedProvider?: "GOOGLE" | "FACEBOOK";
   fieldErrors?: Record<string, string[]>;
 };
 
@@ -119,12 +121,16 @@ export async function registerUser(
  * already existed, the social identity was parked in a signed cookie. Now that they have
  * proved ownership with the password, attach it. The cookie is single-use.
  */
-async function completePendingSocialLink(user: { id: string; email: string; role: string }) {
+async function completePendingSocialLink(user: { id: string; email: string; role: string }): Promise<"GOOGLE" | "FACEBOOK" | null> {
   const store = await cookies();
   const pending = await readPendingLink(store.get(OAUTH_LINK_COOKIE)?.value);
-  if (!pending) return;
+  if (!pending) return null;
   store.delete(OAUTH_LINK_COOKIE);
-  await linkAfterPasswordLogin(user, pending);
+  try {
+    return (await linkAfterPasswordLogin(user, pending)) ? pending.provider : null;
+  } catch {
+    return null; // the password sign-in itself succeeded; a failed connect must never turn it into an error
+  }
 }
 
 export async function loginUser(input: LoginInput): Promise<AuthActionState> {
@@ -156,9 +162,9 @@ export async function loginUser(input: LoginInput): Promise<AuthActionState> {
 
   await establishCustomerSession(user);
   await mergeGuestCartIfPresent(user.id);
-  await completePendingSocialLink(user);
+  const linkedProvider = await completePendingSocialLink(user);
 
-  return { success: true };
+  return { success: true, ...(linkedProvider ? { linkedProvider } : {}) };
 }
 
 export async function loginAdmin(input: LoginInput): Promise<AuthActionState> {

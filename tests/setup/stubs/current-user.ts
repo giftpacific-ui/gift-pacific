@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { AsyncLocalStorage } from "node:async_hooks";
+import { prisma } from "@/lib/db/prisma";
 
 // One shared ALS (stored on globalThis so test helpers and this stub agree),
 // so two "requests" can run concurrently as different users.
@@ -21,4 +22,11 @@ export async function requireUser() {
   const s = als.getStore()?.session;
   if (!s?.sub) throw new Error("UNAUTHENTICATED");
   return { id: s.sub, role: "CUSTOMER" };
+}
+/** Same contract as the real helper: the signed-in ACTIVE customer row (via the fake DB), else null. */
+export async function getCurrentUser() {
+  const s = als.getStore()?.session;
+  if (!s?.sub) return null;
+  const user = await prisma.user.findUnique({ where: { id: s.sub } });
+  return user && user.isActive && user.role === "CUSTOMER" ? user : null;
 }

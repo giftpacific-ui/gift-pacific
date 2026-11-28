@@ -77,7 +77,7 @@ test("outside Dhaka: server decides the advance (standard for a new customer), k
       row.trustScore,
       row.paymentStatus,
     ],
-    [200, 0, 50, "UNPAID"],
+    [200, 0, null, "UNPAID"],   // unrated: no courier history, and no made-up score
   );
   assert.ok(
     Array.isArray((row.trustSnapshot as { reasons: string[] }).reasons),
@@ -227,7 +227,7 @@ test("the customer's OWN website order history never affects trust or the advanc
       advancePaid: 0,
     });
   const o = await order("u9", claim);
-  assert.deepEqual([db.get("order", o.id).trustScore, Number(db.get("order", o.id).advanceRequired)], [50, 200]);   // three delivered website orders earn nothing
+  assert.deepEqual([db.get("order", o.id).trustScore, Number(db.get("order", o.id).advanceRequired)], [null, 200]);   // three delivered website orders earn nothing (and no courier history exists: unrated)
   db.insert("order", {
     id: "bad",
     userId: "u9",
@@ -236,7 +236,7 @@ test("the customer's OWN website order history never affects trust or the advanc
     advancePaid: 0,
   });
   const o2 = await order("u9", claim);
-  assert.deepEqual([db.get("order", o2.id).trustScore, Number(db.get("order", o2.id).advanceRequired)], [50, 200]);   // and a failed website order costs nothing either
+  assert.deepEqual([db.get("order", o2.id).trustScore, Number(db.get("order", o2.id).advanceRequired)], [null, 200]);   // and a failed website order costs nothing either
 });
 
 test("invalid policies are refused", async () => {

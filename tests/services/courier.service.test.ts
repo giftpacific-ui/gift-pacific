@@ -342,5 +342,37 @@ test("reconcile: polls in-flight booked orders; auto-booking is OFF unless asked
 
 test("reconcile with no provider configured does nothing (manual operation)", async () => {
   await confirmedOrder(1, "c3");
-  assert.deepEqual(await reconcileCourier({ autoBook: true }, { provider: null, config }), { polled: 0, updated: 0, pollFailed: 0, autoBooked: 0, autoBookSkipped: 0 });
+  // P5 added fields to the summary; with no usable courier every counter (old and new) stays zero.
+  const none = await reconcileCourier({ autoBook: true }, { provider: null, config });
+  assert.ok(Object.values(none).every((v) => v === 0));
+  assert.deepEqual({ polled: none.polled, updated: none.updated, pollFailed: none.pollFailed, autoBooked: none.autoBooked, autoBookSkipped: none.autoBookSkipped }, { polled: 0, updated: 0, pollFailed: 0, autoBooked: 0, autoBookSkipped: 0 });
+});
+
+// ---- Steadfast tracking URL template ----------------------------------------------------------------------------------------------------------
+const tplConfig = getCourierConfig({ COURIER_PROVIDER: "steadfast", COURIER_API_KEY: "KEY", COURIER_API_SECRET: "SEC", STEADFAST_TRACKING_URL_TEMPLATE: "https://track.example/t/{id}" });
+
+test("tracking template: booking persists the URL built from the tracking code (existing trackingUrl field), with encoding", async () => {
+  const o = await confirmedOrder();
+  const p = fakeProvider([{ ok: true, consignmentId: "C-1", trackingCode: "T 1/x", trackingUrl: null, providerStatus: null }]);
+  await bookOrderWithCourier(o.id, { actor: TEST_ADMIN }, { provider: p, config: tplConfig });
+  assert.equal(row(o.id).trackingUrl, "https://track.example/t/T%201%2Fx");
+  assert.equal(row(o.id).trackingNumber, "T 1/x");
+});
+
+test("tracking template: no template, or no tracking code → trackingUrl stays null (consignment id is never substituted)", async () => {
+  const o1 = await confirmedOrder();
+  await bookOrderWithCourier(o1.id, { actor: TEST_ADMIN }, { provider: fakeProvider(), config });
+  assert.equal(row(o1.id).trackingUrl, null);
+  const o2 = await confirmedOrder(1, "cust2");
+  const p = fakeProvider([{ ok: true, consignmentId: "C-7", trackingCode: null, trackingUrl: null, providerStatus: null }]);
+  await bookOrderWithCourier(o2.id, { actor: TEST_ADMIN }, { provider: p, config: tplConfig });
+  assert.equal(row(o2.id).trackingUrl, null);
+  assert.equal(row(o2.id).trackingNumber, "C-7"); // existing display behaviour kept
+});
+
+test("tracking template: a URL supplied by the provider itself still wins over the template", async () => {
+  const o = await confirmedOrder();
+  const p = fakeProvider([{ ok: true, consignmentId: "C-2", trackingCode: "T-2", trackingUrl: "https://t.example/C-2", providerStatus: null }]);
+  await bookOrderWithCourier(o.id, { actor: TEST_ADMIN }, { provider: p, config: tplConfig });
+  assert.equal(row(o.id).trackingUrl, "https://t.example/C-2");
 });

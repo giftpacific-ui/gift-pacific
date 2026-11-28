@@ -17,6 +17,13 @@ const envSchema = z.object({
     .string()
     .min(16, "AUTH_SECRET must be at least 16 characters"),
 
+  // Prompt 11: dedicated secret for stable e-mail unsubscribe tokens (never AUTH_SECRET / CRON_SECRET / SMTP_PASS). Optional: without it marketing
+  // campaigns are refused (fail closed). Empty counts as unset. The full rules (placeholders, reuse of other secrets) live in lib/email/unsubscribe-config.ts.
+  EMAIL_UNSUBSCRIBE_SECRET: z
+    .string()
+    .optional()
+    .refine((v) => v === undefined || v.trim() === "" || v.trim().length >= 32, "EMAIL_UNSUBSCRIBE_SECRET must be at least 32 characters when set"),
+
   NEXT_PUBLIC_APP_URL: z.string().url().default("http://localhost:3000"),
   NEXT_PUBLIC_CURRENCY: z.string().default("BDT"),
   NEXT_PUBLIC_CURRENCY_SYMBOL: z.string().default("৳"),

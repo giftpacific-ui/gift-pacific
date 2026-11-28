@@ -33,6 +33,7 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { trackAddPaymentInfo, trackInitiateCheckout } from "@/lib/analytics/events";
 import { DELIVERY_ZONE_LABELS } from "@/lib/delivery-zones";
+import { CheckoutProgressNotice, useCheckoutProgressSaver, type RecoveryNotice } from "@/features/checkout/progress-saver";
 
 const emptyAddress = {
   fullName: "",
@@ -49,7 +50,9 @@ export function CheckoutForm({
   savedProfile,
   savedAddresses = [],
   rewards = [],
+  recovery = { enabled: false, defaultOn: false },
 }: {
+  recovery?: RecoveryNotice;
   savedProfile?: { email: string; phone: string } | null;
   savedAddresses?: {
     id: string;
@@ -176,6 +179,24 @@ export function CheckoutForm({
     toast.success("Coupon applied");
   }
 
+  // One random key per checkout attempt (this page load). If the same submission is sent twice (double click, retry after a lost response) the server
+  // returns the order the first one created instead of creating another. A new page load gets a new key, so two real orders are never merged.
+  const checkoutKey = useRef<string>("");
+  if (!checkoutKey.current) {
+    checkoutKey.current =
+      typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}${Math.random().toString(36).slice(2, 12)}`;
+  }
+
+  // P7.2: autosave of checkout progress (only after the customer agreed; see progress-saver.tsx).
+  const submittedRef = useRef(false);
+  const progress = useCheckoutProgressSaver({
+    form,
+    notice: recovery,
+    checkoutKey: checkoutKey.current,
+    cartSignature: items.map((i) => `${i.id}:${i.quantity}`).join("|"),
+    submitted: submittedRef,
+  });
+
   function trackedItems() {
     return items.map((i) => ({ id: i.productId, name: i.productName, price: i.unitPrice, quantity: i.quantity }));
   }
@@ -186,9 +207,11 @@ export function CheckoutForm({
       sentPaymentInfo.current = true;
       trackAddPaymentInfo(trackedItems(), values.paymentMethod);
     }
+    submittedRef.current = true; // no autosave may run once the order is being placed
     startTransition(async () => {
-      const result = await submitCheckout(values);
+      const result = await submitCheckout({ ...values, checkoutKey: checkoutKey.current });
       if (!result.success) {
+        submittedRef.current = false;
         toast.error(result.message);
         return;
       }
@@ -238,6 +261,7 @@ export function CheckoutForm({
                 )}
               />
             </div>
+            {recovery.enabled && <CheckoutProgressNotice checked={progress.enabled} onChange={progress.setConsent} />}
           </section>
 
           <section className="space-y-4">

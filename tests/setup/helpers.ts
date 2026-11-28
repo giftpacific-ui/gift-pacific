@@ -2,13 +2,13 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { FakeDb, installDb } from "./fake-db";
 
-const als: AsyncLocalStorage<{ session: any; admin: boolean }> =
+const als: AsyncLocalStorage<{ session: any; admin: boolean; guest?: string }> =
   ((globalThis as any).__TEST_ALS__ ??= new AsyncLocalStorage());
 
 /** Runs `fn` as a guest (null), a customer ({sub}), or an admin. */
-export function runAs<T>(who: null | { sub: string } | "admin", fn: () => Promise<T>): Promise<T> {
+export function runAs<T>(who: null | { sub: string } | "admin", fn: () => Promise<T>, opts: { guest?: string } = {}): Promise<T> {
   return als.run(
-    who === "admin" ? { session: null, admin: true } : { session: who, admin: false },
+    who === "admin" ? { session: null, admin: true } : { session: who, admin: false, guest: opts.guest },
     fn,
   );
 }

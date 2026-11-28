@@ -1,5 +1,5 @@
 import "server-only";
-import { quoteAdvance, assertDispatchReady, assertServiceActor, fraudEvidence, recordCodCollection, type ServiceActor } from "@/server/services/advance.service";
+import { quoteAdvance, assertDispatchReady, assertServiceActor, courierEvidence, fraudEvidence, recordCodCollection, type ServiceActor } from "@/server/services/advance.service";
 import { quoteDeliveryReward } from "@/lib/rewards";
 import { issueRewardForDeliveredOrder, releaseRewardUsedBy, revokeRewardEarnedBy } from "@/server/services/reward.service";
 import { prisma } from "@/lib/db/prisma";
@@ -26,6 +26,8 @@ import {
   shouldReleaseStock,
 } from "@/lib/order-transitions";
 import { ITEM_INTERNAL_FIELDS, ORDER_INTERNAL_FIELDS } from "@/lib/order-visibility";
+import { orderIdentity } from "@/lib/fraud/identity";
+import { ensureRiskAssessed } from "@/server/services/fraud-risk.service";
 import { releaseModeFor } from "@/lib/inventory-rules";
 import { UserFacingError } from "@/lib/errors";
 import { orderStatusNotification } from "@/lib/notification-rules";
@@ -60,6 +62,8 @@ export type CheckoutAddressInput = {
 };
 
 export type PlaceOrderInput = {
+  /** Idempotency key for this checkout attempt (UNIQUE on the order). Optional: callers without one behave exactly as before. */
+  checkoutKey?: string | null;
   email: string;
   phone: string;
   shippingAddress: CheckoutAddressInput;
@@ -328,16 +332,19 @@ export async function placeOrder(input: PlaceOrderInput) {
     advanceClaim = { method, reference };
   }
   const trustSnapshot = {
-    score: advance.trust.score, insufficientEvidence: advance.trust.insufficientEvidence, reasons: advance.trust.reasons,
-    // Fraud-check evidence behind the score (counts and status only; the phone number itself is not stored here).
-    fraudCheck: fraudEvidence(advance.fraud.outcome, advance.fraud.phoneVerified, input.shippingAddress.phone),
+    model: "courier-rate-v2",
+    // The delivery success rate in percent (one decimal), or null when there is no reliable courier evidence ("unrated"). There is no default score.
+    score: advance.trust.rate, state: advance.trust.state, insufficientEvidence: advance.trust.insufficientEvidence, reasons: advance.trust.reasons,
+    // Courier-history evidence behind the rate (counts and statuses only; the phone number itself is not stored here).
+    fraudCheck: fraudEvidence(advance.intel, advance.trust, advance.phoneVerified, input.shippingAddress.phone),
+    courier: courierEvidence(advance.intel, advance.trust, advance.settings, advance.phoneVerified),
     tier: advance.decision.tier, needsReview: advance.decision.needsReview, explanation: advance.decision.explanation,
     // Everything the decision was based on, frozen with the order: later policy or history changes never rewrite it.
-    policy: { enabled: advance.settings.enabled, zones: advance.settings.zones, standard: advance.settings.standardAmount, reduced: advance.settings.reducedAmount, lowBelow: advance.settings.lowBelow, reducedFrom: advance.settings.reducedFrom, fullAt: advance.settings.fullAt, zeroAtFullTrust: advance.settings.zeroAtFullTrust, reviewEnabled: advance.settings.reviewEnabled },
+    policy: { enabled: advance.settings.enabled, zones: advance.settings.zones, standard: advance.settings.standardAmount, reduced: advance.settings.reducedAmount, lowBelow: advance.settings.lowBelow, reducedFrom: advance.settings.reducedFrom, fullAt: advance.settings.fullAt, zeroAtFullTrust: advance.settings.zeroAtFullTrust, reviewEnabled: advance.settings.reviewEnabled, minSample: advance.settings.minSample, minProviders: advance.settings.minProviders, maxAgeSeconds: advance.settings.maxAgeSeconds, rewardEnabled: advance.settings.rewardEnabled === true, creditUnverifiedPhone: advance.settings.creditUnverifiedPhone === true },
     zone: { claimed: advance.claimedZone, applied: advance.policyZone, conflict: advance.zoneConflict },
     orderTotal: total, advanceRequired,
     settingsProblem: advance.settingsProblem,
-    scoreMeaning: "Heuristic points 0-100 (higher = more confidence in successful fulfilment), derived only from the fraud-check record for the order phone (delivered history is credited only for a verified phone). Not a probability and not a fraud verdict.",
+    scoreMeaning: "The courier delivery success rate in percent: delivered / (delivered + cancelled) across the couriers that reported parcel counts for the order phone, used only with enough parcels and courier coverage (null = unrated). Positive history lowers the advance only if the policy enables it and the phone is verified or explicitly accepted. Not a probability and not a fraud verdict.",
   };
 
   const shippingSnapshot = input.shippingAddress;
@@ -465,12 +472,18 @@ export async function placeOrder(input: PlaceOrderInput) {
       }
     }
 
+    // Normalised identity keys (phone / e-mail / address): what the fraud engine matches history on. Derived here, from the same values stored below.
+    const identity = orderIdentity({ phone: input.phone, email: input.email, shippingSnapshot });
     const created = await tx.order.create({
       data: {
         orderNumber,
         userId: session?.sub ?? null,
         email: input.email,
         phone: input.phone,
+        phoneNorm: identity.phoneNorm,
+        emailNorm: identity.emailNorm,
+        addressKey: identity.addressKey,
+        checkoutKey: input.checkoutKey || null,
         status: "PENDING",
         paymentStatus: "UNPAID",
         paymentMethod: "COD",
@@ -484,7 +497,7 @@ export async function placeOrder(input: PlaceOrderInput) {
         deliveryDiscount,
         deliveryZone: input.deliveryZone,
         advanceRequired,
-        trustScore: advance.trust.score,
+        trustScore: advance.trust.rate === null ? null : Math.round(advance.trust.rate),
         trustSnapshot,
         // Decided NOW from the policy in force; never recomputed from later history. Blocks confirm/dispatch until a staff member records a review.
         trustReviewRequired: advance.decision.needsReview,
@@ -573,6 +586,12 @@ const COURIER_INTERNAL_FIELDS = [
   "courierLastStatus",
   "courierLastEventAt",
   "courierLastError",
+  // P5 (admin-only): provider event time, last sync, courier-held COD amount, "provider confirmed a parcel exists", job lease.
+  "courierEventAt",
+  "courierLastSyncAt",
+  "courierCodAmount",
+  "courierRemoteConfirmedAt",
+  "courierSyncLeaseUntil",
 ] as const;
 
 /** Statuses an order may only enter once its advance (and any required review) is settled. */
@@ -752,6 +771,13 @@ export async function adminUpdateOrderStatus(
   if (!isOrderStatus(status))
     throw new UserFacingError("Invalid order status.");
 
+  // Fraud risk (P4): a PENDING website order about to enter a gated status is evaluated afresh first, so the gate below sees current evidence (a block
+  // added after checkout, new activity from the same phone). Fails closed only if the order has never been assessed at all (see ensureRiskAssessed).
+  if (GATED_STATUSES.includes(status)) {
+    const current = await prisma.order.findUnique({ where: { id: orderId }, select: { status: true } });
+    if (current?.status === "PENDING") await ensureRiskAssessed(orderId);
+  }
+
   const updated = await prisma.$transaction(async (tx) => {
     const existing = await tx.order.findUnique({
       where: { id: orderId },
@@ -793,7 +819,12 @@ export async function adminUpdateOrderStatus(
     // given back if the order that REDEEMED one is cancelled/failed before it was ever delivered.
     if (status === "DELIVERED") {
       await issueRewardForDeliveredOrder(tx, orderId);
-      await recordCodCollection(tx, orderId); // the COD balance is collected now: an explicit record, so the payment status is derived
+      // An ADMIN marking the order delivered is the explicit statement that the COD balance was collected, so it is recorded now (the payment
+      // status is derived from that record). A COURIER-driven move (webhook / poll) is only the courier's claim about the PARCEL: it says nothing
+      // about money received, so no payment is recorded and the order is never turned PAID by it. Staff confirm the cash separately
+      // (confirmCodCollection in courier-cod.service.ts), against the courier's reported collection.
+      const courierDriven = typeof actor === "object" && actor !== null && "system" in actor;
+      if (!courierDriven) await recordCodCollection(tx, orderId);
     }
     if (status === "REFUNDED") await revokeRewardEarnedBy(tx, orderId);
     if ((status === "CANCELLED" || status === "FAILED_DELIVERY") && existing.status !== "DELIVERED") await releaseRewardUsedBy(tx, orderId);

@@ -9,7 +9,8 @@ import {
   assertAdminActor, getAdvancePanel, getAdvanceSettings, quoteAdvance, rejectAdvancePayment, reviewTrustOrder, saveAdvanceSettings, syncOrderPayment,
   verifyAdvancePayment, waiveAdvance,
 } from "@/server/services/advance.service";
-import { resetFraudCheckStateForTests, setFraudCheckProviderForTests, setPhoneVerifiedForTests } from "@/server/services/fraud-check.service";
+import { resetIntelligenceStateForTests, setIntelligenceAdaptersForTests, setPhoneVerifiedForTests } from "@/server/services/courier-intelligence.service";
+import { EMPTY_METRICS } from "@/lib/courier-intelligence/types";
 import { bookOrderWithCourier } from "@/server/services/courier.service";
 import { recordIncident } from "@/server/services/incident.service";
 import { getAccounting } from "@/server/services/accounting.service";
@@ -23,16 +24,28 @@ import type { CourierProvider } from "@/lib/courier/types";
 
 let db: FakeDb;
 const admin = <T,>(fn: () => Promise<T>) => runAs("admin", fn);
-// Provider DOUBLE for tests only: serves the records a test registers via history(). It is not a real fraud-check integration.
-const records = new Map<string, { delivered: number; cancelled: number; returned?: number }>();
+// Courier adapter DOUBLE for tests only: serves the records a test registers via parcels(). It is not a real courier integration.
+const records = new Map<string, { delivered: number; cancelled: number }>();
 let providerThrows = false;
 let providerMode: "ok" | "slow" | "garbage" = "ok";
 const phoneOf = (user: string) => { let h = 0; for (const c of user) h = (h * 31 + c.charCodeAt(0)) % 10_000_000; return `0171${String(h).padStart(7, "0")}`; };
 beforeEach(() => {
   records.clear(); providerThrows = false; providerMode = "ok";
-  process.env.FRAUD_CHECK_CACHE_SECONDS = "0"; resetFraudCheckStateForTests();   // these tests change the stand-in answer for the same phone: caching has its own tests (tests/unit/fraud-check-service.test.ts)
+  process.env.FRAUD_CHECK_CACHE_SECONDS = "0"; resetIntelligenceStateForTests();   // these tests change the stand-in answer for the same phone: caching has its own tests (tests/services/courier-intelligence.test.ts)
   setPhoneVerifiedForTests(true);   // simulates a future verified-phone mechanism; tests that cover the real (unverified) default reset it to undefined
-  setFraudCheckProviderForTests({ key: "test-double", check: async (phone) => { if (providerThrows) throw new Error("provider down"); if (providerMode === "slow") return new Promise(() => {}); if (providerMode === "garbage") return { delivered: "9", cancelled: -1 } as never; return records.get(phone) ?? { delivered: 0, cancelled: 0 }; } });
+  setIntelligenceAdaptersForTests({
+    steadfast: {
+      key: "steadfast",
+      lookup: async (phone: string) => {
+        if (providerThrows) throw new Error("provider down");
+        if (providerMode === "slow") return new Promise(() => undefined);
+        if (providerMode === "garbage") return { ok: false as const, reason: "invalid_response" as const };
+        const r = records.get(phone) ?? { delivered: 0, cancelled: 0 };
+        const total = r.delivered + r.cancelled;
+        return { ok: true as const, metrics: { ...EMPTY_METRICS, delivered: r.delivered, cancelled: r.cancelled, total, fraudReports: 0, empty: total === 0 } };
+      },
+    },
+  });
   db = freshDb(); seedCatalog(db); seedAdmins(db);
   db.insert("salesChannel", { id: "channel_website", key: "website", name: "Website", kind: "WEBSITE" });
   db.insert("salesChannel", { id: "channel_fb", key: "facebook", name: "Facebook Shop", kind: "OTHER" });
@@ -40,7 +53,8 @@ beforeEach(() => {
   db.insert("product", { id: "p-cheap", name: "Cheap", slug: "cheap", type: "STANDARD", status: "ACTIVE", price: 20, costPrice: 5, stock: 500, description: "x" });
   db.patch("product", "p-standard", { stock: 100 });
 });
-const policy = { enabled: true, zones: ["OUTSIDE_DHAKA"] as never, standardAmount: 200, reducedAmount: 100, zeroAtFullTrust: false, lowBelow: 60, reducedFrom: 80, fullAt: 100, reviewEnabled: true, instructions: "Send to bKash 01XXXXXXXXX" };
+// rewardEnabled: this file simulates the VERIFIED-phone path, so positive evidence may lower the advance (the shipped default is OFF; see fraud-recheck.test.ts)
+const policy = { enabled: true, zones: ["OUTSIDE_DHAKA"] as never, standardAmount: 200, reducedAmount: 100, zeroAtFullTrust: false, lowBelow: 60, reducedFrom: 80, fullAt: 100, reviewEnabled: true, rewardEnabled: true, instructions: "Send to bKash 01XXXXXXXXX" };
 const on = (o: Record<string, unknown> = {}) => saveAdvanceSettings({ ...policy, ...o } as never, "a1");
 const claim = (ref = "TX12345678") => ({ advanceMethod: "BKASH", advanceReference: ref });
 const order = (user: string | null, extra: Record<string, unknown> = {}, productId = "p-standard", qty = 1) =>
@@ -49,19 +63,15 @@ const row = (id: string) => db.get("order", id);
 const pays = (orderId: string) => db.rows("payment").filter((p) => p.orderId === orderId);
 const audit = (action?: string) => db.rows("adminAuditEvent").filter((e) => !action || e.action === action);
 const move = (id: string, to: string) => admin(() => adminUpdateOrderStatus(id, to as never, undefined, TEST_ADMIN));
-/** Registers a provider-stand-in record for the user's phone. extra: CANCELLED / FAILED_DELIVERY add cancelled parcels. The account phone is irrelevant: no phone is verified. */
-const history = (user: string, delivered: number, extra: Record<string, number> = {}) => {
-  const phone = phoneOf(user);
-  const cur = records.get(phone) ?? { delivered: 0, cancelled: 0 };
-  records.set(phone, { delivered: cur.delivered + delivered, cancelled: cur.cancelled + Object.values(extra).reduce((a, n) => a + n, 0) });
-};
+/** Registers a courier stand-in record for the user's phone: `delivered` and `cancelled` parcels (rate = delivered / (delivered + cancelled)). The account phone is irrelevant. */
+const parcels = (user: string, delivered: number, cancelled = 0) => records.set(phoneOf(user), { delivered, cancelled });
 
 // ---- policy: server decides, scope, defaults, amounts, totals ------------------------------------------------------------------------
 test("the server decides: a new customer outside Dhaka owes the standard 200; the stored amount is the server's, and the claim stays an unverified claim", async () => {
   await on();
   const o = await order(null, claim(" tx-1234 5678 "));
   const r = row(o.id);
-  assert.deepEqual([Number(r.advanceRequired), Number(r.advancePaid), r.paymentStatus, r.trustScore], [200, 0, "UNPAID", 50]);
+  assert.deepEqual([Number(r.advanceRequired), Number(r.advancePaid), r.paymentStatus, r.trustScore], [200, 0, "UNPAID", null]);
   const [p] = pays(o.id);
   assert.deepEqual([p.status, p.kind, p.providerRef, Number(p.amount)], ["PENDING", "ADVANCE", null, 200]);   // reference is only the customer's claim; nothing verified
   assert.equal(p.customerReference, " tx-1234 5678 ".trim());
@@ -129,6 +139,7 @@ test("checkout total changes are re-priced at placement: more items change the t
 // ---- policy changes ------------------------------------------------------------------------------------------------------------------------
 test("changing the policy affects NEW orders only; each existing order keeps the decision, score, reasons and policy it was created with", async () => {
   await on();
+  parcels("cust-1", 2, 3);                                                   // a real 40% record: low under the old policy (below 60), standard under the new one (20 or more)
   const before = await order("cust-1", claim("TXBEFORE01"));
   const snap = JSON.stringify(row(before.id).trustSnapshot);
   await on({ standardAmount: 350, reducedAmount: 150, lowBelow: 20, reducedFrom: 60 });
@@ -139,7 +150,7 @@ test("changing the policy affects NEW orders only; each existing order keeps the
   assert.equal((row(before.id).trustSnapshot as any).policy.standard, 200);
   assert.equal((row(after.id).trustSnapshot as any).policy.standard, 350);
   assert.equal(row(before.id).trustReviewRequired, true);                   // the old order's review requirement was decided by the old policy
-  assert.equal(row(after.id).trustReviewRequired, false);                   // score 50 is now >= 20
+  assert.equal(row(after.id).trustReviewRequired, false);                   // 40% is now >= 20
 });
 
 test("policy changes are validated, stored, attributed and audited with before/after values; invalid saves change nothing", async () => {
@@ -179,103 +190,117 @@ test("only an authorised admin can change the policy: the action refuses custome
   assert.equal((await admin(() => saveAdvanceSettingsAction({ ...policy } as never))).success, true);
 });
 
-// ---- trust scoring: boundaries through the real flow, stored decision, history changes ----------------------------------------------------
-test("scores reachable through real history map to the documented tiers: 50 new, 60, 80 and 100 (zero advance only when enabled)", async () => {
+// ---- trust: boundaries through the real flow, stored decision, history changes ----------------------------------------------------------------
+test("rates reachable through real courier history map to the documented tiers: unrated, 60, 80 and 100 percent (zero advance only when enabled)", async () => {
   await on();
   const amountFor = async (user: string) => { const o = await order(user, claim(`TX${user.toUpperCase()}00001`)); return [row(o.id).trustScore, Number(row(o.id).advanceRequired), row(o.id).trustReviewRequired]; };
-  assert.deepEqual(await amountFor("u0"), [50, 200, true]);                   // new customer: conservative default, standard advance, review
-  history("u1", 1); assert.deepEqual(await amountFor("u1"), [60, 200, false]);   // 60 = standard tier boundary
-  history("u3", 3); assert.deepEqual(await amountFor("u3"), [80, 100, false]);   // 80 = reduced tier boundary
-  history("u5", 5); assert.deepEqual(await amountFor("u5"), [100, 100, false]);  // 100, but zero-advance rule is OFF
+  assert.deepEqual(await amountFor("u0"), [null, 200, true]);                    // new customer: unrated, standard advance, review (no made-up score)
+  parcels("ulow", 2, 3); assert.deepEqual(await amountFor("ulow"), [40, 200, true]);   // 40% = low tier
+  parcels("u1", 3, 2); assert.deepEqual(await amountFor("u1"), [60, 200, false]);   // 60 = standard tier boundary
+  parcels("u3", 4, 1); assert.deepEqual(await amountFor("u3"), [80, 100, false]);   // 80 = reduced tier boundary
+  parcels("u5", 5, 0); assert.deepEqual(await amountFor("u5"), [100, 100, false]);  // 100, but the zero-advance rule is OFF
   await on({ zeroAtFullTrust: true });
-  history("u6", 5); assert.deepEqual(await amountFor("u6"), [100, 0, false]);    // rule explicitly enabled: zero advance at 100 only
-  assert.deepEqual(await amountFor("u3"), [80, 100, false]);                      // 80 is NOT full trust: still pays the reduced advance
+  parcels("u6", 9, 0); assert.deepEqual(await amountFor("u6"), [100, 0, false]);    // rule explicitly enabled: zero advance at 100 only
+  assert.deepEqual(await amountFor("u3"), [80, 100, false]);                       // 80 is NOT full trust: still pays the reduced advance
+  parcels("ushort", 3, 0); assert.deepEqual(await amountFor("ushort"), [null, 200, true]);   // 100% but only 3 parcels: unrated
 });
 
-test("the order stores the applied score, the reasons, the policy snapshot, the zone and the decision — and later history never rewrites them", async () => {
+test("the order stores the applied rate, the evidence, the reasons, the policy snapshot, the zone and the decision, and later history never rewrites them", async () => {
   await on();
-  history("u9", 3);
+  parcels("u9", 4, 1);
   const o = await order("u9", claim("TXSNAP0001"));
   const snap = row(o.id).trustSnapshot as any;
-  assert.deepEqual([row(o.id).trustScore, snap.score, snap.tier, snap.needsReview], [80, 80, "reduced", false]);
-  assert.ok(snap.reasons.length > 0 && snap.explanation.includes("80/100"));
+  assert.deepEqual([row(o.id).trustScore, snap.score, snap.tier, snap.needsReview, snap.state, snap.model], [80, 80, "reduced", false, "rated", "courier-rate-v2"]);
+  assert.ok(snap.reasons.length > 0 && snap.explanation.includes("delivery success rate 80%"));
   assert.deepEqual([snap.policy.standard, snap.policy.reduced, snap.policy.lowBelow, snap.policy.reducedFrom, snap.policy.fullAt, snap.policy.zeroAtFullTrust], [200, 100, 60, 80, 100, false]);
+  assert.deepEqual([snap.policy.minSample, snap.policy.minProviders, snap.policy.maxAgeSeconds, snap.policy.rewardEnabled], [5, 1, 3600, true]);
   assert.match(snap.scoreMeaning, /not a probability/i);
   const stored = JSON.stringify([row(o.id).trustScore, row(o.id).trustSnapshot, row(o.id).advanceRequired, row(o.id).trustReviewRequired]);
   // the customer's history turns bad afterwards: the old order's decision does not move
-  history("u9", 0, { FAILED_DELIVERY: 3, CANCELLED: 2 });
+  parcels("u9", 4, 20);
   await verifyViaService(o.id, "WALLETSNAP1", 100);
   await move(o.id, "CONFIRMED");
   assert.equal(JSON.stringify([row(o.id).trustScore, row(o.id).trustSnapshot, row(o.id).advanceRequired, row(o.id).trustReviewRequired]), stored);
   assert.equal((await getAdvancePanel(o.id))!.trustScore, 80);
 });
 
-test("fraud-check rules (verified phone path, simulated): record counts; unavailable, no-history and invalid answers all fail safe to 50 without blocking checkout", async () => {
+test("courier-history rules (verified phone path, simulated): record counts; unavailable, no-history, invalid and too-small answers all fail safe to unrated without blocking checkout", async () => {
   await on();
   const q = (phone: string | null) => quoteAdvance(prisma, { phone, zone: "OUTSIDE_DHAKA", orderTotal: 1000 });
-  const why = (o: any) => ({ status: o.status, reason: o.reason });   // outcomes also carry checkedAt/cached since Phase 7.4
-  history("uw", 5);
-  assert.equal((await q(phoneOf("uw"))).trust.score, 100);
-  history("ubad", 5, { CANCELLED: 3 });
-  assert.equal((await q(phoneOf("ubad"))).trust.score, 40);                       // 50 + 50 - 3*20
-  const none = await q("01711999999");
-  assert.deepEqual([none.fraud.outcome.status, none.trust.score], ["no_history", 50]);
-  for (const bad of [null, "", "not-a-phone", "12345"]) { const r = await q(bad); assert.deepEqual([r.fraud.outcome.status, r.trust.score, r.decision.required], ["unavailable", 50, 200]); }
+  const summary = (r: Awaited<ReturnType<typeof q>>) => [r.trust.state, r.trust.rate, r.decision.required, r.decision.needsReview];
+  parcels("uw", 5, 0);
+  assert.deepEqual(summary(await q(phoneOf("uw"))), ["rated", 100, 100, false]);
+  parcels("ubad", 2, 3);
+  assert.deepEqual(summary(await q(phoneOf("ubad"))), ["rated", 40, 200, true]);           // delivered 2 of 5 = 40%
+  assert.deepEqual(summary(await q("01711999999")), ["no_history", null, 200, true]);
+  parcels("utiny", 1, 0);
+  assert.deepEqual(summary(await q(phoneOf("utiny"))), ["insufficient", null, 200, true]); // 100% of 1 parcel is not a reliable rate
+  for (const bad of [null, "", "not-a-phone", "12345"]) assert.deepEqual(summary(await q(bad)), ["invalid_phone", null, 200, true]);
   providerThrows = true;
-  const err = await q(phoneOf("uw")); assert.deepEqual([why(err.fraud.outcome), err.trust.score], [{ status: "unavailable", reason: "error" }, 50]);
+  const err = await q(phoneOf("uw"));
+  assert.deepEqual([summary(err), err.intel.reports[0].status, err.intel.reports[0].reason], [["unavailable", null, 200, true], "unavailable", "error"]);
   providerThrows = false; providerMode = "garbage";
-  const junk = await q(phoneOf("uw")); assert.deepEqual([why(junk.fraud.outcome), junk.trust.score], [{ status: "unavailable", reason: "invalid_response" }, 50]);
-  setFraudCheckProviderForTests(null);
-  const off = await q(phoneOf("uw")); assert.deepEqual([why(off.fraud.outcome), off.trust.score, off.decision.required], [{ status: "unavailable", reason: "no_provider" }, 50, 200]);
+  const junk = await q(phoneOf("uw"));
+  assert.deepEqual([summary(junk), junk.intel.reports[0].reason], [["unavailable", null, 200, true], "invalid_response"]);
+  setIntelligenceAdaptersForTests({ steadfast: null });
+  const off = await q(phoneOf("uw"));
+  assert.deepEqual([summary(off), off.intel.reports[0].status], [["unavailable", null, 200, true], "not_configured"]);
 });
 
-test("REAL default today (no verified-phone mechanism): delivered history earns nothing, cancelled history still lowers trust, standard advance for everyone", async () => {
-  await on();
+test("REAL default today (no verified-phone mechanism, reward switch off): a good record earns nothing, a poor record still counts, standard advance for everyone", async () => {
+  await on({ rewardEnabled: false });
   setPhoneVerifiedForTests(undefined);
-  history("ug", 5);
-  history("ub", 0, { CANCELLED: 2 });
+  parcels("ug", 9, 1);
+  parcels("ub", 1, 5);
   const q = (u: string) => quoteAdvance(prisma, { phone: phoneOf(u), zone: "OUTSIDE_DHAKA", orderTotal: 1000 });
   const good = await q("ug");
-  assert.deepEqual([good.trust.score, good.decision.required, good.fraud.phoneVerified, good.decision.needsReview], [50, 200, false, true]);
+  assert.deepEqual([good.trust.rate, good.trust.rewardAllowed, good.decision.required, good.phoneVerified, good.decision.needsReview], [90, false, 200, false, false]);
   const bad = await q("ub");
-  assert.deepEqual([bad.trust.score, bad.decision.required], [10, 200]);
+  assert.deepEqual([bad.trust.rate, bad.decision.required, bad.decision.needsReview], [16.7, 200, true]);
+  // even with the switch ON, an unverified phone earns nothing unless the admin explicitly accepts unverified phones
+  await on({ rewardEnabled: true });
+  assert.equal((await q("ug")).decision.required, 200);
+  await on({ rewardEnabled: true, creditUnverifiedPhone: true });
+  assert.equal((await q("ug")).decision.required, 100);
 });
 
-test("a provider that never answers times out after the limit and checkout proceeds with the default", async () => {
+test("a courier that never answers times out after the limit and checkout proceeds as unrated", async () => {
   await on();
   providerMode = "slow";
+  process.env.FRAUD_CHECK_TIMEOUT_MS = "500";
   const t0 = Date.now();
   const o = await order(null, claim("TXSLOW0001"));
+  delete process.env.FRAUD_CHECK_TIMEOUT_MS;
   assert.ok(Date.now() - t0 < 6000);
-  assert.deepEqual([row(o.id).trustScore, Number(row(o.id).advanceRequired)], [50, 200]);
+  assert.deepEqual([row(o.id).trustScore, Number(row(o.id).advanceRequired)], [null, 200]);
   const fcTimeout = (row(o.id).trustSnapshot as any).fraudCheck;
   const { checkedAt: t1, ...rest1 } = fcTimeout;
   assert.deepEqual(rest1, { status: "unavailable", reason: "timeout", provider: null, delivered: null, cancelled: null, returned: null, total: null, source: "fallback", cached: false, phoneVerified: true, phoneLast4: emptyCheckout.shippingAddress.phone.replace(/\D/g, "").slice(-4) });
   assert.ok(!Number.isNaN(Date.parse(t1)));
 });
 
-test("the order snapshot records the fraud-check evidence without the phone number, and customers cannot see it", async () => {
+test("the order snapshot records the courier evidence without the phone number, and customers cannot see it", async () => {
   await on();
-  history("usn", 2, { CANCELLED: 1 });
+  parcels("usn", 4, 1);
   const o = await order("usn", claim("TXFRAUDSN1"));
   const fc = (row(o.id).trustSnapshot as any).fraudCheck;
   const { checkedAt: t2, ...rest2 } = fc;
-  assert.deepEqual(rest2, { status: "ok", reason: null, provider: "test-double", delivered: 2, cancelled: 1, returned: null, total: 3, source: "provider", cached: false, phoneVerified: true, phoneLast4: phoneOf("usn").slice(-4) });
+  assert.deepEqual(rest2, { status: "ok", reason: null, provider: "steadfast", delivered: 4, cancelled: 1, returned: null, total: 5, source: "provider", cached: false, phoneVerified: true, phoneLast4: phoneOf("usn").slice(-4) });
   assert.ok(!Number.isNaN(Date.parse(t2)));
   assert.equal(JSON.stringify(row(o.id).trustSnapshot).includes(phoneOf("usn")), false);
   const panel = await getAdvancePanel(o.id);
   assert.equal(panel!.trust!.fraudCheck!.status, "ok");
   const mine = await runAs({ sub: "usn" }, () => getOrderByNumberForCurrentUser(row(o.id).orderNumber as string));
   assert.ok(mine);
-  assert.equal(JSON.stringify(mine).match(/fraudCheck|trustSnapshot|trustScore|test-double/) , null);
+  assert.equal(JSON.stringify(mine).match(/fraudCheck|trustSnapshot|trustScore|courier-rate-v2|steadfast/) , null);
 });
 
 test("a customer cannot influence their own score, amount, waiver or review requirement through the checkout input", async () => {
   await on();
   // extra hostile fields in the checkout input are ignored by placeOrder
-  const o = await order("u-hostile", { ...claim("TXHOSTILE1"), trustScore: 100, advanceRequired: 0, advancePaid: 500, trustReviewRequired: false, advanceWaivedById: "a1", paymentStatus: "PAID" });
+  const o = await order("u-hostile", { ...claim("TXHOSTILE1"), trustScore: 100, advanceRequired: 0, advancePaid: 500, trustReviewRequired: false, advanceWaivedById: "a1", paymentStatus: "PAID", courier: { rate: 100 } });
   const r = row(o.id);
-  assert.deepEqual([r.trustScore, Number(r.advanceRequired), Number(r.advancePaid), r.paymentStatus, r.advanceWaivedById, r.trustReviewRequired], [50, 200, 0, "UNPAID", null, true]);
+  assert.deepEqual([r.trustScore, Number(r.advanceRequired), Number(r.advancePaid), r.paymentStatus, r.advanceWaivedById, r.trustReviewRequired], [null, 200, 0, "UNPAID", null, true]);
 });
 
 // ---- unverified claims, duplicate references ---------------------------------------------------------------------------------------------------
@@ -386,7 +411,7 @@ const fakeProvider = (): CourierProvider & { bookCalls: number } => {
 
 test("an order that requires an advance cannot be confirmed, processed, shipped, delivered or booked with a courier until the advance is verified (or waived with a reason)", async () => {
   await on();
-  history("u3", 3);                                                              // 80: no review requirement, so ONLY the advance gate is under test
+  parcels("u3", 4, 1);                                                              // 80: no review requirement, so ONLY the advance gate is under test
   const o = await order("u3", claim("TXGATE0001"));
   await assert.rejects(move(o.id, "CONFIRMED"), /advance/);
   for (const to of ["PROCESSING", "SHIPPED", "OUT_FOR_DELIVERY", "DELIVERED"]) await assert.rejects(move(o.id, to), undefined, to);   // not even a legal transition from PENDING
@@ -407,7 +432,7 @@ test("an order that requires an advance cannot be confirmed, processed, shipped,
 
 test("a PARTIAL verified advance (less than required) does not release the gate; cancelling is always possible", async () => {
   await on();
-  history("u3", 3);
+  parcels("u3", 4, 1);
   const o = await order("u3", claim("TXPART0001"));
   await verifyViaService(o.id, "WALLETPART", 99.99);
   assert.deepEqual([Number(row(o.id).advancePaid), row(o.id).paymentStatus], [99.99, "PARTIALLY_PAID"]);
@@ -475,7 +500,7 @@ async function verifyViaService(orderId: string, ref: string, amount: number) {
 
 test("paid amount, balance and status come from verified payment records: partial = PARTIALLY_PAID, completed = PAID", async () => {
   await on({ standardAmount: 5000, reducedAmount: 2500 });
-  history("u1", 1);
+  parcels("u1", 3, 2);
   const o = await order("u1", claim("TXRECON001"), "p-cheap", 1);
   const total = Number(row(o.id).total);
   assert.equal(Number(row(o.id).advanceRequired), total);
@@ -553,7 +578,7 @@ const toDelivered = async (id: string) => { for (const to of ["CONFIRMED", "PROC
 
 test("delivery records the COD balance as an explicit payment: status becomes PAID from records, advancePaid stays 'advances only', accounting counts the money once", async () => {
   await on();
-  history("u3", 3);
+  parcels("u3", 4, 1);
   const o = await order("u3", claim("TXCOD00001"), "p-standard", 2);
   await verifyViaService(o.id, "WALLETCOD1", 100);
   assert.deepEqual([row(o.id).paymentStatus, Number(row(o.id).advancePaid)], ["PARTIALLY_PAID", 100]);
@@ -571,7 +596,7 @@ test("delivery records the COD balance as an explicit payment: status becomes PA
 
 test("COD is recorded once; a fully prepaid order records nothing; marketplace orders are settled by payouts, not by a COD record", async () => {
   await on({ standardAmount: 5000, reducedAmount: 2500 });
-  history("u1", 1);
+  parcels("u1", 3, 2);
   const prepaid = await order("u1", claim("TXCOD00002"), "p-cheap", 1);                          // advance capped at the total
   await verifyViaService(prepaid.id, "WALLETCOD2", Number(row(prepaid.id).total));
   await toDelivered(prepaid.id);

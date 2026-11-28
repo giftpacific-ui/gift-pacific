@@ -25,6 +25,7 @@ import type { Order, OrderStatus, PaymentStatus } from "@prisma/client";
 import { RefreshCw, CreditCard, Truck, FileText, Undo2 } from "lucide-react";
 
 import { allowedNextStatuses } from "@/lib/order-transitions";
+import type { CourierChoiceView } from "@/lib/courier/provider-state";
 const PAYMENT_STATUSES: PaymentStatus[] = [
   "UNPAID",
   "PENDING",
@@ -36,6 +37,8 @@ const PAYMENT_STATUSES: PaymentStatus[] = [
 
 type OrderWithEvents = Order & {
   courierBookingStatus?: string;
+  courierProvider?: string | null;
+  courierConsignmentId?: string | null;
   trackingEvents: {
     status: OrderStatus;
     note: string | null;
@@ -43,7 +46,11 @@ type OrderWithEvents = Order & {
   }[];
 };
 
-export function AdminOrderControls({ order }: { order: OrderWithEvents }) {
+/**
+ * `courierChoices`: every courier with its honest state. Manual entry is allowed for ALL of them, because it is how a parcel is recorded when
+ * a courier has no API adapter (Pathao, RedX) or no credentials. `staleBooking`: an API booking that never finished may be settled by hand.
+ */
+export function AdminOrderControls({ order, courierChoices = [], staleBooking = false }: { order: OrderWithEvents; courierChoices?: CourierChoiceView[]; staleBooking?: boolean }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const nextStatuses = allowedNextStatuses(order.status);
@@ -55,7 +62,11 @@ export function AdminOrderControls({ order }: { order: OrderWithEvents }) {
   );
   // Details of an API-booked consignment can't be hand-edited.
   const courierLocked =
-    order.courierBookingStatus === "BOOKED" || order.courierBookingStatus === "BOOKING";
+    order.courierBookingStatus === "BOOKED" || (order.courierBookingStatus === "BOOKING" && !staleBooking);
+  const unconfirmed = order.courierBookingStatus === "UNCERTAIN" || (order.courierBookingStatus === "BOOKING" && staleBooking);
+  const [courierProvider, setCourierProvider] = useState(order.courierProvider ?? "");
+  const [consignmentId, setConsignmentId] = useState(order.courierConsignmentId ?? "");
+  const pickedChoice = courierChoices.find((c) => c.key === courierProvider);
   const [courierName, setCourierName] = useState(order.courierName ?? "");
   const [trackingNumber, setTrackingNumber] = useState(
     order.trackingNumber ?? "",
@@ -124,6 +135,8 @@ export function AdminOrderControls({ order }: { order: OrderWithEvents }) {
         courierName,
         trackingNumber,
         trackingUrl,
+        provider: courierProvider || null,
+        consignmentId,
       })
         .then((result) => {
           if (!result.success) return toast.error(result.message);
@@ -271,13 +284,42 @@ export function AdminOrderControls({ order }: { order: OrderWithEvents }) {
             This order is booked through the courier API, so these details are read-only.
           </p>
         )}
+        {unconfirmed && (
+          <p className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-900">
+            An earlier booking attempt for this order is unconfirmed. Check the courier portal first: entering details here replaces that attempt and blocks API booking.
+          </p>
+        )}
         <div className="space-y-3">
+          <label className="block text-xs text-muted-foreground">
+            Courier
+            <select
+              value={courierProvider}
+              disabled={courierLocked}
+              onChange={(e) => setCourierProvider(e.target.value)}
+              className="mt-1 h-11 w-full rounded-2xl border border-border/60 bg-white px-3 text-sm text-foreground"
+            >
+              <option value="">Other / not listed (type the name below)</option>
+              {courierChoices.map((c) => (
+                <option key={c.key} value={c.key}>{c.label} — {c.state === "unsupported" ? "no API adapter, record by hand" : c.stateLabel}</option>
+              ))}
+            </select>
+          </label>
+          {pickedChoice?.state === "unsupported" && (
+            <p className="text-xs text-muted-foreground">{pickedChoice.label} has no API adapter in this app. This records the parcel only: nothing is sent to {pickedChoice.label}, and its status will not update by itself.</p>
+          )}
           <Input
-            placeholder="Courier name"
+            placeholder="Courier name (optional when a courier is chosen)"
             disabled={courierLocked}
             value={courierName}
             onChange={(e) => setCourierName(e.target.value)}
             className="h-11 rounded-2xl bg-white border-border/60 text-sm"
+          />
+          <Input
+            placeholder="Consignment ID (the courier's own id, needs a courier)"
+            disabled={courierLocked}
+            value={consignmentId}
+            onChange={(e) => setConsignmentId(e.target.value)}
+            className="h-11 rounded-2xl bg-white border-border/60 text-sm font-mono"
           />
           <Input
             placeholder="Tracking number"

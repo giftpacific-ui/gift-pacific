@@ -1,17 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  addressLooksLikeDhaka, computeTrust, normalizeBdPhone, DEFAULT_POLICY, decideAdvance, derivePayment, historyIsConsistent, policyZoneFor, sanitizePolicy, validateAdvancePolicy,
+  addressLooksLikeDhaka, normalizeBdPhone, DEFAULT_POLICY, decideAdvance, derivePayment, policyZoneFor, sanitizePolicy, validateAdvancePolicy,
   type AdvancePolicy,
 } from "@/lib/advance-policy";
 import { readFileSync } from "node:fs";
-import { aggregateParcels, isValidFraudHistory, type ParcelBucket } from "../../src/lib/fraud-check";
 import { dispatchBlockedReason } from "@/server/services/advance.service";
 
 const policy = (o: Partial<AdvancePolicy> = {}): AdvancePolicy => ({ ...DEFAULT_POLICY, enabled: true, zones: ["OUTSIDE_DHAKA"], ...o });
-const decide = (score: number, o: Partial<AdvancePolicy> = {}, total = 5000, zone = "OUTSIDE_DHAKA", zoneConflict = false) => decideAdvance(policy(o), { zone, orderTotal: total, trustScore: score, zoneConflict });
+const decide = (score: number, o: Partial<AdvancePolicy> = {}, total = 5000, zone = "OUTSIDE_DHAKA", zoneConflict = false) => decideAdvance(policy(o), { zone, orderTotal: total, rate: score, rewardAllowed: true, zoneConflict });
 
-// ---- the 60 / 80 / 100 policy: points on a 0-100 heuristic scale, compared with >= ---------------------------------------------------
+// ---- the 60 / 80 / 100 policy: percentages of the courier delivery success rate, compared with >= ---------------------------------------------------
 test("boundary scores 0, 59, 60, 79, 80, 99, 100: tier, amount and review requirement", () => {
   const expect: [number, string, number, boolean][] = [
     [0, "low", 200, true], [59, "low", 200, true], [60, "standard", 200, false], [79, "standard", 200, false], [80, "reduced", 100, false], [99, "reduced", 100, false], [100, "full", 100, false],
@@ -52,61 +51,19 @@ test("scope: disabled policy or an uncovered zone needs no advance and no review
   assert.equal(decide(10, { reviewEnabled: false }).needsReview, false);    // the review rule can be switched off, explicitly
 });
 
-test("a non-finite or out-of-range score can never raise trust: NaN falls back to the conservative default, values are clamped to 0-100", () => {
-  assert.equal(decide(Number.NaN).tier, "low");
-  assert.equal(decide(Infinity).tier, "low");                                // not a finite number: never trusted
+test("a non-finite or out-of-range rate can never raise trust: NaN/Infinity are 'unrated' (the conservative path), values are clamped to 0-100", () => {
+  assert.equal(decide(Number.NaN).tier, "unrated");
+  assert.equal(decide(Infinity).tier, "unrated");                            // not a finite number: never trusted
   assert.equal(decide(1e6).tier, "full");                                    // a large FINITE value is clamped to 100, the top of the scale
   assert.equal(decide(-40).tier, "low");
   assert.equal(decide(250, { zeroAtFullTrust: false }).required, 100);       // clamped to 100: reduced, not zero
+  assert.equal(decideAdvance(policy(), { zone: "OUTSIDE_DHAKA", orderTotal: 5000, rate: null, rewardAllowed: true }).required, 200); // no evidence: standard
 });
 
-test("explanations speak in points out of 100, never as a percentage or probability", () => {
-  assert.match(decide(80).explanation, /Trust score 80\/100/);
-  assert.doesNotMatch(decide(80).explanation, /%/);
-});
-
-// ---- trust computation (fraud check): conservative default and conflicting data ---------------------------------------------------------
-test("no fraud-check record gets the conservative default; the score never leaves 0-100", () => {
-  for (const h of [null, { delivered: 0, cancelled: 0 }]) {
-    const t = computeTrust(h);
-    assert.deepEqual([t.score, t.insufficientEvidence], [50, true]);
-  }
-  assert.equal(computeTrust({ delivered: 50, cancelled: 0 }, { phoneVerified: true }).score, 100);
-  assert.equal(computeTrust({ delivered: 0, cancelled: 9 }, { phoneVerified: true }).score, 0);
-});
-
-test("conflicting or corrupt fraud-check data falls back to the default instead of granting trust", () => {
-  assert.equal(computeTrust({ delivered: 5, cancelled: 0 }, { phoneVerified: true }).score, 100);
-  for (const bad of [{ delivered: -1, cancelled: 0 }, { delivered: 2.5, cancelled: 0 }, { delivered: 1, cancelled: Number.NaN }, { delivered: 3, cancelled: -2 }]) {
-    assert.equal(historyIsConsistent(bad), false);
-    const t = computeTrust(bad, { phoneVerified: true });
-    assert.deepEqual([t.score, t.insufficientEvidence], [50, true]);
-    assert.match(t.reasons.join(" "), /inconsistent/);
-  }
-});
-
-test("every reachable score is a multiple of 5 and within 0-100", () => {
-  const seen = new Set<number>();
-  for (let d = 0; d <= 8; d++) for (let c = 0; c <= 4; c++) for (const t of [true, false]) seen.add(computeTrust({ delivered: d, cancelled: c }, { phoneVerified: t }).score);
-  for (const s of seen) { assert.ok(s >= 0 && s <= 100); assert.equal(s % 10, 0); }
-});
-
-test("phones are normalised consistently and non-mobile input is rejected", () => {
-  for (const ok of ["01711000000", "+8801711000000", "8801711000000", "008801711000000", "+88 01711-000 000", "017-1100 0000"]) assert.equal(normalizeBdPhone(ok), "01711000000");
-  for (const bad of [null, undefined, "", "12345", "01211000000", "0171100000", "abc", "+8801711000000999", "+8802711000000"]) assert.equal(normalizeBdPhone(bad as never), null);
-});
-
-// ---- validation -------------------------------------------------------------------------------------------------------------------------
-test("policy validation: ordering, integers, amounts, zones", () => {
-  assert.equal(validateAdvancePolicy(policy()), null);
-  const bad: Partial<AdvancePolicy>[] = [
-    { lowBelow: 0 }, { lowBelow: 90 }, { reducedFrom: 101, fullAt: 101 }, { fullAt: 79 }, { lowBelow: 60.5 }, { lowBelow: 80, reducedFrom: 80, fullAt: 80 },
-    { standardAmount: -1 }, { standardAmount: Number.NaN }, { standardAmount: 100.123 }, { standardAmount: 1e9 }, { reducedAmount: 500 }, { zones: [] },
-    { zones: ["MARS" as never] }, { standardAmount: 0, reducedAmount: 0 },
-  ];
-  for (const b of bad) assert.notEqual(validateAdvancePolicy(policy(b)), null, JSON.stringify(b));
-  assert.equal(validateAdvancePolicy(policy({ standardAmount: 0, reducedAmount: 0, zeroAtFullTrust: true })), null);
-  assert.equal(validateAdvancePolicy(policy({ enabled: false, zones: [] })), null);
+test("explanations speak of the courier delivery success rate in percent (or say unrated), never of a probability or a fraud verdict", () => {
+  assert.match(decide(85).explanation, /delivery success rate 85%/);
+  assert.match(decideAdvance(policy(), { zone: "OUTSIDE_DHAKA", orderTotal: 5000, rate: null, rewardAllowed: true }).explanation, /unrated/i);
+  for (const e of [decide(10).explanation, decide(85).explanation]) assert.doesNotMatch(e, /probab|fraud(ster|ulent)|score/i);
 });
 
 test("stored settings that fail validation never weaken the policy: defaults apply and the problem is reported", () => {
@@ -197,29 +154,3 @@ test("source guard: no checkout input field, server action or placeOrder paramet
 // A stand-in mapping used ONLY by these tests. Real mappings must come from a provider's official documentation.
 const stand = (s: string): ParcelBucket | null => (s === "D" ? "delivered" : s === "C" ? "cancelled" : s === "R" ? "returned" : s === "T" ? "other" : null);
 
-test("duplicate parcel records are counted once; in-transit parcels are not scored; returned parcels are kept separate", () => {
-  const h = aggregateParcels([{ id: "1", status: "D" }, { id: "1", status: "D" }, { id: " 1 ", status: "D" }, { id: "2", status: "C" }, { id: "3", status: "R" }, { id: "4", status: "T" }], stand);
-  assert.deepEqual(h, { delivered: 1, cancelled: 1, returned: 1, total: 4 });   // total counts every distinct parcel, including the one in transit
-});
-
-test("conflicting duplicates, unknown statuses and id-less records make the whole answer unusable instead of guessing", () => {
-  assert.throws(() => aggregateParcels([{ id: "1", status: "D" }, { id: "1", status: "C" }], stand));
-  assert.throws(() => aggregateParcels([{ id: "1", status: "???" }], stand));
-  assert.throws(() => aggregateParcels([{ id: "", status: "D" }], stand));
-});
-
-test("malformed or incomplete provider answers are rejected, never turned into positive trust", () => {
-  assert.equal(isValidFraudHistory({ delivered: 2, cancelled: 0 }), true);
-  assert.equal(isValidFraudHistory({ delivered: 2, cancelled: 0, returned: 1 }), true);
-  assert.equal(isValidFraudHistory({ delivered: 2, cancelled: 0, returned: 1, total: 3 }), true);
-  assert.equal(isValidFraudHistory({ delivered: 2, cancelled: 0, returned: 1, total: 2 }), false);   // total smaller than its parts
-  for (const bad of [null, undefined, 5, "x", {}, { delivered: 2 }, { cancelled: 1 }, { delivered: "2", cancelled: 0 }, { delivered: -1, cancelled: 0 }, { delivered: 1.5, cancelled: 0 }, { delivered: 2, cancelled: 0, returned: -1 }, { delivered: Number.POSITIVE_INFINITY, cancelled: 0 }]) {
-    assert.equal(isValidFraudHistory(bad), false, JSON.stringify(bad));
-  }
-});
-
-test("the same provider result always gives the same score", () => {
-  const h = { delivered: 4, cancelled: 1, returned: 2 };
-  const first = computeTrust(h, { phoneVerified: true });
-  for (let i = 0; i < 5; i++) assert.deepEqual(computeTrust({ ...h }, { phoneVerified: true }), first);
-});

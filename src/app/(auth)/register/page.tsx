@@ -14,14 +14,18 @@ export default async function RegisterPage() {
       <div className="space-y-1 text-center">
         <h1 className="font-heading text-2xl">Create your account</h1>
         <p className="text-sm text-muted-foreground">
-          Save addresses, track orders, and keep a wishlist of your favorite pieces.
+          Save addresses, track orders, and keep a wishlist of your favorite
+          pieces.
         </p>
       </div>
-            <SocialLoginButtons />
       <RegisterForm />
+      <SocialLoginButtons />{" "}
       <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="text-primary underline-offset-4 hover:underline">
+        <Link
+          href="/login"
+          className="text-primary underline-offset-4 hover:underline"
+        >
           Sign in
         </Link>
       </p>

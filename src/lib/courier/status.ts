@@ -45,8 +45,10 @@ export function planOrderTransitions(current: OrderStatusName, event: CourierEve
       return bfsPath(current, "OUT_FOR_DELIVERY") ?? [];
     case "DELIVERED":
       return bfsPath(current, "DELIVERED") ?? [];
+    // PARTIAL_DELIVERED never moves the order: only part of the parcel arrived, so items and cash need a human decision.
     case "DELIVERY_FAILED":
     case "RETURNED":
+    case "CANCELLED":
       // Only meaningful once the parcel is actually out with the courier.
       return current === "SHIPPED" || current === "OUT_FOR_DELIVERY" ? ["FAILED_DELIVERY"] : [];
     default:
@@ -59,6 +61,8 @@ export const COURIER_EVENT_LABEL: Record<CourierEvent, string> = {
   PICKED_UP: "Picked up by courier",
   OUT_FOR_DELIVERY: "Out for delivery",
   DELIVERED: "Delivered",
+  PARTIAL_DELIVERED: "Partially delivered",
+  CANCELLED: "Cancelled by courier",
   DELIVERY_FAILED: "Delivery attempt failed",
   RETURNED: "Returned to sender",
   UNKNOWN: "Status updated",

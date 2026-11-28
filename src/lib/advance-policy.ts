@@ -1,57 +1,31 @@
 /**
  * Advance-payment + trust policy (pure, server-authoritative).
  *
- * The "trust score" means CONFIDENCE IN SUCCESSFUL FULFILMENT (100 = highest). Its ONLY evidence is the FRAUD CHECK: a courier-network parcel record
- * for the order's phone number, obtained server-side from a configured fraud-check provider. Our own website order history is NOT used.
- * It is a transparent rule-based heuristic, not a validated prediction and not a fraud verdict.
+ * P6 redesign. The "trust" input is the customer's DELIVERY SUCCESS RATE from the couriers' own history for the order's phone number (see
+ * lib/courier-intelligence): delivered / (delivered + cancelled), in percent. There is NO default score. Without reliable evidence (no history,
+ * too small a sample, too few couriers, a courier outage, an invalid phone) the number is "unrated", which is handled conservatively: the standard
+ * advance and, when the review rule is on, a staff review. An outage can never lower an advance. Our own website order history is never used.
  *
- * Formula (verified phone):    50 + 10 x min(delivered, 5) - 20 x cancelled, clamped to 0-100.
- * Formula (UNVERIFIED phone):  50 - 20 x cancelled, clamped to 0-100  (delivered history earns NOTHING).
- * The phone is typed by the customer and the project has no verified-phone mechanism (no OTP): so only NEGATIVE evidence may count.
- * `returned` parcels are carried and shown to admins but are NOT scored: no official provider status mapping exists to say whether a return
- * is a customer failure, and nothing is silently counted as delivered or cancelled.
- * Missing evidence NEVER yields high trust: no provider, an invalid phone, a timeout, an error, a malformed response or no parcel history all give 50.
- *
- * WHAT "60", "80" AND "100" MEAN: POINTS on this 0-100 scale, compared with `>=` against configurable thresholds (lowBelow 60, reducedFrom 80, fullAt 100).
- * They are NOT probabilities. Every tier decision is made on the server; the browser can neither supply nor influence a score or an amount.
+ * Tiers compare the RATE (a percentage, `>=`) with configurable lines (lowBelow 60, reducedFrom 80, fullAt 100):
+ *   unrated                          standard advance (+ review when enabled)
+ *   rate  < lowBelow                 low: standard advance (+ review when enabled)
+ *   rate >= lowBelow                 standard: standard advance
+ *   rate >= reducedFrom              reduced: ONLY when positive evidence may count (policy reward switch ON and phone verified or explicitly accepted)
+ *   rate >= fullAt                   full: same condition; no advance only if "zero at full trust" is on, otherwise the reduced advance
+ * Every decision is made on the server; the browser can neither supply nor influence a rate, a tier or an amount.
+ * It is a transparent rule, not a validated prediction and not a fraud verdict.
  */
-export type FraudCheckHistory = {
-  /** Distinct parcels the provider reports as delivered. */
-  delivered: number;
-  /** Distinct parcels the provider reports as cancelled. */
-  cancelled: number;
-  /** Distinct parcels the provider reports as returned. Shown, not scored (see above). */
-  returned?: number;
-  /**
-   * All distinct parcels the provider reports (may include parcels still in transit). Shown, not scored.
-   * When supplied it must be >= delivered + cancelled + returned, otherwise the whole answer is treated as inconsistent.
-   */
-  total?: number;
-};
+import { DEFAULT_EVIDENCE_POLICY, validateEvidencePolicy, type EvidencePolicy } from "@/lib/courier-intelligence/trust";
 
-export type FraudUnavailableReason = "no_provider" | "disabled" | "invalid_phone" | "timeout" | "error" | "invalid_response" | "rate_limited" | "auth_failed" | "no_counts";
-/** Three clearly separate states: the provider could not answer / answered "no history" / answered with a record. */
-export type FraudCheckOutcome =
-  | { status: "unavailable"; reason: FraudUnavailableReason }
-  | { status: "no_history"; provider: string }
-  | { status: "ok"; provider: string; history: FraudCheckHistory };
-
-export type TrustResult = { score: number; insufficientEvidence: boolean; reasons: string[] };
-
-export const NEW_CUSTOMER_SCORE = 50;
-export const EMPTY_HISTORY: FraudCheckHistory = { delivered: 0, cancelled: 0 };
-
-/** Usable only if every supplied counter is a non-negative integer. Anything else is conflicting data. */
-export function historyIsConsistent(h: FraudCheckHistory): boolean {
-  const all = [h.delivered, h.cancelled, ...(h.returned === undefined ? [] : [h.returned]), ...(h.total === undefined ? [] : [h.total])];
-  if (!all.every((n) => Number.isInteger(n) && n >= 0)) return false;
-  // A reported total smaller than the parts it contains is contradictory data.
-  return h.total === undefined || h.total >= h.delivered + h.cancelled + (h.returned ?? 0);
-}
-
-/** Total parcels for display: the provider's own total when it gave one, otherwise the sum of the known parts. Never used for scoring. */
-export function totalParcels(h: FraudCheckHistory): number {
-  return h.total ?? h.delivered + h.cancelled + (h.returned ?? 0);
+/** The evidence rules of a policy, with the conservative defaults for anything missing. */
+export function evidencePolicyOf(p: Pick<AdvancePolicy, "minSample" | "minProviders" | "maxAgeSeconds" | "rewardEnabled" | "creditUnverifiedPhone">): EvidencePolicy {
+  return {
+    minSample: p.minSample ?? DEFAULT_EVIDENCE_POLICY.minSample,
+    minProviders: p.minProviders ?? DEFAULT_EVIDENCE_POLICY.minProviders,
+    maxAgeSeconds: p.maxAgeSeconds ?? DEFAULT_EVIDENCE_POLICY.maxAgeSeconds,
+    rewardEnabled: p.rewardEnabled === true,
+    creditUnverifiedPhone: p.creditUnverifiedPhone === true,
+  };
 }
 
 /** Normalises a Bangladeshi mobile number to 01XXXXXXXXX (accepts 01.., 8801.., +8801.., 008801..); null when it is not one. */
@@ -62,52 +36,6 @@ export function normalizeBdPhone(raw: string | null | undefined): string | null 
   else if (d.startsWith("+880")) d = "0" + d.slice(4);
   else if (d.startsWith("880")) d = "0" + d.slice(3);
   return /^01[3-9]\d{8}$/.test(d) ? d : null;
-}
-
-const UNAVAILABLE_TEXT: Record<FraudUnavailableReason, string> = {
-  no_provider: "No fraud-check provider is configured",
-  disabled: "The fraud check is switched off (FRAUD_CHECK_ENABLED=false)",
-  rate_limited: "The fraud-check call budget for this minute was used up, or the provider asked us to slow down",
-  auth_failed: "The provider rejected the API credentials",
-  no_counts: "The provider answered without parcel counts (the score formula needs counts, so nothing was estimated)",
-  invalid_phone: "The order phone is missing or not a valid Bangladesh mobile number",
-  timeout: "The fraud-check provider did not answer in time",
-  error: "The fraud-check provider could not be reached",
-  invalid_response: "The fraud-check provider returned an unusable response",
-};
-
-export function computeTrust(h: FraudCheckHistory | null, opts: { phoneVerified?: boolean } = {}): TrustResult {
-  if (!h) return { score: NEW_CUSTOMER_SCORE, insufficientEvidence: true, reasons: ["No fraud-check record available: conservative default score."] };
-  if (!historyIsConsistent(h)) {
-    // Conflicting data is never given the benefit of the doubt.
-    return { score: NEW_CUSTOMER_SCORE, insufficientEvidence: true, reasons: ["Fraud-check data was inconsistent and was ignored: conservative default score."] };
-  }
-  if (h.delivered + h.cancelled === 0) {
-    const r = ["Fraud check found no delivered or cancelled parcels for this phone: conservative default score."];
-    if (h.returned) r.push(`${h.returned} returned parcel${h.returned === 1 ? "" : "s"} reported; not scored (no documented provider mapping for returns).`);
-    return { score: NEW_CUSTOMER_SCORE, insufficientEvidence: true, reasons: r };
-  }
-  const reasons: string[] = [`Base ${NEW_CUSTOMER_SCORE}.`];
-  let score = NEW_CUSTOMER_SCORE;
-  if (h.delivered > 0) {
-    if (opts.phoneVerified === true) {
-      const good = Math.min(h.delivered, 5) * 10;
-      score += good; reasons.push(`+${good}: ${h.delivered} delivered parcel${h.delivered === 1 ? "" : "s"} reported by the fraud check (max +50).`);
-    } else {
-      reasons.push(`+0: ${h.delivered} delivered parcel${h.delivered === 1 ? "" : "s"} reported, not credited because the phone number is not verified.`);
-    }
-  }
-  if (h.cancelled) { const p = h.cancelled * 20; score -= p; reasons.push(`-${p}: ${h.cancelled} cancelled parcel${h.cancelled === 1 ? "" : "s"} reported by the fraud check.`); }
-  if (h.returned) reasons.push(`${h.returned} returned parcel${h.returned === 1 ? "" : "s"} reported; not scored (no documented provider mapping for returns).`);
-  score = Math.max(0, Math.min(100, score));
-  return { score, insufficientEvidence: false, reasons };
-}
-
-/** Trust from an explicit fraud-check outcome. Unavailable and no-history both yield the default score but with different, honest reasons. */
-export function trustFromOutcome(o: FraudCheckOutcome, opts: { phoneVerified?: boolean } = {}): TrustResult {
-  if (o.status === "unavailable") return { score: NEW_CUSTOMER_SCORE, insufficientEvidence: true, reasons: [`${UNAVAILABLE_TEXT[o.reason]}: conservative default score, standard advance rule applies.`] };
-  if (o.status === "no_history") return computeTrust(EMPTY_HISTORY, opts);
-  return computeTrust(o.history, opts);
 }
 
 export type AdvancePolicy = {
@@ -121,54 +49,58 @@ export type AdvancePolicy = {
   fullAt: number;
   /** Low-trust orders need a recorded staff review before dispatch. Treated as ON unless explicitly false. */
   reviewEnabled?: boolean;
+  /** Evidence rules (P6). Optional so older stored policies keep working: missing values mean the conservative defaults. */
+  minSample?: number;
+  minProviders?: number;
+  maxAgeSeconds?: number;
+  rewardEnabled?: boolean;
+  creditUnverifiedPhone?: boolean;
 };
 
 /** The built-in policy: used when stored settings are missing or invalid. Deliberately conservative (advance required in the outside-Dhaka zone only when enabled). */
-export const DEFAULT_POLICY: AdvancePolicy = { enabled: false, zones: ["OUTSIDE_DHAKA"], standardAmount: 200, reducedAmount: 100, zeroAtFullTrust: false, lowBelow: 60, reducedFrom: 80, fullAt: 100, reviewEnabled: true };
+export const DEFAULT_POLICY: AdvancePolicy = { enabled: false, zones: ["OUTSIDE_DHAKA"], standardAmount: 200, reducedAmount: 100, zeroAtFullTrust: false, lowBelow: 60, reducedFrom: 80, fullAt: 100, reviewEnabled: true, minSample: 5, minProviders: 1, maxAgeSeconds: 3600, rewardEnabled: false, creditUnverifiedPhone: false };
 export const ADVANCE_ZONES = ["DHAKA_CITY", "OUTSIDE_DHAKA", "OTHER"] as const;
 export const MAX_ADVANCE_AMOUNT = 100000;
 
-export type TrustTier = "low" | "standard" | "reduced" | "full";
+export type TrustTier = "unrated" | "low" | "standard" | "reduced" | "full";
 
-/** The tier a score falls in under a policy's thresholds (same comparisons as `decideAdvance`; a test keeps them identical). */
-export function tierForScore(policy: Pick<AdvancePolicy, "lowBelow" | "reducedFrom" | "fullAt">, score: number): TrustTier {
-  const s = Number.isFinite(score) ? Math.min(Math.max(score, 0), 100) : NEW_CUSTOMER_SCORE;
-  if (s >= policy.fullAt) return "full";
-  if (s >= policy.reducedFrom) return "reduced";
-  if (s >= policy.lowBelow) return "standard";
-  return "low";
+/** The tier a rate falls in under a policy (same comparisons as `decideAdvance`; a test keeps them identical). null rate = unrated. */
+export function tierForRate(policy: Pick<AdvancePolicy, "lowBelow" | "reducedFrom" | "fullAt">, rate: number | null, rewardAllowed: boolean): TrustTier {
+  if (rate === null || !Number.isFinite(rate)) return "unrated";
+  const r = Math.min(Math.max(rate, 0), 100);
+  if (r < policy.lowBelow) return "low";
+  if (!rewardAllowed) return "standard";
+  if (r >= policy.fullAt) return "full";
+  if (r >= policy.reducedFrom) return "reduced";
+  return "standard";
 }
 
 export type AdvanceDecision = {
   required: number;
   tier: TrustTier | null;
-  /** True for the lowest tier: staff should look at the order before dispatch. */
+  /** True for the unrated and low tiers: staff should look at the order before dispatch. */
   needsReview: boolean;
   explanation: string;
 };
 
-/** Which advance the order needs. Amounts are capped at the order total; the advance is PART of the total, never an extra fee. */
-export function decideAdvance(policy: AdvancePolicy, i: { zone: string; orderTotal: number; trustScore: number; zoneConflict?: boolean }): AdvanceDecision {
+/**
+ * Which advance the order needs. Amounts are capped at the order total; the advance is PART of the total, never an extra fee.
+ * `rate` is null when there is no reliable courier evidence; `rewardAllowed` says whether positive evidence may lower the advance at all.
+ */
+export function decideAdvance(policy: AdvancePolicy, i: { zone: string; orderTotal: number; rate: number | null; rewardAllowed: boolean; zoneConflict?: boolean }): AdvanceDecision {
   if (!policy.enabled) return { required: 0, tier: null, needsReview: false, explanation: "Advance payments are not enabled." };
   if (!policy.zones.includes(i.zone)) return { required: 0, tier: null, needsReview: false, explanation: "No advance is required for this delivery zone." };
-  // A score that is not a finite number in [0,100] is treated as the conservative default, never as "high".
-  const s = Number.isFinite(i.trustScore) ? Math.min(Math.max(i.trustScore, 0), 100) : NEW_CUSTOMER_SCORE;
-  let tier: TrustTier;
-  let amount: number;
-  if (s >= policy.fullAt) {
-    tier = "full";
-    amount = policy.zeroAtFullTrust ? 0 : policy.reducedAmount;
-  } else if (s >= policy.reducedFrom) { tier = "reduced"; amount = policy.reducedAmount; }
-  else if (s >= policy.lowBelow) { tier = "standard"; amount = policy.standardAmount; }
-  else { tier = "low"; amount = policy.standardAmount; }
+  const tier = tierForRate(policy, i.rate, i.rewardAllowed);
+  const amount = tier === "full" ? (policy.zeroAtFullTrust ? 0 : policy.reducedAmount) : tier === "reduced" ? policy.reducedAmount : policy.standardAmount;
   const required = Math.round(Math.min(Math.max(amount, 0), Math.max(i.orderTotal, 0)) * 100) / 100;
   const reviewOn = policy.reviewEnabled !== false;
+  const basis = i.rate === null ? "No reliable courier history (unrated)" : `Courier delivery success rate ${i.rate}%`;
   return {
     required,
     tier,
-    // Low tier, or the claimed delivery zone contradicts the address: a person must look before dispatch (when the review rule is enabled).
-    needsReview: reviewOn && (tier === "low" || Boolean(i.zoneConflict)),
-    explanation: `Trust score ${s}/100 → ${tier} tier${required === 0 ? " (no advance)" : ""}${i.zoneConflict ? "; delivery zone does not match the address, stricter zone applied" : ""}.`,
+    // Unrated or low, or the claimed delivery zone contradicts the address: a person must look before dispatch (when the review rule is enabled).
+    needsReview: reviewOn && (tier === "unrated" || tier === "low" || Boolean(i.zoneConflict)),
+    explanation: `${basis} → ${tier} tier${required === 0 ? " (no advance)" : ""}${i.zoneConflict ? "; delivery zone does not match the address, stricter zone applied" : ""}.`,
   };
 }
 
@@ -185,14 +117,14 @@ export function validateAdvancePolicy(p: AdvancePolicy): string | null {
   if (p.enabled && p.zones.length === 0) return "Choose at least one delivery zone for the advance.";
   if (p.zones.some((z) => !(ADVANCE_ZONES as readonly string[]).includes(z))) return "Unknown delivery zone.";
   if (p.enabled && p.standardAmount === 0 && !p.zeroAtFullTrust) return "A standard advance of 0 would make the policy meaningless: set an amount or disable the advance.";
-  return null;
+  return validateEvidencePolicy(evidencePolicyOf(p));
 }
 
 /** Stored settings that fail validation (hand-edited database, old data) never silently weaken the policy: the built-in defaults apply and `problem` says why. */
 export function sanitizePolicy(raw: AdvancePolicy): { policy: AdvancePolicy; problem: string | null } {
   const problem = validateAdvancePolicy(raw);
   if (!problem) return { policy: raw, problem: null };
-  return { policy: { ...DEFAULT_POLICY, enabled: raw.enabled, zones: raw.zones.filter((z) => (ADVANCE_ZONES as readonly string[]).includes(z)).length ? raw.zones.filter((z) => (ADVANCE_ZONES as readonly string[]).includes(z)) : DEFAULT_POLICY.zones, reviewEnabled: raw.reviewEnabled !== false }, problem };
+  return { policy: { ...DEFAULT_POLICY, enabled: raw.enabled, rewardEnabled: false, creditUnverifiedPhone: false, zones: raw.zones.filter((z) => (ADVANCE_ZONES as readonly string[]).includes(z)).length ? raw.zones.filter((z) => (ADVANCE_ZONES as readonly string[]).includes(z)) : DEFAULT_POLICY.zones, reviewEnabled: raw.reviewEnabled !== false }, problem };
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------

@@ -79,7 +79,9 @@ test("webhook parsing and status mapping", () => {
   assert.equal(m("delivered"), "DELIVERED");
   assert.equal(m("DELIVERED"), "DELIVERED");
   assert.equal(m("in_review"), "PENDING");
-  assert.equal(m("cancelled"), "RETURNED");
+  // P5: Steadfast's verified vocabulary has only "cancelled" (it cannot tell a pre-pickup cancellation from a return), so it is no longer
+  // labelled "Returned to sender". Both still walk a shipped order to FAILED_DELIVERY (see courier-rules / courier-p5-rules tests).
+  assert.equal(m("cancelled"), "CANCELLED");
   assert.equal(m("something_new"), "UNKNOWN");
 });
 

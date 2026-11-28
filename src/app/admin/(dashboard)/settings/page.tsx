@@ -5,12 +5,16 @@ import { serializeDecimals } from "@/lib/serialize";
 import { siteConfig } from "@/config/site";
 import { getTrackingDiagnostics } from "@/server/services/tracking-diagnostics.service";
 import { TrackingDiagnosticsPanel } from "@/features/admin/tracking-diagnostics-panel";
+import { getSmtpAdminStatus } from "@/server/services/admin-smtp.service";
+import { SmtpSettingsPanel } from "@/features/admin/smtp-settings-panel";
+import { getCurrentAdmin } from "@/lib/auth/current-user";
 
 export const metadata: Metadata = { title: "Store Settings · Admin" };
 
 export default async function AdminSettingsPage() {
   const settings = await getStoreSettings();
   const diagnostics = await getTrackingDiagnostics();
+  const admin = await getCurrentAdmin();
 
   return (
     <div className="space-y-6 mx-auto w-full max-w-7xl">
@@ -18,6 +22,8 @@ export default async function AdminSettingsPage() {
       <StoreSettingsForm settings={serializeDecimals(settings)} />
 
       <TrackingDiagnosticsPanel data={diagnostics} />
+
+      <SmtpSettingsPanel status={getSmtpAdminStatus()} defaultRecipient={admin?.email ?? ""} />
 
       <div className="rounded-2xl border border-border/70 bg-card p-6">
         <h3 className="font-heading text-lg font-semibold">

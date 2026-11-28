@@ -322,7 +322,7 @@ export function OrderDetailView({
                 rel="noopener noreferrer"
                 className="text-primary hover:underline font-medium inline-flex items-center gap-1"
               >
-                Track shipment <ArrowUpRight className="size-3.5" />
+                Track Parcel <ArrowUpRight className="size-3.5" />
               </Link>
             )}
           </div>

@@ -2,23 +2,24 @@ import "server-only";
 import { notifyUser } from "@/server/services/notification.service";
 import type { DeliveryZone, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { riskGateBlockedReason } from "@/lib/fraud/scoring";
+import type { RiskLevel } from "@/lib/fraud/policy";
 import { UserFacingError } from "@/lib/errors";
 import {
-  trustFromOutcome,
   normalizeBdPhone,
-  tierForScore,
-  totalParcels,
+  tierForRate,
   decideAdvance,
   derivePayment,
+  evidencePolicyOf,
   policyZoneFor,
   sanitizePolicy,
   validateAdvancePolicy,
   type AdvanceDecision,
   type AdvancePolicy,
-  type TrustResult,
 } from "@/lib/advance-policy";
+import { assessTrust, type TrustAssessment } from "@/lib/courier-intelligence/trust";
+import { maskPhone, getCourierIntelligence, isPhoneVerified, type IntelligenceResult } from "@/server/services/courier-intelligence.service";
 import { normalizeTxnRef } from "@/lib/payment-reference";
-import { fraudSource, isPhoneVerified, lookupFraudCheck, type FraudLookup } from "@/server/services/fraud-check.service";
 
 type Db = Pick<Prisma.TransactionClient, "order" | "storeSettings">;
 type Tx = Prisma.TransactionClient;
@@ -49,6 +50,11 @@ export async function getAdvanceSettings(
     fullAt: s?.trustFullAt ?? 100,
     reviewEnabled: s?.trustReviewEnabled ?? true,
     instructions: s?.advanceInstructions ?? null,
+    minSample: s?.trustMinSample ?? 5,
+    minProviders: s?.trustMinProviders ?? 1,
+    maxAgeSeconds: s?.trustMaxAgeSeconds ?? 3600,
+    rewardEnabled: s?.trustRewardEnabled ?? false,
+    creditUnverifiedPhone: s?.trustCreditUnverifiedPhone ?? false,
   };
   const { policy, problem } = sanitizePolicy(raw);
   return { ...raw, ...policy, zones: policy.zones as DeliveryZone[], reviewEnabled: policy.reviewEnabled !== false, problem };
@@ -103,6 +109,11 @@ export async function saveAdvanceSettings(input: AdvanceSettings, actorId: strin
     trustReducedFrom: input.reducedFrom,
     trustFullAt: input.fullAt,
     trustReviewEnabled: input.reviewEnabled !== false,
+    trustMinSample: input.minSample ?? 5,
+    trustMinProviders: input.minProviders ?? 1,
+    trustMaxAgeSeconds: input.maxAgeSeconds ?? 3600,
+    trustRewardEnabled: input.rewardEnabled === true,
+    trustCreditUnverifiedPhone: input.creditUnverifiedPhone === true,
     advanceInstructions: input.instructions?.trim() || null,
     advancePolicyUpdatedAt: new Date(),
     advancePolicyUpdatedById: actorId,
@@ -111,14 +122,15 @@ export async function saveAdvanceSettings(input: AdvanceSettings, actorId: strin
     await assertAdminActor(tx, actorId);
     const before = await getAdvanceSettings(tx);
     await tx.storeSettings.upsert({ where: { id: "singleton" }, update: data, create: { id: "singleton", ...data } });
-    const pick = (x: AdvanceSettings) => ({ enabled: x.enabled, zones: x.zones, standard: x.standardAmount, reduced: x.reducedAmount, zeroAtFullTrust: x.zeroAtFullTrust, lowBelow: x.lowBelow, reducedFrom: x.reducedFrom, fullAt: x.fullAt, reviewEnabled: x.reviewEnabled });
+    const pick = (x: AdvanceSettings) => ({ enabled: x.enabled, zones: x.zones, standard: x.standardAmount, reduced: x.reducedAmount, zeroAtFullTrust: x.zeroAtFullTrust, lowBelow: x.lowBelow, reducedFrom: x.reducedFrom, fullAt: x.fullAt, reviewEnabled: x.reviewEnabled, minSample: x.minSample, minProviders: x.minProviders, maxAgeSeconds: x.maxAgeSeconds, rewardEnabled: x.rewardEnabled === true, creditUnverifiedPhone: x.creditUnverifiedPhone === true });
     await recordAudit(tx, { actorId, action: "ADVANCE_POLICY_CHANGED", entityType: "ADVANCE_POLICY", entityId: "singleton", detail: { before: pick(before), after: pick({ ...input, zones }) } });
   });
 }
 
 /**
- * What the fraud check said, in the form stored on the order (`trustSnapshot.fraudCheck`) and shown to admins. Holds NO phone number, only its last
- * four digits so an admin can notice that the phone on the order was edited after the check. Never sent to customers.
+ * What the courier history said, in the compact form stored on the order (`trustSnapshot.fraudCheck`) and shown to admins. Holds NO phone number,
+ * only its last four digits so an admin can notice that the phone on the order was edited after the check. Never sent to customers.
+ * (P6: this is now a SUMMARY of the combined courier report; the per-courier detail is `trustSnapshot.courier`.)
  */
 export type FraudEvidence = {
   status: "ok" | "no_history" | "unavailable";
@@ -128,7 +140,7 @@ export type FraudEvidence = {
   cancelled: number | null;
   returned: number | null;
   total: number | null;
-  /** `provider` = a real provider answered; `fallback` = the safe default policy was used (no check really happened). */
+  /** `provider` = at least one courier really answered; `fallback` = no courier answered, so the conservative unrated handling was used. */
   source: "provider" | "fallback";
   checkedAt: string;
   cached: boolean;
@@ -136,30 +148,64 @@ export type FraudEvidence = {
   phoneLast4: string | null;
 };
 
-export function fraudEvidence(outcome: FraudLookup, phoneVerified: boolean, rawPhone: string | null | undefined): FraudEvidence {
-  const ok = outcome.status === "ok" ? outcome.history : null;
+export function fraudEvidence(intel: IntelligenceResult, trust: TrustAssessment, phoneVerified: boolean, rawPhone: string | null | undefined): FraudEvidence {
+  const c = intel.combined;
   const phone = normalizeBdPhone(rawPhone);
+  const answered = c.contributing.length > 0;
+  const firstFailure = intel.reports.find((r) => r.status === "unavailable");
+  const reason = answered ? null : !intel.phoneValid ? "invalid_phone" : c.state === "insufficient" ? "insufficient_data" : firstFailure?.reason ?? (intel.reports.some((r) => r.status === "not_configured") ? "no_provider" : "no_provider");
   return {
-    status: outcome.status,
-    reason: outcome.status === "unavailable" ? outcome.reason : null,
-    provider: outcome.status === "unavailable" ? null : outcome.provider,
-    delivered: ok ? ok.delivered : null,
-    cancelled: ok ? ok.cancelled : null,
-    returned: ok ? (ok.returned ?? null) : null,
-    total: ok ? totalParcels(ok) : null,
-    source: fraudSource(outcome),
-    checkedAt: outcome.checkedAt,
-    cached: outcome.cached,
+    status: c.state === "valid" ? "ok" : c.state === "no_history" ? "no_history" : "unavailable",
+    reason,
+    provider: answered ? c.contributing.join("+") : null,
+    delivered: answered ? c.delivered : null,
+    cancelled: answered ? c.cancelled : null,
+    returned: answered ? c.returned : null,
+    total: answered ? c.totalReported : null,
+    source: answered ? "provider" : "fallback",
+    checkedAt: c.oldestCheckedAt ?? intel.reports[0]?.checkedAt ?? new Date().toISOString(),
+    cached: answered && intel.reports.filter((r) => c.contributing.includes(r.provider)).every((r) => r.cached),
     phoneVerified,
     phoneLast4: phone ? phone.slice(-4) : null,
   };
 }
 
+/**
+ * The per-courier evidence frozen with the order (`trustSnapshot.courier`) so the decision stays explainable after policy or history change.
+ * Counts and statuses only: no phone number (masked form only), no raw provider payload.
+ */
+export type CourierEvidence = ReturnType<typeof courierEvidence>;
+export function courierEvidence(intel: IntelligenceResult, trust: TrustAssessment, settings: AdvancePolicy, phoneVerified: boolean) {
+  const c = intel.combined;
+  return {
+    model: "courier-rate-v2" as const,
+    state: trust.state,
+    rate: trust.rate,
+    observedRate: trust.observedRate,
+    sample: trust.sample,
+    providers: trust.providers as string[],
+    rewardAllowed: trust.rewardAllowed,
+    phoneVerified,
+    phoneMasked: intel.phoneMasked,
+    checkedAt: c.oldestCheckedAt,
+    delivered: c.delivered, cancelled: c.cancelled, returned: c.returned, failed: c.failed, notClassified: c.notClassified, totalReported: c.totalReported, fraudReports: c.fraudReports,
+    excluded: c.excluded.map((e) => ({ provider: e.provider as string, why: e.why as string })),
+    notes: c.notes,
+    providerReports: intel.reports.map((r) => ({
+      provider: r.provider as string, status: r.status as string, reason: r.reason as string | null, checkedAt: r.checkedAt, cached: r.cached,
+      delivered: r.delivered, cancelled: r.cancelled, returned: r.returned, failed: r.failed, total: r.total,
+      reportedDeliveryRate: r.reportedDeliveryRate, reportedCancellationRate: r.reportedCancellationRate, fraudReports: r.fraudReports,
+    })),
+    policy: evidencePolicyOf(settings),
+  };
+}
+
 export type AdvanceQuote = {
   decision: AdvanceDecision;
-  trust: TrustResult;
-  /** What the fraud check answered; frozen on the order for admins. Never sent to customers. */
-  fraud: { outcome: FraudLookup; phoneVerified: boolean };
+  trust: TrustAssessment;
+  /** What the couriers answered; frozen on the order for admins. Never sent to customers. */
+  intel: IntelligenceResult;
+  phoneVerified: boolean;
   settings: AdvanceSettings;
   /** The zone the customer claimed, and the zone the POLICY used (stricter when the address contradicts the claim). */
   claimedZone: DeliveryZone;
@@ -170,21 +216,25 @@ export type AdvanceQuote = {
 };
 
 /**
- * The ONLY place an advance requirement is decided. The browser never supplies a score or an amount: it supplies a zone claim and an address,
+ * The ONLY place an advance requirement is decided. The browser never supplies a rate or an amount: it supplies a zone claim and an address,
  * which can only make the decision STRICTER (see policyZoneFor), never looser.
+ * Evidence = the couriers' delivery history for the order's phone (the same service the admin Fraud Check page uses), judged by the policy's
+ * minimum sample, courier coverage and maximum age. Any failure means "unrated" (standard advance, staff review): an outage never lowers an advance.
  */
 export async function quoteAdvance(
   db: Db,
   args: { phone?: string | null; zone: DeliveryZone; orderTotal: number; address?: { city?: string | null; state?: string | null; line1?: string | null; line2?: string | null } },
 ): Promise<AdvanceQuote> {
   const { problem, ...settings } = await getAdvanceSettings(db);
-  // Evidence = fraud-check record for the order's phone ONLY (our own order history is not used). Any failure => default 50, never an error.
+  const policy = evidencePolicyOf(settings);
   const phoneVerified = isPhoneVerified();
-  const outcome = await lookupFraudCheck(args.phone);
-  const trust = trustFromOutcome(outcome, { phoneVerified });
   const z = args.address ? policyZoneFor(args.zone, args.address) : { zone: args.zone as string, conflict: false };
-  const decision = decideAdvance(settings, { zone: z.zone, orderTotal: args.orderTotal, trustScore: trust.score, zoneConflict: z.conflict });
-  return { decision, trust, fraud: { outcome, phoneVerified }, settings, claimedZone: args.zone, policyZone: z.zone, zoneConflict: z.conflict, settingsProblem: problem };
+  // Asked for every order (not only advance zones): the evidence also feeds staff fraud review, and the shared cache keeps repeat lookups free.
+  const intel = await getCourierIntelligence(args.phone, { source: "CHECKOUT", maxAgeSeconds: policy.maxAgeSeconds });
+  const ageSeconds = intel.combined.oldestCheckedAt ? Math.max(0, (Date.parse(intel.asOf) - Date.parse(intel.combined.oldestCheckedAt)) / 1000) : null;
+  const trust = assessTrust({ combined: intel.combined, invalidPhone: !intel.phoneValid, phoneVerified, policy, oldestAgeSeconds: ageSeconds });
+  const decision = decideAdvance(settings, { zone: z.zone, orderTotal: args.orderTotal, rate: trust.rate, rewardAllowed: trust.rewardAllowed, zoneConflict: z.conflict });
+  return { decision, trust, intel, phoneVerified, settings, claimedZone: args.zone, policyZone: z.zone, zoneConflict: z.conflict, settingsProblem: problem };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -319,19 +369,28 @@ export async function reviewTrustOrder(args: { orderId: string; adminId: string;
   });
 }
 
-type GateOrder = { advanceRequired: unknown; advancePaid: unknown; advanceWaivedById: string | null; trustReviewRequired: boolean; trustReviewedAt: Date | null };
+type GateOrder = {
+  advanceRequired: unknown; advancePaid: unknown; advanceWaivedById: string | null; trustReviewRequired: boolean; trustReviewedAt: Date | null;
+  // Fraud review (P4). Optional so every existing caller keeps its meaning: absent = no fraud review applies.
+  riskReviewRequired?: boolean; riskLevel?: RiskLevel | null; riskReviewDecision?: "APPROVED" | "REJECTED" | null; riskReviewedLevel?: RiskLevel | null;
+};
 
 /** Why this order may not be confirmed/dispatched yet (null = ready). The ONLY definition of the gate; used by the status funnel and courier booking. */
 export function dispatchBlockedReason(o: GateOrder): string | null {
   if (advanceOutstanding(o)) return "This order is waiting for its advance payment to be verified (or waived with a reason) before it can be confirmed or dispatched.";
   if (o.trustReviewRequired && !o.trustReviewedAt) return "This order needs a staff review (low trust score or delivery-zone mismatch) before it can be confirmed or dispatched.";
-  return null;
+  // The fraud-risk review comes LAST: it can only ADD a requirement. It cannot satisfy the advance check or the trust review above, and neither of
+  // those can be satisfied by it.
+  return riskGateBlockedReason({
+    riskReviewRequired: o.riskReviewRequired ?? false, riskLevel: o.riskLevel ?? null,
+    riskReviewDecision: o.riskReviewDecision ?? null, riskReviewedLevel: o.riskReviewedLevel ?? null,
+  });
 }
 
 export async function assertDispatchReady(db: Pick<Tx, "order">, orderId: string): Promise<void> {
   const o = await db.order.findUnique({
     where: { id: orderId },
-    select: { advanceRequired: true, advancePaid: true, advanceWaivedById: true, trustReviewRequired: true, trustReviewedAt: true },
+    select: { advanceRequired: true, advancePaid: true, advanceWaivedById: true, trustReviewRequired: true, trustReviewedAt: true, riskReviewRequired: true, riskLevel: true, riskReviewDecision: true, riskReviewedLevel: true },
   });
   if (!o) throw new UserFacingError("Order not found.");
   const reason = dispatchBlockedReason(o);
@@ -454,7 +513,9 @@ export type AdvancePanelData = {
     insufficientEvidence: boolean;
     fraudCheck: PanelFraud | null;
     /** The most recent manual recheck by an admin (the order-time result above is never overwritten). */
-    recheck: (PanelFraud & { score: number; tier: string; byId: string; insufficientEvidence: boolean; reasons: string[] }) | null;
+    recheck: (PanelFraud & { score: number | null; tier: string; byId: string; insufficientEvidence: boolean; reasons: string[] }) | null;
+    /** Per-courier evidence frozen with the order at checkout (null for orders placed before P6). */
+    courier: CourierEvidence | null;
   } | null;
   /** Phone the fraud check is about (the delivery phone on the order). ADMIN-only data. */
   phone: string | null;
@@ -496,6 +557,10 @@ export async function getAdvancePanel(
       trustReviewedById: true,
       trustReviewedAt: true,
       trustReviewNote: true,
+      riskReviewRequired: true,
+      riskLevel: true,
+      riskReviewDecision: true,
+      riskReviewedLevel: true,
       phone: true,
       shippingSnapshot: true,
       shippingAddress: { select: { phone: true } },
@@ -533,8 +598,9 @@ export async function getAdvancePanel(
     needsReview?: boolean;
     explanation?: string;
     insufficientEvidence?: boolean;
+    courier?: CourierEvidence;
     fraudCheck?: RawFraud;
-    recheck?: RawFraud & { score?: number; tier?: string; byId?: string; insufficientEvidence?: boolean; reasons?: string[] };
+    recheck?: RawFraud & { score?: number | null; tier?: string; byId?: string; insufficientEvidence?: boolean; reasons?: string[] };
   } | null;
   return {
     advanceRequired: Number(o.advanceRequired),
@@ -552,8 +618,9 @@ export async function getAdvancePanel(
           insufficientEvidence: Boolean(snap.insufficientEvidence),
           // Orders placed before the fraud checker existed have no such block: shown as "not recorded".
           fraudCheck: snap.fraudCheck ? panelFraud(snap.fraudCheck) : null,
-          recheck: snap.recheck && typeof snap.recheck.score === "number"
-            ? { ...panelFraud(snap.recheck), score: snap.recheck.score, tier: snap.recheck.tier ?? "", byId: snap.recheck.byId ?? "", insufficientEvidence: Boolean(snap.recheck.insufficientEvidence), reasons: snap.recheck.reasons ?? [] }
+          courier: snap.courier && snap.courier.model === "courier-rate-v2" ? snap.courier : null,
+          recheck: snap.recheck && typeof snap.recheck === "object" && "tier" in snap.recheck
+            ? { ...panelFraud(snap.recheck), score: typeof snap.recheck.score === "number" ? snap.recheck.score : null, tier: snap.recheck.tier ?? "", byId: snap.recheck.byId ?? "", insufficientEvidence: Boolean(snap.recheck.insufficientEvidence), reasons: snap.recheck.reasons ?? [] }
             : null,
         }
       : null,
@@ -561,7 +628,7 @@ export async function getAdvancePanel(
       ? { byId: o.advanceWaivedById, reason: o.advanceWaivedReason ?? "", at: o.advanceWaivedAt }
       : null,
     review: { required: o.trustReviewRequired, reviewedAt: o.trustReviewedAt, reviewedById: o.trustReviewedById, note: o.trustReviewNote },
-    blockedReason: dispatchBlockedReason({ advanceRequired: o.advanceRequired, advancePaid: o.advancePaid, advanceWaivedById: o.advanceWaivedById, trustReviewRequired: o.trustReviewRequired, trustReviewedAt: o.trustReviewedAt }),
+    blockedReason: dispatchBlockedReason({ advanceRequired: o.advanceRequired, advancePaid: o.advancePaid, advanceWaivedById: o.advanceWaivedById, trustReviewRequired: o.trustReviewRequired, trustReviewedAt: o.trustReviewedAt, riskReviewRequired: o.riskReviewRequired, riskLevel: o.riskLevel, riskReviewDecision: o.riskReviewDecision, riskReviewedLevel: o.riskReviewedLevel }),
     drift: Math.round(Number(o.advancePaid) * 100) !== rowsPaid,
     audit: audit.map((e) => ({ action: e.action, actorId: e.actorId, at: e.createdAt, detail: e.detail })),
     payments: pays.map((p) => ({
@@ -580,7 +647,7 @@ export async function getAdvancePanel(
 /** Minimum gap between two checks of the same order (checkout lookup or recheck): protects the provider quota from a double click or a script. */
 export const FRAUD_RECHECK_COOLDOWN_SECONDS = 60;
 
-export type RecheckResult = { score: number; tier: string; status: FraudEvidence["status"]; reason: string | null; source: FraudEvidence["source"]; checkedAt: string };
+export type RecheckResult = { score: number | null; tier: string; status: FraudEvidence["status"]; reason: string | null; source: FraudEvidence["source"]; checkedAt: string };
 
 /**
  * Admin-only manual recheck of the fraud result for an order. Calls the provider again (skipping the cache), stores the answer as the order's
@@ -602,14 +669,16 @@ export async function recheckOrderFraud(args: { orderId: string; adminId: string
   if (lastMs > 0 && waitSeconds > 0) throw new UserFacingError(`This order was checked a moment ago. Try again in ${waitSeconds} second${waitSeconds === 1 ? "" : "s"}.`);
 
   const phone = checkedPhoneOf(o);
-  const lookup = await lookupFraudCheck(phone, { fresh: true });
+  // A manual recheck always asks the couriers again and ADDS a stored snapshot; the order-time evidence above is never overwritten.
+  const intel = await getCourierIntelligence(phone, { fresh: true, source: "ORDER_RECHECK" });
   const phoneVerified = isPhoneVerified();
-  const trust = trustFromOutcome(lookup, { phoneVerified });
   const settings = await getAdvanceSettings(prisma);
-  const tier = tierForScore(settings, trust.score);
-  // Stamp with the admin's own clock (a fresh lookup happens "now" anyway) so the cooldown below always compares like with like.
-  const evidence = { ...fraudEvidence(lookup, phoneVerified, phone), checkedAt: now.toISOString() };
-  const entry = { ...evidence, score: trust.score, tier, byId: args.adminId as string, insufficientEvidence: trust.insufficientEvidence, reasons: trust.reasons };
+  const policy = evidencePolicyOf(settings);
+  const trust = assessTrust({ combined: intel.combined, invalidPhone: !intel.phoneValid, phoneVerified, policy });
+  const tier = tierForRate(settings, trust.rate, trust.rewardAllowed);
+  // Stamp with the admin's own clock so the cooldown below always compares like with like.
+  const evidence = { ...fraudEvidence(intel, trust, phoneVerified, phone), checkedAt: now.toISOString() };
+  const entry = { ...evidence, score: trust.rate === null ? null : Math.round(trust.rate), tier, byId: args.adminId as string, insufficientEvidence: trust.insufficientEvidence, reasons: trust.reasons, courier: courierEvidence(intel, trust, settings, phoneVerified) };
 
   await prisma.$transaction(async (tx) => {
     await assertAdminActor(tx, args.adminId);
@@ -622,8 +691,8 @@ export async function recheckOrderFraud(args: { orderId: string; adminId: string
       action: "FRAUD_RECHECK",
       entityType: "ORDER",
       entityId: o.id,
-      detail: { status: evidence.status, reason: evidence.reason, provider: evidence.provider, source: evidence.source, score: trust.score, tier },
+      detail: { status: evidence.status, reason: evidence.reason, provider: evidence.provider, source: evidence.source, rate: trust.rate, state: trust.state, tier, phoneMasked: maskPhone(normalizeBdPhone(phone) ?? "") },
     });
   });
-  return { score: trust.score, tier, status: evidence.status, reason: evidence.reason, source: evidence.source, checkedAt: evidence.checkedAt };
+  return { score: trust.rate, tier, status: evidence.status, reason: evidence.reason, source: evidence.source, checkedAt: evidence.checkedAt };
 }

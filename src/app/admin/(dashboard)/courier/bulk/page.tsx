@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
-import { listBulkBookable, BULK_BOOKING_LIMIT } from "@/server/services/courier.service";
-import { usableCourierProviders } from "@/lib/courier/registry";
+import { getCourierProviderBoard, listBulkBookable, BULK_BOOKING_LIMIT } from "@/server/services/courier.service";
 import { BulkCourierBooking } from "@/features/admin/bulk-courier-booking";
 
 export const metadata: Metadata = { title: "Bulk courier booking · Admin" };
 export const dynamic = "force-dynamic";
 
 export default async function BulkCourierPage() {
-  const rows = await listBulkBookable();
-  const usable = usableCourierProviders();
+  const [rows, board] = await Promise.all([listBulkBookable(), getCourierProviderBoard()]);
   return (
     <div className="space-y-6">
       <div>
@@ -18,8 +16,9 @@ export default async function BulkCourierPage() {
         </p>
       </div>
       <BulkCourierBooking
-        ready={usable.length > 0}
-        providers={usable.map((p) => ({ key: p.key, label: p.label }))}
+        ready={board.providers.some((p) => p.choice.apiBookable)}
+        choices={board.providers.map((p) => p.choice)}
+        automatic={{ key: board.defaultChoice.key, message: board.defaultChoice.message }}
         limit={BULK_BOOKING_LIMIT}
         rows={rows.map((r) => ({
           id: r.id, orderNumber: r.orderNumber, status: r.status, total: Number(r.total), paymentMethod: r.paymentMethod,

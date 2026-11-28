@@ -1,6 +1,8 @@
 import { enabledProviders, partiallyConfiguredProviders } from "@/lib/oauth/config";
+import { parseSmtpConfig } from "@/lib/email/config";
+import { readUnsubscribeBaseUrl, readUnsubscribeSecret } from "@/lib/email/unsubscribe-config";
 import { getCourierProviderConfig } from "@/lib/courier/config";
-import { KNOWN_FRAUD_PROVIDERS } from "@/lib/fraud-check";
+import { KNOWN_FRAUD_PROVIDERS } from "@/lib/courier-intelligence/registry";
 /**
  * Misconfigurations that are SAFE to start with in development but wrong in
  * production. Pure (unit-tested); surfaced at server start by
@@ -48,8 +50,28 @@ export function findProductionConfigProblems(env: Env): ConfigProblem[] {
   if (enabledProviders(env).length > 0 && !(env.NEXT_PUBLIC_APP_URL ?? "").startsWith("https://")) {
     problems.push({ severity: "warning", message: "Social login is enabled but NEXT_PUBLIC_APP_URL is not https:// — providers require an exact https redirect URI in production." });
   }
+  const smtp = parseSmtpConfig(env);
+  if (smtp.status === "invalid") {
+    problems.push({ severity: "warning", message: `SMTP e-mail settings are invalid and e-mail stays off: ${smtp.problems.join(" ")}` });
+  }
   if (!env.DATABASE_URL?.trim()) {
     problems.push({ severity: "critical", message: "DATABASE_URL is not set." });
+  }
+  // Prompt 11: marketing e-mail needs working unsubscribe links. Missing = marketing campaigns are refused (fail closed), which is safe, so a warning;
+  // a secret that IS set but weak or shared with another secret makes links forgeable/revocable by someone else, so that is critical. Never prints a value.
+  const unsubscribeSecret = readUnsubscribeSecret(env);
+  if (!unsubscribeSecret.ok) {
+    if (unsubscribeSecret.reason === "secret_missing") {
+      // Only worth a line when e-mail can be sent at all (SMTP ready); a store with e-mail off has nothing to unsubscribe from.
+      if (parseSmtpConfig(env).status === "ready") problems.push({ severity: "warning", message: "EMAIL_UNSUBSCRIBE_SECRET is not set: marketing campaigns cannot be sent (no unsubscribe links can be created). Generate one with `openssl rand -base64 48`." });
+    } else if (unsubscribeSecret.reason === "secret_reused") {
+      problems.push({ severity: "critical", message: "EMAIL_UNSUBSCRIBE_SECRET is the same value as AUTH_SECRET, CRON_SECRET, SMTP_PASS or a NEXT_PUBLIC_* variable. It must be its own dedicated secret." });
+    } else {
+      problems.push({ severity: "critical", message: "EMAIL_UNSUBSCRIBE_SECRET is too short (under 32 characters) or a well-known placeholder, so unsubscribe links could be forged. Generate one with `openssl rand -base64 48`." });
+    }
+  }
+  if (unsubscribeSecret.ok && !readUnsubscribeBaseUrl(env).ok) {
+    problems.push({ severity: "critical", message: "NEXT_PUBLIC_APP_URL cannot be used for unsubscribe links (it must be an https:// origin with no path, query or credentials, and not localhost), so marketing campaigns cannot be sent." });
   }
   // Phase 7.3: integrations that must not be switched on before verification. Messages never contain values.
   if (env.COURIER_AUTO_BOOK?.trim().toLowerCase() === "true") {
@@ -80,7 +102,7 @@ export function findProductionConfigProblems(env: Env): ConfigProblem[] {
   const fraudOn = (env.FRAUD_CHECK_ENABLED ?? "true").trim().toLowerCase() !== "false";
   const fraudProviderSet = fraud !== "" && fraud !== "none";
   if (fraudProviderSet && !(KNOWN_FRAUD_PROVIDERS as readonly string[]).includes(fraud)) {
-    problems.push({ severity: "warning", message: `FRAUD_CHECK_PROVIDER is set to an unsupported value (supported: ${KNOWN_FRAUD_PROVIDERS.join(", ")}), so it is ignored and every customer gets the default trust score and the standard advance.` });
+    problems.push({ severity: "warning", message: `FRAUD_CHECK_PROVIDER is set to an unsupported value (supported: ${KNOWN_FRAUD_PROVIDERS.join(", ")}), so it is ignored (courier history lookups stay on unless it is \"none\").` });
   }
   if (fraudProviderSet && fraud === "steadfast" && fraudOn) {
     // The steadfast fraud check reuses the courier credentials: report what is wrong with them (variable names only, never values).

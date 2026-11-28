@@ -1,3 +1,4 @@
+import { CHECKOUT_KEY_PATTERN } from "@/lib/checkout-key";
 import { z } from "zod";
 import { normalizeBdPhone } from "@/lib/advance-policy";
 
@@ -52,6 +53,9 @@ export const checkoutSchema = z
     advanceMethod: z.enum(["BKASH", "NAGAD"]).optional(),
     advanceReference: z.string().trim().max(60).optional().or(z.literal("")),
     customerNote: z.string().trim().max(500).optional().or(z.literal("")),
+    // One random key per checkout ATTEMPT (generated in the browser). The server uses it only so a double click / retry / lost response can never
+    // create a second order. It carries no meaning and no authority; a malformed value is rejected rather than trusted.
+    checkoutKey: z.string().trim().regex(CHECKOUT_KEY_PATTERN, "Invalid checkout reference").optional().or(z.literal("")),
   })
   .superRefine((data, ctx) => {
     if (data.billingSameAsShipping) return;

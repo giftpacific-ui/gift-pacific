@@ -32,7 +32,7 @@ export default async function PrivacyPage() {
       <h2>How we use it</h2>
       <ul>
         <li>To take, confirm, deliver and support your orders, and to keep records the law requires.</li>
-        <li>To assess delivery risk and decide whether an advance is needed. If a delivery-network fraud-check service is connected, we send the phone number you enter at checkout to it and receive counts of parcels previously delivered, cancelled or returned across couriers. We use those counts only for this decision, and we keep the counts (not the lookup response) with the order for our staff. They are never shown to customers. No such service is connected at the moment: nothing is looked up, and the standard advance rule applies to everyone. If a service is connected but unavailable, the same standard rule applies and your order is not blocked.</li>
+        <li>To assess delivery risk and decide whether an advance is needed. We send the phone number you enter at checkout to the delivery network (currently Steadfast) and receive counts of parcels previously delivered or cancelled for that number, which we use for this decision. We keep those counts (not the lookup response, and not the number itself in readable form) so our staff can review them, and the figures are never shown to customers. If the lookup is unavailable or there is too little history, the standard advance rule applies to your order and it is not blocked.</li>
         <li>To issue and redeem delivery rewards linked to your account.</li>
         <li>To improve the site, if you accept analytics cookies.</li>
       </ul>
@@ -52,6 +52,9 @@ export default async function PrivacyPage() {
         <li>You can view and edit your profile and addresses in your account, and disconnect a Google or Facebook sign-in there (you must keep another way to sign in).</li>
         <li>To ask for a copy of your data, a correction or deletion, contact us below. We may keep records we are legally required to keep, such as order and payment records.</li>
       </ul>
+
+      <h2>Saved checkout progress</h2>
+      <p>While you fill in checkout we can save your progress (contact details, delivery details and the items in your cart) so you can resume, even if you do not place the order. This happens only while the &quot;Save my checkout progress&quot; box on the checkout page is ticked; unticking it stops saving and deletes what was saved. It never includes passwords, OTPs, card or other payment details. Unfinished checkouts are visible only to our staff, and personal details are removed automatically after a limited time (30 days by default). When you place the order the saved checkout is linked to it. We do not send reminder emails from this data.</p>
 
       <h2>Retention and security</h2>
       <p>We keep order records for as long as needed for accounting, returns and legal obligations. Passwords are hashed, administrative access is restricted, and payment instructions never involve sharing a PIN or OTP with us.</p>

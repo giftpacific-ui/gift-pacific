@@ -21,6 +21,9 @@ type Rel = { kind: "one" | "many"; target: string; fk: string };
 const ENUM_ORDER: Record<string, string[]> = { kind: ["SINGLE", "COMBO"] };
 
 const RELATIONS: Record<string, Record<string, Rel>> = {
+  emailCampaign: { recipients: { kind: "many", target: "emailCampaignRecipient", fk: "campaignId" } }, // Prompt 12: `recipients: { some }` in the due-campaign selection
+  // P12-UI-01: the contacts admin list filters on `consents: { some }` / `suppressions: { some }` (the Prisma relations of EmailContact).
+  emailContact: { consents: { kind: "many", target: "marketingConsent", fk: "contactId" }, suppressions: { kind: "many", target: "emailSuppression", fk: "contactId" } },
   cart: { items: { kind: "many", target: "cartItem", fk: "cartId" } },
   cartItem: {
     product: { kind: "one", target: "product", fk: "productId" },
@@ -102,10 +105,16 @@ const RELATIONS: Record<string, Record<string, Rel>> = {
     costLines: { kind: "many", target: "orderCostLine", fk: "orderId" },
     channel: { kind: "one", target: "salesChannel", fk: "channelId" },
     payments: { kind: "many", target: "payment", fk: "orderId" },
+    codEntries: { kind: "many", target: "courierCodEntry", fk: "orderId" },
+    shipmentEvents: { kind: "many", target: "courierShipmentEvent", fk: "orderId" },
+    codResolutions: { kind: "many", target: "courierCodResolution", fk: "orderId" },
     settlements: { kind: "many", target: "marketplaceSettlement", fk: "orderId" },
     trackingEventLogs: { kind: "many", target: "trackingEventLog", fk: "orderId" },
+    riskAssessments: { kind: "many", target: "orderRiskAssessment", fk: "orderId" },
   },
   payment: { order: { kind: "one", target: "order", fk: "orderId" } },
+  orderRiskAssessment: { order: { kind: "one", target: "order", fk: "orderId" } },
+  orderTrackingEvent: { order: { kind: "one", target: "order", fk: "orderId" } },
   gatewayTransaction: {
     order: { kind: "one", target: "order", fk: "orderId" },
     refunds: { kind: "many", target: "gatewayRefund", fk: "transactionId" },
@@ -124,7 +133,7 @@ const UNIQUES: Record<string, (string | string[])[]> = {
   collection: ["slug"],
   review: [["userId", "productId"], "orderItemId"],
   notification: [["userId", "dedupeKey"]],
-  order: ["orderNumber", "confirmationToken", ["channelId", "externalOrderRef"]],
+  order: ["orderNumber", "confirmationToken", "checkoutKey", ["channelId", "externalOrderRef"], ["courierProvider", "courierConsignmentId"]],
   oAuthAccount: [["provider", "providerAccountId"], ["userId", "provider"]],
   salesChannel: ["key"],
   payment: [["method", "providerRef"]],
@@ -135,6 +144,9 @@ const UNIQUES: Record<string, (string | string[])[]> = {
   procurementReceipt: ["idempotencyKey"],
   stockAdjustment: ["idempotencyKey"],
   trackingEventLog: [["destination", "eventName", "orderId"]],
+  courierShipmentEvent: ["dedupeKey"],
+  courierCodResolution: [["orderId", "flagCode", "amountCents"]],
+  courierIntelligenceSnapshot: [["phoneHash", "provider", "checkedAt"]],
   orderAttribution: ["orderId"],
   box: ["slug"],
   customerReward: ["orderId"],
@@ -142,6 +154,20 @@ const UNIQUES: Record<string, (string | string[])[]> = {
   product: ["slug"],
   coupon: ["code"],
   productCustomizationField: [],
+  incompleteCheckout: ["orderId"],
+  emailJob: ["dedupeKey"],
+  // Prompt 07 (migration 20261201000000): mirrors the UNIQUE indexes of the e-mail marketing tables.
+  emailContact: ["email", "unsubscribeTokenHash"],
+  emailSuppression: ["email"],
+  emailTemplate: ["name"],
+  emailCampaignRecipient: [["campaignId", "contactId"], "emailJobId"],
+  recoveryEmail: [["eventKey", "step"], "emailJobId"],
+};
+/** Partial unique indexes (PostgreSQL `WHERE`): one ACTIVE incomplete checkout per ownerKey (migration 20261127000000). */
+const PARTIAL_UNIQUES: Record<string, { cols: string[]; when: (row: Row) => boolean }> = {
+  incompleteCheckout: { cols: ["ownerKey"], when: (r) => r.status === "ACTIVE" },
+  // Prompt 07: at most one OPEN (not unsubscribed) marketing consent per contact.
+  marketingConsent: { cols: ["contactId"], when: (r) => r.unsubscribedAt == null },
 };
 
 const DEFAULTS: Record<string, () => Row> = {
@@ -177,12 +203,21 @@ const DEFAULTS: Record<string, () => Row> = {
     salesChannel: () => ({ isActive: true }),
   orderCostLine: () => ({ note: null, enteredById: null }),
   expense: () => ({ channelId: null, note: null }),
-  order: () => ({ settlementStatus: "NOT_APPLICABLE", settledAt: null, advanceRequired: 0, advancePaid: 0, trustScore: null, trustSnapshot: null, advanceWaivedById: null, advanceWaivedReason: null, advanceWaivedAt: null, trustReviewRequired: false, trustReviewedById: null, trustReviewedAt: null, trustReviewNote: null, deliveryDiscount: 0, channelId: "channel_website", externalOrderRef: null, externalPlacedAt: null, fulfillmentMode: "SELF_SHIP", createdById: null, status: "PENDING", paymentStatus: "UNPAID", courierBookingStatus: "NOT_BOOKED", courierBookingStartedAt: null, courierLastStatus: null, courierLastError: null, courierConsignmentId: null, confirmationToken: `c${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}` }),
+  order: () => ({ settlementStatus: "NOT_APPLICABLE", settledAt: null, advanceRequired: 0, advancePaid: 0, trustScore: null, trustSnapshot: null, advanceWaivedById: null, advanceWaivedReason: null, advanceWaivedAt: null, trustReviewRequired: false, trustReviewedById: null, trustReviewedAt: null, trustReviewNote: null, riskScore: null, riskLevel: null, riskAssessedAt: null, riskAssessmentId: null, riskReviewRequired: false, riskReviewDecision: null, riskReviewedLevel: null, riskReviewedById: null, riskReviewedAt: null, riskReviewReason: null, phoneNorm: null, emailNorm: null, addressKey: null, checkoutKey: null, deliveryDiscount: 0, channelId: "channel_website", externalOrderRef: null, externalPlacedAt: null, fulfillmentMode: "SELF_SHIP", createdById: null, status: "PENDING", paymentStatus: "UNPAID", courierBookingStatus: "NOT_BOOKED", courierBookingStartedAt: null, courierLastStatus: null, courierLastError: null, courierConsignmentId: null, confirmationToken: `c${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}` }),
   orderItem: () => ({ stockReturnedQty: 0, stockDiscardedQty: 0, stockDeducted: 0, procurementQty: 0, procurementReceivedQty: 0, stockRestoredAt: null, variantId: null, unitCost: null, comboSnapshot: null }),
   coupon: () => ({ usageCount: 0, isActive: true }),
   productImage: () => ({ isMain: false, sortOrder: 0, cloudinaryPublicId: null }),
   productCustomizationField: () => ({ isRequired: true, options: [], maxLength: null, sortOrder: 0 }),
   productBundleItem: () => ({ quantity: 1, variantId: null }),
+  emailJob: () => ({ priority: 0, html: null, status: "PENDING", attempts: 0, lockedAt: null, lastAttemptAt: null, sentAt: null, errorCode: null, errorMessage: null, messageId: null }),
+  emailContact: () => ({ name: null, userId: null, isActive: true, unsubscribeTokenHash: null, createdById: null }),
+  marketingConsent: () => ({ evidence: null, recordedById: null, unsubscribedAt: null, unsubscribeSource: null }),
+  emailSuppression: () => ({ contactId: null, note: null, createdById: null, liftedAt: null, liftedById: null }),
+  emailTemplate: () => ({ category: "MARKETING", htmlBody: null, isActive: true, createdById: null }),
+  emailCampaign: () => ({ description: null, status: "DRAFT", templateId: null, htmlBody: null, senderName: null, senderEmail: null, scheduledAt: null, startedAt: null, completedAt: null, cancelledAt: null, failureReason: null, recipientCount: 0, sentCount: 0, failedCount: 0, skippedCount: 0, createdById: null }),
+  emailCampaignRecipient: () => ({ status: "PENDING", skipReason: null, emailJobId: null, consentId: null, queuedAt: null, sentAt: null, errorCode: null }),
+  recoveryEmail: () => ({ step: 1, incompleteCheckoutId: null, cartId: null, status: "PENDING", skipReason: null, emailJobId: null, consentId: null, queuedAt: null, sentAt: null, errorCode: null }),
+  incompleteCheckout: () => ({ orderId: null, convertedAt: null, expiredAt: null, userId: null, email: null, phone: null, phoneNorm: null, customerName: null, shippingAddress: null, deliveryZone: null, couponCode: null, checkoutKey: null, currency: "BDT" }),
 };
 
 const clone = <T,>(v: T): T => structuredClone(v);
@@ -207,6 +242,7 @@ function cond(val: any, v: any): boolean {
       case "gte": return val >= arg;
       case "lt": return val < arg;
       case "lte": return val <= arg;
+      case "startsWith": return String(val ?? "").startsWith(String(arg));
       case "contains": return String(val ?? "").toLowerCase().includes(String(arg).toLowerCase());
       case "mode": return true;
       case "has": return Array.isArray(val) && val.includes(arg);
@@ -230,7 +266,7 @@ export class FakeDb {
     const names = new Set<string>([
       ...Object.keys(RELATIONS),
       ...Object.values(RELATIONS).flatMap((r) => Object.values(r).map((x) => x.target)),
-      "user", "address", "category", "orderTrackingEvent", "storeSettings", "wishlist", "wishlistItem", "coupon", "review", "stockAdjustment", "banner", "customerReward", "financialIncident", "payment", "marketplaceSettlement", "adminAuditEvent", "procurementReceipt", "productImage", "orderItemComponent", "notification", "courierCodEntry", "slugRedirect", "pageSeo", "staticPage", "redirect", "trackingEventLog", "orderAttribution",
+      "user", "address", "category", "orderTrackingEvent", "storeSettings", "wishlist", "wishlistItem", "coupon", "review", "stockAdjustment", "banner", "customerReward", "financialIncident", "payment", "marketplaceSettlement", "adminAuditEvent", "procurementReceipt", "productImage", "orderItemComponent", "notification", "courierCodEntry", "courierShipmentEvent", "courierCodResolution", "courierIntelligenceSnapshot", "courierConnectionCheck", "slugRedirect", "pageSeo", "staticPage", "redirect", "trackingEventLog", "orderAttribution", "orderRiskAssessment", "riskListEntry", "rateLimitBucket", "incompleteCheckout", "emailJob", "emailContact", "marketingConsent", "emailSuppression", "emailTemplate", "emailCampaign", "emailCampaignRecipient", "recoveryEmail",
     ]);
     for (const n of names) {
       this.tables[n] = [];
@@ -370,11 +406,32 @@ export class FakeDb {
         throw Object.assign(new Error(`Unique constraint failed on the fields: (${cols.join(",")})`), { code: "P2002" });
       }
     }
+    const partial = PARTIAL_UNIQUES[table];
+    if (partial && partial.when(row) && this.tables[table].some((r) => partial.when(r) && partial.cols.every((c) => r[c] === row[c]))) {
+      throw Object.assign(new Error(`Unique constraint failed on the fields: (${partial.cols.join(",")})`), { code: "P2002" });
+    }
     this.tables[table].push(row);
     for (const [rel, v] of nested) {
       for (const child of arr(v.create ?? [])) this.create(rel.target, { ...child, [rel.fk]: row.id });
     }
     return row;
+  }
+
+  /**
+   * A unique constraint must also hold when an UPDATE writes one of its columns (PostgreSQL checks it on every write, not only on insert).
+   * Only plain values for the constrained columns are considered; the check runs before anything is applied, so a refused update changes nothing.
+   */
+  private assertUniqueAfterUpdate(table: string, rows: Row[], data: Row) {
+    for (const spec of UNIQUES[table] ?? []) {
+      const cols = Array.isArray(spec) ? spec : [spec];
+      if (!cols.some((c) => c in data && (data[c] === null || typeof data[c] !== "object" || data[c] instanceof Date))) continue;
+      for (const r of rows) {
+        const next = Object.fromEntries(cols.map((c) => [c, c in data && (data[c] === null || typeof data[c] !== "object" || data[c] instanceof Date) ? data[c] : r[c]]));
+        if (!cols.every((c) => next[c] != null)) continue;
+        const clash = this.tables[table].some((o) => o !== r && !rows.includes(o) && cols.every((c) => o[c] === next[c]));
+        if (clash) throw Object.assign(new Error(`Unique constraint failed on the fields: (${cols.join(",")})`), { code: "P2002" });
+      }
+    }
   }
 
   private delegate(table: string) {
@@ -457,12 +514,14 @@ export class FakeDb {
         await y();
         const r = find(a.where)[0];
         if (!r) throw Object.assign(new Error("Record to update not found"), { code: "P2025" });
+        self.assertUniqueAfterUpdate(table, [r], a.data);
         self.apply(r, a.data);
         return clone(r);
       },
       async updateMany(a: Row) {
         await y();
         const rows = find(a.where);
+        self.assertUniqueAfterUpdate(table, rows, a.data);
         rows.forEach((r) => self.apply(r, a.data));
         return { count: rows.length };
       },
@@ -489,10 +548,20 @@ export class FakeDb {
     };
   }
 
-  async $queryRaw(strings: TemplateStringsArray) {
+  private rateBuckets = new Map<string, number>();
+
+  async $queryRaw(strings: TemplateStringsArray, ...values: unknown[]) {
     await Promise.resolve();
-    if (strings.join("?").includes("nextval('order_number_seq')")) {
+    const sql = strings.join("?");
+    if (sql.includes("nextval('order_number_seq')")) {
       return [{ n: BigInt(++this.seqValue) }];
+    }
+    // The rate limiter's single statement: INSERT ... ON CONFLICT DO UPDATE count + 1 RETURNING count (values: key, windowStart).
+    if (sql.includes("RateLimitBucket") && sql.includes("INSERT")) {
+      const k = `${String(values[0])}|${new Date(values[1] as Date).getTime()}`;
+      const n = (this.rateBuckets.get(k) ?? 0) + 1;
+      this.rateBuckets.set(k, n);
+      return [{ count: n }];
     }
     throw new Error("fake-db: unsupported raw query");
   }

@@ -1,11 +1,16 @@
 import { keywordsForMetadata } from "@/lib/seo-keywords";
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
-import { Cormorant, Manrope, Noto_Serif_Bengali } from "next/font/google";
+import {
+  Cormorant,
+  Manrope,
+  Noto_Serif_Bengali,
+} from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "@/app/providers";
 import { siteConfig } from "@/config/site";
 import { AnalyticsRoot } from "@/lib/analytics/analytics-scripts";
+import { AttributionCapture } from "@/lib/analytics/attribution-capture";
 import { getStoreSettings } from "@/server/services/admin-settings.service";
 import { getCanonicalOrigin } from "@/server/services/seo.service";
 import { readableForeground } from "@/lib/color-contrast";
@@ -47,10 +52,6 @@ export async function generateMetadata(): Promise<Metadata> {
   const image = settings.ogImageUrl
     ? [{ url: settings.ogImageUrl }]
     : undefined;
-
-  const facebookDomainVerification =
-    process.env.NEXT_PUBLIC_FACEBOOK_DOMAIN_VERIFICATION?.trim() || "";
-
   return {
     metadataBase: new URL(origin),
     title: {
@@ -60,17 +61,8 @@ export async function generateMetadata(): Promise<Metadata> {
     description,
     keywords: keywordsForMetadata(settings.seoKeywords),
     icons: settings.faviconUrl ? { icon: settings.faviconUrl } : undefined,
-    robots: {
-      index: !settings.seoDefaultNoIndex,
-      follow: !settings.seoDefaultNoFollow,
-    },
-    ...(facebookDomainVerification
-      ? {
-          other: {
-            "facebook-domain-verification": facebookDomainVerification,
-          },
-        }
-      : {}),
+    // Site-wide default; a global "noindex" switch applies to every page that does not set its own robots.
+    robots: { index: !settings.seoDefaultNoIndex, follow: !settings.seoDefaultNoFollow },
     openGraph: {
       type: "website",
       title: ogTitle,
@@ -80,10 +72,7 @@ export async function generateMetadata(): Promise<Metadata> {
       images: image,
     },
     twitter: {
-      card:
-        settings.ogImageUrl && settings.seoTwitterCard !== "summary"
-          ? "summary_large_image"
-          : "summary",
+      card: settings.ogImageUrl && settings.seoTwitterCard !== "summary" ? "summary_large_image" : "summary",
       title: ogTitle,
       description: ogDescription,
       images: settings.ogImageUrl ? [settings.ogImageUrl] : undefined,
@@ -102,8 +91,7 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const settings = await getStoreSettings();
-  const ga4Id = settings.gtmId || null;
-  const gtmId = process.env.NEXT_PUBLIC_GTM_ID || null;
+  const trackingId = settings.gtmId || process.env.NEXT_PUBLIC_GTM_ID || null;
   const pixelId =
     settings.metaPixelId || process.env.NEXT_PUBLIC_META_PIXEL_ID || null;
   const tiktokId = settings.tiktokPixelId || null;
@@ -135,12 +123,13 @@ export default async function RootLayout({
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <AnalyticsRoot
           consentMode={settings.consentMode}
-          ga4Id={ga4Id}
-          gtmId={gtmId}
+          trackingId={trackingId}
           pixelId={pixelId}
           tiktokId={tiktokId}
           linkedinId={linkedinId}
         />
+
+        <AttributionCapture consentMode={settings.consentMode} />
 
         <Providers>
           {children}

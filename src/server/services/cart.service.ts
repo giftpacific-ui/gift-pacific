@@ -1,7 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/db/prisma";
 import { getSession } from "@/lib/auth/current-user";
-import { getOrCreateGuestToken } from "@/lib/cart/guest-token";
+import { getOrCreateGuestToken, peekGuestToken } from "@/lib/cart/guest-token";
 import {
   isValidQuantity,
   maxOrderableQuantity,
@@ -134,6 +134,22 @@ export async function getOrCreateCartForCurrentVisitor() {
     include: cartInclude,
   });
   return cart;
+}
+
+/**
+ * The current visitor's cart WITHOUT creating anything (no cart row, no guest cookie). Null = this visitor has no cart yet.
+ * Used by background features (checkout progress saving) that must not create state for visitors who never added anything.
+ */
+export async function peekCurrentCartDTO(): Promise<CartDTO | null> {
+  const session = await getSession();
+  let cart: CartWithItems | null = null;
+  if (session) {
+    cart = await prisma.cart.findUnique({ where: { userId: session.sub }, include: cartInclude });
+  } else {
+    const guestToken = await peekGuestToken();
+    if (guestToken) cart = await prisma.cart.findUnique({ where: { guestToken }, include: cartInclude });
+  }
+  return cart ? toCartDTO(cart) : null;
 }
 
 export async function getCurrentCartDTO(): Promise<CartDTO> {

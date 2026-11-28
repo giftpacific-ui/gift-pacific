@@ -46,3 +46,16 @@ export function logServerWarning(context: string, message: string, extra?: Recor
 export function logServerError(context: string, error: unknown, extra?: Record<string, string | number | boolean | null>) {
   console.error(JSON.stringify(formatServerError(context, error, extra)));
 }
+
+/** Operational (non-error) event, e.g. a courier API call outcome. Same rules as above: never customer data, never secrets. */
+export function logServerInfo(context: string, message: string, extra?: Record<string, string | number | boolean | null>) {
+  console.info(
+    JSON.stringify({
+      level: "info",
+      time: new Date().toISOString(),
+      context,
+      message: message.replace(/[\u0000-\u001f\u007f]+/g, " ").slice(0, MAX_MESSAGE),
+      ...(extra ? { extra } : {}),
+    }),
+  );
+}

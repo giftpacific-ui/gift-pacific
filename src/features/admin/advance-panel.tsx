@@ -43,7 +43,9 @@ export type AdvancePanelProps = {
       explanation: string;
       insufficientEvidence: boolean;
   fraudCheck: PanelFraud | null;
-  recheck: (PanelFraud & { score: number; tier: string; byId: string; insufficientEvidence: boolean; reasons: string[] }) | null;
+  recheck: (PanelFraud & { score: number | null; tier: string; byId: string; insufficientEvidence: boolean; reasons: string[] }) | null;
+      /** Per-courier evidence frozen at checkout (orders from P6 on). */
+      courier?: { model: string; state: string; rate: number | null; sample: number; providers: string[] } | null;
     } | null;
     waived: { byId: string; reason: string; at?: Date | string | null } | null;
     payments: Pay[];
@@ -120,7 +122,7 @@ export function AdvancePanel({
       } else toast.error(r.message ?? "Failed");
     });
 
-  if (data.advanceRequired <= 0 && data.trustScore === null) return null;
+  if (data.advanceRequired <= 0 && data.trustScore === null && !data.trust) return null;
   return (
     <Card>
       <CardHeader>
@@ -132,12 +134,14 @@ export function AdvancePanel({
           verified received <strong>{formatPrice(data.advancePaid)}</strong> ·
           balance due on delivery <strong>{formatPrice(data.remaining)}</strong>
         </p>
-        {data.trustScore !== null && (
+        {(data.trustScore !== null || data.trust) && (
           <div className="rounded-lg bg-secondary/50 p-3">
             <p className="font-medium">
-              Trust score {data.trustScore}/100
+              {data.trust?.courier?.model === "courier-rate-v2"
+                ? (data.trustScore !== null ? `Courier delivery success rate ${data.trust.courier.rate ?? data.trustScore}%` : "Unrated: no reliable courier history")
+                : (data.trustScore !== null ? `Trust score ${data.trustScore}/100 (older points model)` : "Unrated")}
               {data.trust?.needsReview ? " — review before dispatch" : ""}
-              {data.trust?.insufficientEvidence ? " (no fraud-check record)" : ""}
+              {data.trust?.insufficientEvidence ? " (evidence insufficient)" : ""}
             </p>
             <ul className="list-disc pl-5 text-xs text-muted-foreground">
               {(data.trust?.reasons ?? []).map((r) => (
@@ -146,7 +150,7 @@ export function AdvancePanel({
             </ul>
             <div className="mt-2 space-y-2">
               <p className="text-xs">
-                <strong>Phone checked:</strong> {data.phone ?? "not available"} · <strong>Score:</strong> {data.trustScore}/100 ·{" "}
+                <strong>Phone checked:</strong> {data.phone ?? "not available"} · <strong>Rate:</strong> {data.trustScore === null ? "unrated" : `${data.trustScore}%`} ·{" "}
                 <strong>Risk tier:</strong> {data.trust?.tier ?? "n/a"}
               </p>
               {data.trust?.fraudCheck ? (
@@ -163,7 +167,7 @@ export function AdvancePanel({
                 <>
                   <FraudFacts fc={data.trust.recheck} label="Latest recheck" />
                   <p className="text-xs">
-                    Recheck score {data.trust.recheck.score}/100 ({data.trust.recheck.tier} tier). It does not change the advance, a waiver or the review flag: use the actions below to act on it.
+                    Recheck {data.trust.recheck.score === null ? "unrated" : `rate ${data.trust.recheck.score}%`} ({data.trust.recheck.tier} tier). It does not change the advance, a waiver or the review flag: use the actions below to act on it.
                   </p>
                 </>
               )}
@@ -184,8 +188,9 @@ export function AdvancePanel({
           </div>
         )}
         <p className="text-[11px] text-muted-foreground">
-          The trust score is a rule-based heuristic (higher = more confidence in
-          successful fulfilment). It is not a probability or a fraud verdict.
+          For orders from P6 on, the figure is the courier delivery success rate (delivered ÷ delivered + cancelled), used only with enough parcels and
+          couriers; earlier orders show the old points model. It is a rule, not a probability or a fraud verdict. The per-courier report is in the
+          courier history section of this page.
         </p>
         {data.blockedReason && (
           <p

@@ -44,7 +44,11 @@ export function LoginForm() {
         );
         return;
       }
-      toast.success("Welcome back!");
+      toast.success(
+        result.linkedProvider
+          ? `Welcome back! Your ${result.linkedProvider === "GOOGLE" ? "Google" : "Facebook"} account is now connected - you can use it to sign in next time.`
+          : "Welcome back!",
+      );
       const redirect = safeRedirectPath(searchParams.get("redirect"), "/account");
       router.push(redirect);
       router.refresh();

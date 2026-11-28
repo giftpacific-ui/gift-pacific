@@ -29,16 +29,28 @@ export async function updateOrderStatusAction(
 
 export async function updateOrderTrackingAction(
   orderId: string,
-  data: { courierName?: string; trackingNumber?: string; trackingUrl?: string },
+  data: { courierName?: string; trackingNumber?: string; trackingUrl?: string; provider?: string | null; consignmentId?: string },
 ): Promise<AdminActionResult> {
   const admin = await requireAdmin();
   try {
-    // Manual fallback entry. URL safety + "not while API-booked" are enforced in the service.
-    await saveManualCourier(orderId, data, { adminId: admin.id });
+    // Manual courier booking (also the way to record Pathao / RedX parcels, which have no adapter). The courier key, the consignment id,
+    // URL safety, "not while API-booked" and duplicate-consignment checks are all enforced in the service, never trusted from here.
+    await saveManualCourier(
+      orderId,
+      {
+        courierName: typeof data?.courierName === "string" ? data.courierName : undefined,
+        trackingNumber: typeof data?.trackingNumber === "string" ? data.trackingNumber : undefined,
+        trackingUrl: typeof data?.trackingUrl === "string" ? data.trackingUrl : undefined,
+        provider: typeof data?.provider === "string" ? data.provider : null,
+        consignmentId: typeof data?.consignmentId === "string" ? data.consignmentId : undefined,
+      },
+      { adminId: admin.id },
+    );
   } catch (error) {
     return { success: false, message: toUserMessage(error, "Could not save tracking info.") };
   }
   revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/courier");
   return { success: true };
 }
 

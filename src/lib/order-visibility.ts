@@ -6,6 +6,9 @@ export const ORDER_INTERNAL_FIELDS = [
   // our advance/fraud scoring, staff waiver/review decisions
   "trustScore", "trustSnapshot", "advanceWaivedById", "advanceWaivedReason", "advanceWaivedAt",
   "trustReviewRequired", "trustReviewedById", "trustReviewedAt", "trustReviewNote",
+  // fraud-risk evaluation, identity-matching keys, the checkout idempotency key and fraud-review decisions (P4): admin-only
+  "phoneNorm", "emailNorm", "addressKey", "checkoutKey", "riskScore", "riskLevel", "riskAssessedAt", "riskAssessmentId",
+  "riskReviewRequired", "riskReviewDecision", "riskReviewedLevel", "riskReviewedById", "riskReviewedAt", "riskReviewReason",
   // third-party / settlement bookkeeping
   "settlementStatus", "settledAt", "externalOrderRef", "externalPlacedAt",
 ] as const;

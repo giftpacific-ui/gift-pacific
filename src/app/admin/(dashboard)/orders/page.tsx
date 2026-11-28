@@ -46,7 +46,7 @@ export default async function AdminOrdersPage({
 
       <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter by courier booking">
         <span className="text-xs text-muted-foreground">Courier:</span>
-        {[["", "All"], ["NOT_BOOKED", "Not booked"], ["BOOKED", "Booked"], ["FAILED", "Failed"], ["UNCERTAIN", "Uncertain"], ["MANUAL", "Manual"]].map(([value, label]) => {
+        {[["", "All"], ["NOT_BOOKED", "Not booked"], ["BOOKING", "Booking"], ["BOOKED", "Booked"], ["FAILED", "Failed"], ["UNCERTAIN", "Uncertain"], ["MANUAL", "Manual"]].map(([value, label]) => {
           const params = new URLSearchParams();
           if (sp.status) params.set("status", sp.status);
           if (sp.channel) params.set("channel", sp.channel);

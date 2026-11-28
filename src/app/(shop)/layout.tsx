@@ -1,3 +1,4 @@
+import { HomeOnly } from "@/components/layout/home-only";
 import { AnnouncementBar } from "@/components/layout/announcement-bar";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
@@ -12,8 +13,12 @@ export default async function ShopLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [session, popupBanners] = await Promise.all([getSession(), getActiveBanners("POPUP")]);
+  const [session, popupBanners] = await Promise.all([
+    getSession(),
+    getActiveBanners("POPUP"),
+  ]);
   const popup = popupBanners[0];
+
   return (
     <>
       <a
@@ -22,7 +27,9 @@ export default async function ShopLayout({
       >
         Skip to content
       </a>
-      <AnnouncementBar />
+      <HomeOnly>
+        <AnnouncementBar />
+      </HomeOnly>
       <Navbar />
       <MobileBottomNav isSignedIn={!!session} />
       <main id="main-content" className="flex-1 bg-secondary">

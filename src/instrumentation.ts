@@ -1,5 +1,6 @@
 import { logServerError, logServerWarning } from "@/lib/logger";
 import { findProductionConfigProblems } from "@/lib/production-checks";
+import { redactUnsubscribePath } from "@/lib/email/unsubscribe-path";
 
 /** Runs once when the server starts: logs production misconfigurations (never the secret values). */
 export async function register() {
@@ -22,7 +23,8 @@ export async function onRequestError(
 ) {
   logServerError("unhandled-request-error", error, {
     method: request.method,
-    path: request.path.split("?")[0].slice(0, 200),
+    // The unsubscribe link's token is the last path segment: never write it to the log (Prompt 11).
+    path: redactUnsubscribePath(request.path.split("?")[0]).slice(0, 200),
     routeType: context.routeType ?? null,
     routePath: context.routePath ?? null,
   });

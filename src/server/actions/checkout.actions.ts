@@ -4,14 +4,10 @@ import { prisma } from "@/lib/db/prisma";
 import { quoteAdvance } from "@/server/services/advance.service";
 import { getSession } from "@/lib/auth/current-user";
 import { checkoutSchema, type CheckoutInput } from "@/lib/validations/checkout";
-import { placeOrder } from "@/server/services/order.service";
+import { processCheckout, type CheckoutResult } from "@/server/services/checkout-flow.service";
 import { validateCoupon } from "@/server/services/coupon.service";
 import { getCurrentCartDTO } from "@/server/services/cart.service";
 import { getAllDeliveryCharges } from "@/server/services/delivery.service";
-import { getStoreSettings } from "@/server/services/admin-settings.service";
-import { snapshotOrderAttribution } from "@/server/services/order-attribution.service";
-import { toUserMessage } from "@/lib/errors";
-import { setConfirmationCookie } from "@/server/confirmation";
 
 export async function getDeliveryChargesAction() {
   return getAllDeliveryCharges();
@@ -27,57 +23,15 @@ export async function getAdvanceQuoteAction(zone: string): Promise<{ required: n
   return { required: q.decision.required, instructions: q.decision.required > 0 ? q.settings.instructions : null };
 }
 
-export type CheckoutActionState =
-  // The confirmation token is delivered in an httpOnly cookie, never in this
-  // response or in any URL (it would leak via history, Referer and analytics).
-  | { success: true; orderNumber: string }
-  | { success: false; message: string };
+// The confirmation token is delivered in an httpOnly cookie, never in this response or in any URL (it would leak via history, Referer and analytics).
+export type CheckoutActionState = CheckoutResult;
 
 export async function submitCheckout(input: CheckoutInput): Promise<CheckoutActionState> {
   const parsed = checkoutSchema.safeParse(input);
   if (!parsed.success) {
     return { success: false, message: "Please check the form for errors." };
   }
-
-  try {
-    const order = await placeOrder({
-      email: parsed.data.email,
-      phone: parsed.data.phone,
-      shippingAddress: parsed.data.shippingAddress,
-      billingAddress: parsed.data.billingSameAsShipping
-        ? null
-        : ((parsed.data.billingAddress ?? null) as typeof parsed.data.shippingAddress | null),
-      billingSameAsShipping: parsed.data.billingSameAsShipping,
-      paymentMethod: parsed.data.paymentMethod,
-      deliveryZone: parsed.data.deliveryZone,
-      couponCode: parsed.data.couponCode || null,
-      rewardId: parsed.data.rewardId || null,
-      advanceMethod: parsed.data.advanceMethod ?? null,
-      advanceReference: parsed.data.advanceReference || null,
-      customerNote: parsed.data.customerNote || null,
-    });
-
-    await setConfirmationCookie(order.orderNumber, order.confirmationToken);
-
-    // NO Purchase event here: creating an order is not a purchase. The server Purchase is queued when the merchant CONFIRMS the
-    // order (adminUpdateOrderStatus -> tracking-event.service; policy in lib/analytics/purchase-policy.ts).
-    // What IS recorded now is the visitor's attribution and consent state, snapshotted once from first-party cookies and
-    // re-validated on the server. The order already exists: nothing in this block may turn a successful checkout into an error
-    // (a customer who sees one might order again), and snapshotOrderAttribution never throws.
-    try {
-      const settings = await getStoreSettings();
-      await snapshotOrderAttribution(order, settings.consentMode);
-    } catch {
-      // ignored on purpose
-    }
-
-    return { success: true, orderNumber: order.orderNumber };
-  } catch (error) {
-    return {
-      success: false,
-      message: toUserMessage(error, "Could not place your order. Please try again.", "checkout.place-order"),
-    };
-  }
+  return processCheckout(parsed.data);
 }
 
 export async function checkCoupon(
